@@ -250,3 +250,28 @@ test('retrying an AI greeting generation failure allows one fresh greeting after
   h.element('local-ai-retry').listeners.click();await new Promise(r=>setImmediate(r));assert.equal(calls,2);assert.equal(h.spoken.at(-1).text,'嗨，我準備好了，想先聊聊嗎？');assert.equal(h.state.playing,false);
  }finally{h.close();}
 });
+
+test('failed conversation audio retry replays actual answer with microphone retained and cannot resume the course',()=>{
+ const h=harness();try{
+  h.panel.enableListening();h.state.time=7;h.dispatch({type:'play'});ask(h,'關鍵要領');const answer=h.spoken.at(-1);answer.onerror({error:'synthesis-failed'});
+  assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.audioRetry,true);const count=h.spoken.length;
+  h.panel.prepareAudio();assert.equal(h.spoken.length,count);assert.equal(h.primers.length,0);
+  h.panel.primeAudio();assert.equal(h.spoken.at(-1).text,answer.text);assert.equal(h.spoken.length,count+1);h.spoken.at(-1).onstart();h.spoken.at(-1).onend();
+  assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.active,true);assert.equal(h.microphones,1);assert.equal(h.panel.mediaStatus.audioRetry,false);
+ }finally{h.close();}
+});
+
+test('guidance failure remains replayable after narrator suspension; seeking discards stale instructions',()=>{
+ const h=harness();try{
+  h.panel.enableListening();h.dispatch({type:'play'});const cue=h.spoken.at(-1);cue.onerror({error:'synthesis-failed'});assert.equal(h.panel.mediaStatus.audioRetry,true);
+  h.panel.primeAudio();assert.equal(h.spoken.at(-1).text,cue.text);h.spoken.at(-1).onerror({error:'synthesis-failed'});h.dispatch({type:'seek',time:20,pause:true});assert.equal(h.panel.mediaStatus.audioRetry,false);
+ }finally{h.close();}
+});
+
+test('audio failure diagnostic is copyable without answer text and remains selectable if clipboard fails',async()=>{
+ const h=harness();const original=Object.getOwnPropertyDescriptor(globalThis,'navigator');try{
+  ask(h,'關鍵要領');h.spoken.at(-1).onerror({error:'synthesis-failed'});assert.equal(h.element('audio-details').hidden,false);assert.match(h.element('audio-diagnostic').textContent,/synthesis-failed/);assert.doesNotMatch(h.element('audio-diagnostic').textContent,/不必勉強|關鍵要領/);
+  let copied;Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async text=>copied=text}}});await h.element('audio-copy').listeners.click();assert.match(copied,/recognitionAttached/);
+  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async()=>{throw new Error('blocked');}}}});await h.element('audio-copy').listeners.click();assert.equal(h.element('audio-details').open,true);assert.match(h.element('audio-copy-status').textContent,/長按/);
+ }finally{if(original)Object.defineProperty(globalThis,'navigator',original);else delete globalThis.navigator;h.close();}
+});

@@ -55,3 +55,10 @@ test('explicit greeting button stays visible after permissions until welcome com
  h.setVoice({phase:'speaking',active:true,welcomePending:true,welcoming:true});h.controller.refresh();assert.equal(h.node('coach-hello').disabled,true);
  h.setVoice({phase:'listening',active:true,welcomePending:false});h.controller.refresh();assert.equal(h.node('coach-hello').hidden,true);h.controller.dispose();
 });
+
+test('audio retry control only retries output and never restarts camera, recognition, or AI',()=>{
+ let retry=0,warm=0;const h=harness({voiceHooks:{primeAudio(){retry++;},prepareAudio(){warm++;}}});h.setVoice({phase:'error',active:true,outputBlocked:true,audioRetry:true,welcomePending:true});h.controller.refresh();
+ assert.equal(h.node('audio-retry').hidden,false);assert.equal(h.node('coach-hello').hidden,true);
+ h.events.click({target:{closest:()=>null}});assert.equal(warm,1);assert.equal(retry,0);
+ h.events.click({target:{closest:()=>true}});h.node('audio-retry').listeners.click();assert.equal(retry,1);assert.deepEqual(h.calls,['camera','voice']);h.controller.dispose();
+});

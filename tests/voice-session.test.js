@@ -109,21 +109,21 @@ test('speech with no final text asks for clarification and finishes after prompt
  h.utterances.at(-1).onend();assert.deepEqual(events,['start','end']);h.session.stop();late();assert.deepEqual(events,['start','end']);
 });
 
-test('blocked TTS preserves listening, exposes exact reason, and a gesture primes async AI speech',async()=>{
+test('blocked speech retains microphone and replays the failed AI answer audibly on explicit retry',async()=>{
  let resolve;const audio=[],h=harness({onText:()=>new Promise(r=>resolve=r),onAudioState:s=>audio.push(s)});
  h.session.enable();h.instances[0].result('問題');resolve('AI 的回答');await Promise.resolve();await Promise.resolve();
- h.utterances[0].onerror({error:'not-allowed'});assert.equal(h.session.wanted,true);assert.equal(h.session.audioBlocked,true);assert.equal(h.session.lastAudioError,'not-allowed');assert.match(audio.at(-1).message,/瀏覽器尚未允許發聲/);
- h.run(150);assert.equal(h.instances.length,1);h.session.primeAudio();const primer=h.utterances.at(-1);assert.equal(primer.volume,0);primer.onstart();primer.onend();assert.equal(h.session.audioBlocked,false);
- h.instances.at(-1).result('下一個問題');resolve('新的 AI 回答');await Promise.resolve();await Promise.resolve();assert.equal(h.utterances.at(-1).text,'新的 AI 回答');assert.equal(h.utterances.at(-1).volume,undefined);h.session.stop();
+ h.utterances[0].onerror({error:'not-allowed'});assert.equal(h.session.wanted,true);assert.equal(h.session.audioBlocked,true);assert.match(audio.at(-1).message,/重試聲音/);
+ h.session.primeAudio();assert.equal(h.utterances.length,1);assert.equal(h.session.audioBlocked,true,'warming cannot claim playback succeeded');
+ assert.equal(h.session.retryAudio(),true);const retried=h.utterances.at(-1);assert.equal(retried.text,'AI 的回答');assert.equal(retried.volume,1);retried.onstart();retried.onend();assert.equal(h.session.audioBlocked,false);assert.equal(h.instances.length,1);
+ h.instances[0].result('下一個問題');resolve('新的 AI 回答');await Promise.resolve();await Promise.resolve();assert.equal(h.utterances.at(-1).text,'新的 AI 回答');h.session.stop();
 });
-test('start and playback timeouts have separate errors; muted output never primes speech',()=>{
- const h=harness();h.session.acceptText('問題');h.run(10000);assert.equal(h.session.lastAudioError,'start-timeout');
- h.session.primeAudio();const primer=h.utterances.at(-1);primer.onstart();primer.onend();h.session.acceptText('再試');h.utterances.at(-1).onstart();h.run(60000);assert.equal(h.session.lastAudioError,'playback-timeout');h.session.stop();
- const muted=harness({audioEnabled:()=>false});muted.session.primeAudio();assert.equal(muted.utterances.length,0);assert.equal(muted.timers.size,0);muted.session.stop();
+test('start timeout retry uses browser default voice; playback timeout stays distinct and mute forbids retry',()=>{
+ const h=harness();h.session.acceptText('問題');const old=h.utterances.at(-1),lateStart=old.onstart;h.run(10000);assert.equal(h.session.lastAudioError,'start-timeout');
+ assert.equal(h.session.retryAudio(),true);const retry=h.utterances.at(-1);assert.equal(retry.voice,null);lateStart();assert.equal(h.session.speaking,false);retry.onstart();h.run(60000);assert.equal(h.session.lastAudioError,'playback-timeout');h.session.stop();
+ const muted=harness();muted.session.speak('話');muted.run(10000);muted.session.audioEnabled=()=>false;muted.session.primeAudio();assert.equal(muted.session.retryAudio(),false);assert.equal(muted.utterances.length,1);muted.session.stop();
 });
-test('silent priming is bounded and stale primer events cannot reactivate output after stop',()=>{
- const h=harness();h.session.enable();h.session.primeAudio();const primer=h.utterances.at(-1),late=primer.onstart;h.run(10000);assert.equal(h.session.lastAudioError,'prime-timeout');assert.equal(h.session.wanted,true);assert.equal(h.session.primer,null);
- h.session.primeAudio();const late2=h.utterances.at(-1).onstart;h.session.stop();late();late2();assert.equal(h.session.audioPrimed,false);assert.equal(h.timers.size,0);
+test('preparation never creates zero-volume utterances, marks readiness or adds timers',()=>{
+ const h=harness();h.session.enable();for(let i=0;i<4;i++)h.session.primeAudio();assert.equal(h.utterances.length,0);assert.equal(h.session.audioPrimed,undefined);assert.equal(h.timers.size,0);assert.equal(h.instances[0].aborted,false);h.session.stop();
 });
 test('local Chinese voice is preferred to an unavailable network voice',()=>{
  const remote={lang:'zh-TW',localService:false},local={lang:'zh-CN',localService:true};const h=harness();h.session.synthesis.getVoices=()=>[remote,local];h.session.acceptText('問題');assert.equal(h.utterances.at(-1).voice,local);h.session.stop();
@@ -155,4 +155,25 @@ test('browser-aborted recognition reconnects without cancelling coach output or 
 test('failed microphone startup during reconnect cannot leave orphan coach audio playing',()=>{
  const h=harness({Recognition:class{start(){throw new Error('not allowed');}abort(){}}});h.session.wanted=true;
  h.session.speak('歡迎',{kind:'welcome'});assert.equal(h.session.wanted,false);assert.equal(h.utterances.length,0);assert.equal(h.timers.size,0);
+});
+
+test('orphan native queue is cancelled before speech without detaching the enabled microphone',()=>{
+ const h=harness();h.session.enable();let resets=0;h.session.synthesis.pending=true;h.session.synthesis.speaking=false;
+ h.session.synthesis.cancel=()=>{resets++;h.session.synthesis.pending=false;};h.session.synthesis.speak=u=>{assert.equal(h.session.synthesis.pending,false);h.utterances.push(u);};
+ h.session.speak('你好',{kind:'welcome'});assert.equal(resets,1);assert.equal(h.instances[0].aborted,false);assert.equal(h.utterances.length,1);assert.equal(h.session.audioEvents.at(-2).event,'reset-orphan-queue');h.session.stop();
+});
+test('timeout diagnostics retain engine state, not spoken text; warming voices can safely fail',()=>{
+ const h=harness();h.session.enable();h.session.speak('私人問題的回答');h.session.synthesis.pending=true;h.session.synthesis.paused=true;h.run(10000);
+ assert.equal(h.session.lastAudioSnapshot.pending,true);assert.equal(h.session.lastAudioSnapshot.paused,true);assert.equal(h.session.lastAudioSnapshot.recognitionAttached,true);assert.equal(h.session.lastAudioSnapshot.voiceCount,1);assert.doesNotMatch(JSON.stringify(h.session.audioEvents),/私人/);
+ h.session.synthesis.getVoices=()=>{throw new Error('voice list unavailable');};h.session.primeAudio();h.session.retryAudio();assert.equal(h.utterances.at(-1).voice,null);assert.equal(h.instances.length,1);h.session.stop();
+});
+test('new user input and manual stop discard failed speech; duplicate retries do not restart pending speech',()=>{
+ const h=harness();h.session.enable();h.session.speak('舊回答');h.run(10000);h.session.retryAudio();const count=h.utterances.length;h.session.retryAudio();assert.equal(h.utterances.length,count);
+ h.session.beginInput();h.session.cancelSpeech(undefined,{preserveInput:true});assert.equal(h.session.retryAudio(),false);h.session.stop();assert.equal(h.session.failedSpeech,null);assert.equal(h.timers.size,0);
+});
+
+test('a newer text answer during blocked output replaces the retry target instead of reviving an old answer',()=>{
+ const h=harness({onText:text=>'回答：'+text});h.session.enable();h.session.speak('舊回答');h.run(10000);
+ h.instances[0].result('新問題');assert.equal(h.utterances.length,1);assert.equal(h.session.failedSpeech.text,'回答：新問題');assert.equal(h.session.inputActive,false);
+ h.session.retryAudio();assert.equal(h.utterances.at(-1).text,'回答：新問題');h.session.stop();
 });
