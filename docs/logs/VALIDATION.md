@@ -6,7 +6,7 @@
 
 - 真人相機規則結果／33 個關節、Luna 真實 rig 的 22 個關節及互動狀態接入對話／問候／口令 worker；上下文依使用者要求設為 16K。
 - `npm run check`：327 項通過，0 失敗／跳過，含實際 worker 傳輸、真人過期／關閉／切課程、真實 Luna 隱藏骨架圖層仍可取得關節、姿勢問句與六輪記憶。`npm run build` 與 `git diff --check` 通過。
-- GitHub CI／Pages 待發布確認；16K 的手機記憶體／延遲及實際回覆品質仍待實機驗證。
+- GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44955103490)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44955103038) 均成功；實作提交 `1878d53`。CI 包含真實人像／骨架 CPU 回歸；16K 的手機記憶體／延遲及實際回覆品質仍待實機驗證。
 
 ## 2026-11-22 · v0.9.16
 
