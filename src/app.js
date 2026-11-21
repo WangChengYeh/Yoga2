@@ -1,19 +1,21 @@
-import { setupDefaultMedia } from './default-media.js?v=0.9.11';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.11';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.12';
+import { setupDefaultMedia } from './default-media.js?v=0.9.12';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.12';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.11';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.11';
-import { practiceLayout } from './practice-layout.js?v=0.9.11';
-import { setupFullscreen } from './fullscreen.js?v=0.9.11';
-import { setupHumanPanel } from './human-panel.js?v=0.9.11';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.12';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.12';
+import { practiceLayout } from './practice-layout.js?v=0.9.12';
+import { setupFullscreen } from './fullscreen.js?v=0.9.12';
+import { setupHumanPanel } from './human-panel.js?v=0.9.12';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.11';
-import { prepareStandingCoach } from './rig.js?v=0.9.11';
-import { setupPosePanel } from './pose-panel.js?v=0.9.11';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.11';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.12';
+import { prepareStandingCoach } from './rig.js?v=0.9.12';
+import { setupPosePanel } from './pose-panel.js?v=0.9.12';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.12';
 
+const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
 const state = { ...createPlayback(), ready: false, powerSaving: false };
@@ -36,6 +38,7 @@ for (const [index, lesson] of LESSONS.entries()) {
 $('seek').max = COURSE_DURATION;
 $('course-total').textContent = formatTime(COURSE_DURATION);
 function dispatch(action) {
+  if(action.type!=='tick')runtimeLog.record('course',{phase:action.type});
   Object.assign(state, reducePlayback(state, action));
   if(action.type==='speed')document.querySelectorAll('[data-speed]').forEach((button)=>button.setAttribute('aria-pressed',Number(button.dataset.speed)===state.speed));
   if (state.ready) { syncPlayback(); syncTime(); }
@@ -45,6 +48,7 @@ let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0;
 let framePending = false;
 
 function showError(title, detail) {
+  runtimeLog.record('scene-error',{code:'not-ready'});
   voicePanel?.silence();
   humanPanel?.unavailable();
   coachSkeleton?.dispose();coachSkeleton=null;
@@ -152,7 +156,7 @@ async function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   $('viewport').appendChild(renderer.domElement);
   renderer.domElement.addEventListener('webglcontextlost', (event) => {
-    event.preventDefault();
+    event.preventDefault();runtimeLog.record('webgl-context-lost');
     showError('3D 畫面已暫停', '裝置暫時無法繼續顯示 3D。請重新載入後再試。');
   });
   scene = new THREE.Scene();
@@ -256,8 +260,8 @@ humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coac
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
 posePanel = setupPosePanel({ human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
-voicePanel = setupVoicePanel({ onMediaState:()=>defaultMedia?.refresh(), getState: () => state, dispatch, getPose: () => posePanel?.summary });
-setupReportPanel({endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:id=>captureReport({id,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
+voicePanel = setupVoicePanel({ onMediaState:()=>defaultMedia?.refresh(),onRuntime:(type,data)=>runtimeLog.record(type,data), getState: () => state, dispatch, getPose: () => posePanel?.summary });
+setupReportPanel({onEvent:(type,data)=>runtimeLog.record(type,data),endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({runtime:runtimeLog.diagnostics,voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 defaultMedia=setupDefaultMedia({document,camera:posePanel,voice:voicePanel,onError:()=>{ $('media-start-status').textContent='自動啟用未完成，請點擊啟用相機與語音。'; }});
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);

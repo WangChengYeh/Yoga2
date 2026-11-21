@@ -1,12 +1,12 @@
-import { APP_VERSION } from './release.js?v=0.9.11';
-import { AIGuidance } from './ai-guidance.js?v=0.9.11';
-import { LocalCoachAI } from './local-ai.js?v=0.9.11';
-import { CourseNarrator } from './guidance.js?v=0.9.11';
-import { VoiceSession } from './voice-session.js?v=0.9.11';
-import { respondToUtterance } from './voice-intents.js?v=0.9.11';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.11';
+import { APP_VERSION } from './release.js?v=0.9.12';
+import { AIGuidance } from './ai-guidance.js?v=0.9.12';
+import { LocalCoachAI } from './local-ai.js?v=0.9.12';
+import { CourseNarrator } from './guidance.js?v=0.9.12';
+import { VoiceSession } from './voice-session.js?v=0.9.12';
+import { respondToUtterance } from './voice-intents.js?v=0.9.12';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.12';
 
-export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{} }) {
+export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
   let speaking=false, mouth, speechStart=0,answering=false,narrator,conversation=null,managedPlayback=false,aiGuidance,voicePhase='off',audioBlocked=false;
@@ -15,6 +15,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   let welcomeAttempted=false,welcomeDelivered=false,welcomeCompleted=false,welcomeEngaged=false,welcomePreparing=false,welcomeSerial=0,welcomeTextReady='';
   const welcomeText='嗨，我是 Luna。今天想先聊聊，還是一起伸展？不用急，我會陪你慢慢來。';
   const ai=createAI({onState:({phase,message})=>{
+    onRuntime('ai',{phase,code:phase==='error'?ai.diagnostics?.failure?.code:'none',source:ai.diagnostics?.stage||phase});
     aiStatus.textContent=message;$('local-ai-retry').hidden=!['off','error'].includes(phase);
     $('local-ai-details').hidden=phase!=='error';
     $('local-ai-redownload').hidden=phase!=='error'||!['model','repair'].includes(ai.diagnostics?.failure?.stage);
@@ -43,6 +44,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     Recognition,Utterance:window.SpeechSynthesisUtterance,synthesis:window.speechSynthesis,
     audioEnabled:kind=>kind==='guidance'?guidanceToggle.checked:$('voice-output').checked,
     onAudioState:({blocked,message})=>{
+      onRuntime('speech',{phase:blocked?'error':'started',code:blocked?session.lastAudioError:'none'});
       audioBlocked=blocked;$('voice-audio-status').hidden=!blocked;$('voice-audio-status').textContent=message;
       $('audio-details').hidden=!blocked;if(blocked)$('audio-diagnostic').textContent=JSON.stringify(audioDiagnostic(),null,2);onMediaState();
     },
@@ -71,7 +73,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     onReply:(text,kind)=>{$('voice-reply').textContent=text;if(kind==='guidance')guidanceStatus.textContent=`${guidanceSource==='AI'?'AI 教練 · ':''}${text}`;},
     onSpeechError:kind=>{if(kind==='guidance'){narrator?.suspend();guidanceStatus.textContent='先保留帶練文字；點「重試聲音」重播這句。';}},
     onState:({phase,message,active})=>{
-      voicePhase=phase;
+      if(phase!==voicePhase)onRuntime('voice',{phase});voicePhase=phase;
       $('voice-toggle').textContent=active?'關閉聆聽':'開啟聆聽';
       $('voice-toggle').setAttribute('aria-pressed',active);
       $('voice-status').textContent=message;

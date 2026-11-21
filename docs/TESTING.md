@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.11。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.12。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -13,7 +13,7 @@ npm run test:portrait
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 276 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 289 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
@@ -35,6 +35,7 @@ npm run test:portrait
 | v0.9.6 預設媒體 | `default-media`、`voice-session`、`voice-guidance-panel` | 同步請求、不重複啟用、背景不重開、AI 一次啟用、靜音準備、播放錯誤與保留聆聽 |
 | v0.9.8 進場與對話 | `default-media`、`voice-guidance-panel`、`voice-intents`、`local-ai` | AI 啟動後生成招呼、點擊有聲重試、不重複招呼、不自動開始、標準 AI／重試、短暫對話與清除 |
 | v0.9.11 音訊復原 | `voice-session`、`voice-guidance-panel`、`default-media` | 無靜音 primer、有聲重播、預設 voice、孤兒佇列、保留 mic、過期句清理、診斷隱私與複製 |
+| v0.9.12 本機包與日誌 | `report-panel`、`runtime-log`、`fullscreen-tools` | 無後端下載、圖片省略、擷取失敗降級、同份回報、併發、Blob URL 回收、前次紀錄、去重與隱私 |
 | 真實人像（另跑） | `portrait.integration.mjs` | 實際模型去背、頭肩骨架、不補腿腳與橫直向構圖 |
 
 表中除 `.mjs` 外檔名皆以 `.test.js` 結尾。CameraSession 類別本身不會建構即請求權限；app 的 default-media 協調器明確啟動，兩層測試對應不同責任。
@@ -56,6 +57,9 @@ npm run test:portrait
 - [ ] 近距離／半身／全身、遮擋與多人；不顯示舊骨架，兩人線條可讀。
 - [ ] 全螢幕精簡、更多選單、旋轉、退出與瀏覽器返回後的啟用按鈕正常。
 - [ ] 手動關閉、切背景、離開後停止裝置；返回不自行重開。
+- [ ] 未登入且回報服務未啟用時下載 ZIP；核對相機圖／場景／版號／尺寸／聲音引擎／runtime，手機自動下載被擋仍可點「儲存 ZIP」。
+- [ ] 精簡日誌不擷取圖片／呼叫渲染，沒有相機權限或 WebGL 不可用仍可下載；完整截圖失敗可降級。
+- [ ] 閃退後重開下載精簡日誌，核對 previous／previousSessionUnclean；不能把該旗標當成 crash 或 RAM 不足的證據。
 - [ ] App 安裝就緒後，以未登入手機送出一份回報，核對實際 Issue、兩張圖片、JSON 與 ZIP。
 - [ ] 連續五分鐘記錄幀率、延遲、耗電、發熱與語音／3D 同時執行品質。
 
