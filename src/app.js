@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=m2-1';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=m4-1';
 import { prepareStandingCoach } from './rig.js?v=m2-1';
-import { setupPosePanel } from './pose-panel.js?v=m3-1';
+import { setupPosePanel } from './pose-panel.js?v=m4-1';
+import { setupVoicePanel } from './voice-panel.js?v=m4-1';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
 const state = { ...createPlayback(), ready: false, powerSaving: false };
 let activeLesson = -1;
 let posePanel;
+let voicePanel;
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
@@ -23,6 +25,7 @@ $('seek').max = COURSE_DURATION;
 $('course-total').textContent = formatTime(COURSE_DURATION);
 function dispatch(action) {
   Object.assign(state, reducePlayback(state, action));
+  if(action.type==='speed')document.querySelectorAll('[data-speed]').forEach((button)=>button.setAttribute('aria-pressed',Number(button.dataset.speed)===state.speed));
   if (state.ready) { syncPlayback(); syncTime(); }
 }
 let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0;
@@ -176,6 +179,7 @@ async function init() {
     });
     scene.add(model);
     pose = prepareStandingCoach(model);
+    voicePanel?.attachModel(model);
     state.time = 0; state.playing = false;
     setView('front');
     renderer.compile(scene, camera);
@@ -205,6 +209,7 @@ function animate(now) {
     pose(frame.localTime, frame.lesson.id);
   }
   controls.update();
+  voicePanel?.update(now);
   renderer.render(scene, camera);
 }
 document.addEventListener('visibilitychange', () => {
@@ -212,6 +217,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
 posePanel = setupPosePanel({ getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
+voicePanel = setupVoicePanel({ getState: () => state, dispatch, getPose: () => posePanel?.summary });
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);
   showError('暫時無法載入 3D 教練', '請確認網路連線，並使用支援 WebGL 2 的新版 Safari 或 Chrome，再重新載入。');

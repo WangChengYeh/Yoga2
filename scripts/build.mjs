@@ -18,5 +18,5 @@ await cp('node_modules/@mediapipe/tasks-vision/vision_bundle.mjs', 'dist/vendor/
 await cp('node_modules/@mediapipe/tasks-vision/wasm', 'dist/vendor/mediapipe/wasm', { recursive: true });
 await cp('THIRD_PARTY_ASSETS.md', 'dist/THIRD_PARTY_ASSETS.md');
 await writeFile('dist/.nojekyll', '');
-await writeFile('dist/build-info.json', JSON.stringify({ milestone: 3, three: '0.180.0', mediapipe: '0.10.32' }));
+await writeFile('dist/build-info.json', JSON.stringify({ milestone: 4, three: '0.180.0', mediapipe: '0.10.32' }));
 console.log('Built self-contained static site in dist/');

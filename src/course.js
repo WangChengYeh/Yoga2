@@ -63,6 +63,8 @@ export function reducePlayback(state, action) {
   switch (action.type) {
     case 'toggle': return { ...state, time: state.time >= COURSE_DURATION ? 0 : state.time, playing: !state.playing };
     case 'restart': return { ...state, time: 0, playing: true };
+    case 'play': return { ...state, playing: state.time < COURSE_DURATION };
+    case 'repeat': return { ...state, time: state.time >= COURSE_DURATION ? 0 : lessonStart(courseFrame(state.time).index), playing: true };
     case 'pause': return { ...state, playing: false };
     case 'seek': {
       const time = clamp(action.time, COURSE_DURATION);

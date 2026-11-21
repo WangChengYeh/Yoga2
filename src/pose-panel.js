@@ -10,9 +10,11 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving }) {
   const lightContext = lightCanvas.getContext('2d', { willReadFrequently: true });
   const filter = new FeedbackFilter();
   let key = null;
+  let summary = {valid:false,message:'',updatedAt:0};
   const getKey = () => feedbackKey(getFrame(), isPlaying());
   const clear = () => ctx?.clearRect(0, 0, overlay.width, overlay.height);
   function feedback(message, kind = 'info') {
+    summary = { valid: kind === 'observed' || kind === 'hint', message, updatedAt: performance.now() };
     $('camera-feedback').textContent = message;
     $('camera-feedback').dataset.kind = kind;
   }
@@ -78,6 +80,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving }) {
   window.addEventListener('pagehide', () => session.stop());
   return {
     get active() { return session.phase === 'active'; },
+    get summary() { return { ...summary, active: session.phase === 'active' }; },
     contextChanged() {
       const next = getKey();
       if (key !== next) {
