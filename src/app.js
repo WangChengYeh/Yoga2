@@ -1,17 +1,17 @@
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.8.3';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.8.4';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.8.3';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.8.3';
-import { practiceLayout } from './practice-layout.js?v=0.8.3';
-import { setupFullscreen } from './fullscreen.js?v=0.8.3';
-import { setupHumanPanel } from './human-panel.js?v=0.8.3';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.8.4';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.8.4';
+import { practiceLayout } from './practice-layout.js?v=0.8.4';
+import { setupFullscreen } from './fullscreen.js?v=0.8.4';
+import { setupHumanPanel } from './human-panel.js?v=0.8.4';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.8.3';
-import { prepareStandingCoach } from './rig.js?v=0.8.3';
-import { setupPosePanel } from './pose-panel.js?v=0.8.3';
-import { setupVoicePanel } from './voice-panel.js?v=0.8.3';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.8.4';
+import { prepareStandingCoach } from './rig.js?v=0.8.4';
+import { setupPosePanel } from './pose-panel.js?v=0.8.4';
+import { setupVoicePanel } from './voice-panel.js?v=0.8.4';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -39,11 +39,13 @@ function dispatch(action) {
   Object.assign(state, reducePlayback(state, action));
   if(action.type==='speed')document.querySelectorAll('[data-speed]').forEach((button)=>button.setAttribute('aria-pressed',Number(button.dataset.speed)===state.speed));
   if (state.ready) { syncPlayback(); syncTime(); }
+  voicePanel?.playbackChanged(action);
 }
 let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0;
 let framePending = false;
 
 function showError(title, detail) {
+  voicePanel?.silence();
   humanPanel?.unavailable();
   coachSkeleton?.dispose();coachSkeleton=null;
   state.playing = false;
@@ -265,7 +267,7 @@ humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;framing
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
 posePanel = setupPosePanel({ human:humanPanel, getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
 voicePanel = setupVoicePanel({ getState: () => state, dispatch, getPose: () => posePanel?.summary });
-setupReportPanel({endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:id=>captureReport({id,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
+setupReportPanel({endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:id=>captureReport({id,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);
   showError('暫時無法載入 3D 教練', '請確認網路連線，並使用支援 WebGL 2 的新版 Safari 或 Chrome，再重新載入。');

@@ -3,8 +3,8 @@ export function recognitionMessage(code) {
 }
 
 export class VoiceSession {
-  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
-    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, setTimer, clearTimer, audioEnabled });
+  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
+    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, setTimer, clearTimer, audioEnabled });
     this.wanted = false; this.epoch = 0; this.recognition = null; this.utterance = null; this.speaking = false; this.emptyTurns = 0;
     this.timers = new Set();
   }
@@ -28,7 +28,7 @@ export class VoiceSession {
     this.detachRecognition();
     const utterance=this.utterance;this.utterance=null;
     if(utterance){utterance.onstart=null;utterance.onend=null;utterance.onerror=null;this.synthesis?.cancel();}
-    this.speaking=false;this.onSpeaking(false);
+    this.speaking=false;this.speechKind=null;this.onSpeaking(false);
     if(announce)this.emit('off','語音已關閉。觸控與文字問答仍可使用。');
   }
   scheduleListen() {
@@ -81,19 +81,28 @@ export class VoiceSession {
     catch{reply='暫時無法處理這句話，請使用觸控操作。';}
     this.speak(reply);
   }
-  speak(text) {
+  cancelSpeech(kind) {
+    if(!this.utterance||(kind&&this.speechKind!==kind))return false;
+    if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
+    const utterance=this.utterance;this.utterance=null;this.speechKind=null;
+    utterance.onstart=utterance.onend=utterance.onerror=null;
+    try{this.synthesis?.cancel();}catch{/* Already stopped by the browser. */}
+    this.speaking=false;this.onSpeaking(false);this.scheduleListen();return true;
+  }
+  speak(text,{kind='reply',rate=.95}={}) {
+    if(kind==='guidance'&&this.utterance&&this.speechKind==='reply')return false;
     this.detachRecognition();
     if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
     if(this.utterance){this.utterance.onend=null;this.utterance.onerror=null;this.utterance.onstart=null;this.utterance=null;this.synthesis?.cancel();}
     this.speaking=false;this.onSpeaking(false);
-    this.onReply(text);
-    if(!this.audioEnabled()||!this.synthesis||!this.Utterance){this.emit('text','已顯示文字回覆。');this.scheduleListen();return;}
+    this.speechKind=kind;this.onReply(text,kind);
+    if(!this.audioEnabled(kind)||!this.synthesis||!this.Utterance){this.speechKind=null;this.emit('text','已顯示文字回覆。');this.scheduleListen();return;}
     const token=this.epoch,utterance=new this.Utterance(String(text));this.utterance=utterance;
-    utterance.lang='zh-TW';utterance.rate=.95;
+    utterance.lang='zh-TW';utterance.rate=Math.max(.8,Math.min(1.25,rate));
     const voices=this.synthesis.getVoices?.()||[];
     utterance.voice=voices.find((voice)=>voice.lang==='zh-TW'&&voice.localService)||voices.find((voice)=>voice.lang==='zh-TW')||voices.find((voice)=>voice.lang?.startsWith('zh'))||null;
     const current=()=>token===this.epoch&&this.utterance===utterance;
-    const fail=()=>{if(!current())return;this.stop(false);this.emit('error','語音播放失敗，已保留文字回覆；觸控操作仍可使用。');};
+    const fail=()=>{if(!current())return;const failedKind=this.speechKind;this.stop(false);this.onSpeechError(failedKind);this.emit('error','語音播放失敗，已保留文字回覆；觸控操作仍可使用。');};
     let watchdog=this.timer(fail,10000);this.speechTimer=watchdog;
     utterance.onstart=()=>{
       if(!current())return;
@@ -102,7 +111,7 @@ export class VoiceSession {
     };
     utterance.onend=()=>{
       if(!current())return;
-      this.cancelTimer(watchdog);this.speechTimer=null;this.utterance=null;this.speaking=false;this.onSpeaking(false);
+      this.cancelTimer(watchdog);this.speechTimer=null;this.utterance=null;this.speechKind=null;this.speaking=false;this.onSpeaking(false);
       this.emit('waiting','教練回覆完畢。');this.scheduleListen();
     };
     utterance.onerror=fail;

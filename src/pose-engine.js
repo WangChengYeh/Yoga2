@@ -1,8 +1,8 @@
-import { createFrameProcessor } from './pose-frame.js?v=0.8.3';
-import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.8.3';
+import { createFrameProcessor } from './pose-frame.js?v=0.8.4';
+import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.8.4';
 
 async function workerEngine(config) {
-  const worker = new Worker(new URL('./pose-worker.js?v=0.8.3', import.meta.url));
+  const worker = new Worker(new URL('./pose-worker.js?v=0.8.4', import.meta.url));
   let nextId = 0, closed = false, portraitRequested=false;
   const pending = new Map();
   const fail = () => {

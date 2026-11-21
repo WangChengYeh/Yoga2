@@ -68,3 +68,16 @@ test('hanging recognition and synthesis expire; recognizer construction/start er
     const failed=harness({Recognition});failed.session.enable();assert.equal(failed.states.at(-1).phase,'error');assert.equal(failed.session.wanted,false);
   }
 });
+test('automatic guidance uses synthesis without ever opening microphone',()=>{
+ const h=harness();h.session.speak('肩膀放鬆。',{kind:'guidance',rate:1.1});assert.equal(h.instances.length,0);assert.equal(h.utterances[0].rate,1.1);assert.equal(h.session.speechKind,'guidance');h.session.stop();
+});
+test('manual replies preempt guidance, and automatic cues cannot interrupt a reply',()=>{
+ const h=harness();h.session.speak('上舉。',{kind:'guidance'});const old=h.utterances[0],oldEnd=old.onend;h.session.acceptText('現在做什麼');assert.equal(h.cancelled,1);assert.equal(h.session.speechKind,'reply');h.session.speak('放下。',{kind:'guidance'});assert.equal(h.utterances.length,2);oldEnd();assert.equal(h.session.speechKind,'reply');assert.equal(h.session.cancelSpeech('guidance'),false);h.session.stop();
+});
+test('guidance-only cancellation preserves enabled listening, while muted replies do not block future cues',()=>{
+ const h=harness();h.session.enable();h.session.speak('換邊。',{kind:'guidance'});h.session.cancelSpeech('guidance');assert.equal(h.session.wanted,true);h.run(800);assert.equal(h.instances.length,2);h.session.stop();
+ const muted=harness({audioEnabled:kind=>kind==='guidance'});muted.session.acceptText('要領');assert.equal(muted.session.speechKind,null);muted.session.speak('自然呼吸。',{kind:'guidance'});assert.equal(muted.utterances.length,1);muted.session.stop();
+});
+test('synthesis failure reports the failed channel so guidance can stop retrying automatically',()=>{
+ const failed=[],h=harness({onSpeechError:kind=>failed.push(kind)});h.session.speak('自然呼吸。',{kind:'guidance'});h.utterances[0].onerror();assert.deepEqual(failed,['guidance']);assert.equal(h.session.utterance,null);assert.equal(h.session.speechKind,null);h.session.stop();
+});

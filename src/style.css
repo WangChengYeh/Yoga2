@@ -65,3 +65,5 @@ body.practice-fullscreen .report-notice{display:none;left:max(12px,env(safe-area
 #report-dismiss{position:absolute;top:4px;right:4px;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#e1ece4;font-size:21px}#report-dismiss[hidden]{display:none}
 body.practice-fullscreen .stage-playback{max-width:calc(100% - 24px);font-size:14px}body.practice-fullscreen .stage-playback span{max-width:none}
 body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #practice-settings #report-problem{font-size:14px;padding:9px 12px}
+
+.guidance-options{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:14px}.guidance-options label,#guidance-control{display:flex;align-items:center;gap:7px;white-space:nowrap}#guidance-toggle{width:18px;height:18px;accent-color:#1d5145}.guidance-options>span,.guidance-status{font-size:14px;color:#526d61;line-height:1.6}.guidance-status{margin:10px 0}body.practice-fullscreen #practice-settings #guidance-control{flex-basis:100%;order:-2;font-size:14px;padding:5px 0}
