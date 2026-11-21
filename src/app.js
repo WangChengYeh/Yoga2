@@ -3,11 +3,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=m2-1';
 import { prepareStandingCoach } from './rig.js?v=m2-1';
+import { setupPosePanel } from './pose-panel.js?v=m3-1';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
 const state = { ...createPlayback(), ready: false, powerSaving: false };
 let activeLesson = -1;
+let posePanel;
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
@@ -68,6 +70,7 @@ function syncTime() {
   $('phase-label').textContent = frame.complete ? '今天的練習完成了' : initial ? '站立準備' : frame.label;
   $('phase-cue').textContent = frame.complete ? '三個動作已完成，教練回到站姿。可以重播再看一次。' : initial ? '教練已正面站好，按開始進入三個動作的帶練。' : frame.cue;
   $('next-lesson').textContent = frame.complete ? '完成 · 3 / 3' : frame.index < LESSONS.length - 1 ? `下一個：${LESSONS[frame.index + 1].name}` : '最後一個動作，慢慢收回。';
+  posePanel?.contextChanged();
 }
 $('play').addEventListener('click', () => { if (state.ready) dispatch({ type: 'toggle' }); });
 $('restart').addEventListener('click', () => { if (state.ready) dispatch({ type: 'restart' }); });
@@ -194,7 +197,7 @@ function animate(now) {
   if (state.ready && state.playing) {
     dispatch({ type: 'tick', delta });
   }
-  const interval = 1000 / (state.powerSaving ? 24 : 60);
+  const interval = 1000 / (state.powerSaving ? 24 : posePanel?.active ? 30 : 60);
   if (now - lastRender < interval) return;
   lastRender = now;
   if (pose) {
@@ -208,6 +211,7 @@ document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
+posePanel = setupPosePanel({ getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);
   showError('暫時無法載入 3D 教練', '請確認網路連線，並使用支援 WebGL 2 的新版 Safari 或 Chrome，再重新載入。');

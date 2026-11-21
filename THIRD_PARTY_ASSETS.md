@@ -13,3 +13,11 @@
 - Version: 0.180.0, MIT license, copyright Three.js authors.
 - The build includes the upstream license at `dist/vendor/THREE-LICENSE.txt`.
 - The `dist/` build serves browser modules from the same origin. The root GitHub Pages entry uses the same version pinned on jsDelivr, and loads the pinned upstream character directly.
+
+## MediaPipe Tasks Vision and Pose Landmarker Lite
+
+- SDK: `@mediapipe/tasks-vision` 0.10.32, Apache-2.0; [upstream](https://github.com/google-ai-edge/mediapipe).
+- [Official Pose Landmarker documentation](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/web_js).
+- Model: Google Pose Landmarker Lite, float16, version 1, downloaded from `storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`.
+- SHA-256: `59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a`.
+- The model is excluded from Git and verified when building. GitHub Pages downloads fixed-version SDK/WASM and model resources only when the user enables observation; the self-contained build includes them locally. Camera images are not uploaded to these providers.

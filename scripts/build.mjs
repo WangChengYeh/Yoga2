@@ -13,7 +13,10 @@ await cp('node_modules/three/examples/jsm/loaders/GLTFLoader.js', 'dist/vendor/a
 await cp('node_modules/three/examples/jsm/controls/OrbitControls.js', 'dist/vendor/addons/controls/OrbitControls.js');
 await cp('node_modules/three/examples/jsm/utils/BufferGeometryUtils.js', 'dist/vendor/addons/utils/BufferGeometryUtils.js');
 await cp('node_modules/three/LICENSE', 'dist/vendor/THREE-LICENSE.txt');
+await mkdir('dist/vendor/mediapipe', { recursive: true });
+await cp('node_modules/@mediapipe/tasks-vision/vision_bundle.mjs', 'dist/vendor/mediapipe/vision_bundle.mjs');
+await cp('node_modules/@mediapipe/tasks-vision/wasm', 'dist/vendor/mediapipe/wasm', { recursive: true });
 await cp('THIRD_PARTY_ASSETS.md', 'dist/THIRD_PARTY_ASSETS.md');
 await writeFile('dist/.nojekyll', '');
-await writeFile('dist/build-info.json', JSON.stringify({ milestone: 2, three: '0.180.0' }));
+await writeFile('dist/build-info.json', JSON.stringify({ milestone: 3, three: '0.180.0', mediapipe: '0.10.32' }));
 console.log('Built self-contained static site in dist/');

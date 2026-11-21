@@ -3,4 +3,5 @@ dist/
 .DS_Store
 *.log
 public/models/*.glb
+public/models/*.task
 .openai/
