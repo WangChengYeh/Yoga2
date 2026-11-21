@@ -1,8 +1,8 @@
-import { LocalCoachAI } from './local-ai.js?v=0.9.3';
-import { CourseNarrator } from './guidance.js?v=0.9.3';
-import { VoiceSession } from './voice-session.js?v=0.9.3';
-import { respondToUtterance } from './voice-intents.js?v=0.9.3';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.3';
+import { LocalCoachAI } from './local-ai.js?v=0.9.4';
+import { CourseNarrator } from './guidance.js?v=0.9.4';
+import { VoiceSession } from './voice-session.js?v=0.9.4';
+import { respondToUtterance } from './voice-intents.js?v=0.9.4';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.4';
 
 export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options) }) {
   const $=(id)=>document.getElementById(id);
@@ -13,8 +13,10 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   const ai=createAI({onState:({phase,message})=>{
     aiStatus.textContent=message;aiToggle.checked=!['off','error'].includes(phase);
     $('local-ai-details').hidden=phase!=='error';
+    $('local-ai-redownload').hidden=phase!=='error'||!['model','repair'].includes(ai.diagnostics?.failure?.stage);
     if(phase==='error')$('local-ai-diagnostic').textContent=JSON.stringify(ai.diagnostics,null,2);
   }});
+  $('local-ai-redownload').addEventListener('click',()=>{session.stop(false);void ai.enable({reset:true});});
   $('local-ai-copy').addEventListener('click',async()=>{
     const text=JSON.stringify(ai.diagnostics,null,2);$('local-ai-diagnostic').textContent=text;
     try{await navigator.clipboard.writeText(text);$('local-ai-copy-status').textContent='診斷已複製，可貼回對話。';}

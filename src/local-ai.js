@@ -1,6 +1,6 @@
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.3';
-import { courseFrame } from './course.js?v=0.9.3';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.3';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.4';
+import { courseFrame } from './course.js?v=0.9.4';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.4';
 
 export function localAIMessages(text,state) {
   const frame=courseFrame(state.time);
@@ -13,7 +13,7 @@ export function localAIMessages(text,state) {
 // No worker, library, weights, GPU request or storage access before opt-in.
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.3',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.4',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;
   }
@@ -40,7 +40,7 @@ export class LocalCoachAI {
     });
     try{return await checked;}finally{this.clearTimer(timer);if(this.cancelGPU===cancel)this.cancelGPU=null;}
   }
-  async enable(){
+  async enable({reset=false}={}){
     this.disable();const generation=this.generation;
     this.diagnostics={environment:aiEnvironment(),stage:'environment',events:[]};this.record('environment');
     if(!this.gpu){this.fail(globalThis.isSecureContext===false?'INSECURE_CONTEXT':'WEBGPU_UNAVAILABLE',new Error('navigator.gpu is unavailable'),'environment');return;}
@@ -60,6 +60,9 @@ export class LocalCoachAI {
       worker.onmessage=({data})=>{
         if(!current())return;
         if(data.type==='stage'){this.record(data.stage);if(this.phase==='loading')this.emit('loading',`正在${AI_STAGE_NAMES[data.stage]||data.stage}…`);}
+        if(data.type==='model-info')this.diagnostics.model={id:data.modelId,cacheBackend:data.cacheBackend};
+        if(data.type==='shard-check'){this.diagnostics.shardsChecked=(this.diagnostics.shardsChecked||0)+1;this.diagnostics.lastShard=data.result;}
+        if(data.type==='recovery'){this.diagnostics.recovery=data.info;this.diagnostics.failedResource=null;}
         if(data.type==='resource-error')this.diagnostics.failedResource=data.resource;
         if(data.type==='progress'&&data.detail)this.diagnostics.lastProgress=data.detail;
         if(data.type==='progress'&&this.phase==='loading')this.emit('loading',`正在下載／載入本機 AI：${Math.round(Math.max(0,Math.min(1,Number(data.progress)||0))*100)}%`);
@@ -71,7 +74,7 @@ export class LocalCoachAI {
           this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');pending.resolve(text||null);
         }
       };
-      worker.postMessage({type:'load',half:adapter.features.has('shader-f16')});
+      worker.postMessage({type:'load',half:adapter.features.has('shader-f16'),...(reset?{reset:true}:{})});
     }catch(error){if(generation===this.generation)this.fail(aiErrorCode(error,this.diagnostics.stage),error);}
   }
   ask(text,state){

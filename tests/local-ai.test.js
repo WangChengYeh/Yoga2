@@ -1,3 +1,4 @@
+import {loadLocalModel,checkedShardResponse} from '../src/local-ai-model.js';
 import { aiErrorDetail, aiErrorCode, cleanAIText, aiFailureMessage } from '../src/ai-diagnostics.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -54,7 +55,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
   const messages=[],reloads=[],requests=[];let fail=false;
   class Engine{constructor(options){this.options=options;this.chat={completions:{create:async request=>{requests.push(request);if(fail)throw Error('GPU lost');return {choices:[{message:{content:'自然呼吸。'}}]};}}};}async reload(...args){reloads.push(args);this.options.initProgressCallback({progress:1});}}
   const self={postMessage:m=>messages.push(m)};
-  runInNewContext(source.replace(/^import .*;\n/,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()'),{self,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(half?['shader-f16']:[])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadSDK:async()=>({MLCEngine:Engine})});
+  runInNewContext(source.replace(/^import .*;\n/gm,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()'),{self,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(half?['shader-f16']:[])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>({MLCEngine:Engine})});
   await self.onmessage({data:{type:'load',half}});assert.match(reloads[0][0],half?/q4f16_1/:/q4f32_1/);assert.equal(reloads[0][1].context_window_size,1024);assert.equal(messages.at(-1).type,'ready');
   await self.onmessage({data:{type:'ask',id:8,messages:localAIMessages('肩膀怎麼放？',{time:0})}});
   assert.equal(messages.at(-1).id,8);assert.equal(messages.at(-1).text,'自然呼吸。');assert.equal(requests[0].max_tokens,160);assert.equal(requests[0].stream,false);
@@ -65,7 +66,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.3');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.4');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -93,12 +94,12 @@ test('load timeout covers GPU check itself, preserves last stage and prevents la
 
 test('worker separately diagnoses GPU availability, SDK import failure and model allocation failure',async()=>{
  const {readFile}=await import('node:fs/promises');const {runInNewContext}=await import('node:vm');
- const source=(await readFile(new URL('../src/local-ai-worker.js',import.meta.url),'utf8')).replace(/^import .*;\n/,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()');
+ const source=(await readFile(new URL('../src/local-ai-worker.js',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()');
  for(const scenario of ['no-api','null-adapter','sdk','memory','download']){
   const sent=[],self={postMessage:m=>sent.push(m)};
   const navigator=scenario==='no-api'?{}:{gpu:{requestAdapter:async()=>scenario==='null-adapter'?null:{features:new Set(['shader-f16'])}}};
   class Engine{constructor(){ }async reload(){if(scenario==='download'){await globalFetch('https://models.test/weights.bin?token=secret');throw Error('Failed download HTTP 403');}throw Object.assign(new Error('Failed to allocate GPU buffer'),{name:'GPUOutOfMemoryError'});}}
-  let globalFetch;const context={self,navigator,URL,setTimeout,clearTimeout,aiErrorDetail,aiErrorCode,cleanAIText,loadSDK:async()=>{if(scenario==='sdk')throw new TypeError('Failed to fetch dynamically imported module');return {MLCEngine:Engine};},fetch:async()=>({ok:false,status:403})};
+  let globalFetch;const context={self,navigator,URL,setTimeout,clearTimeout,aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>{if(scenario==='sdk')throw new TypeError('Failed to fetch dynamically imported module');return {MLCEngine:Engine};},fetch:async()=>({ok:false,status:403})};
   runInNewContext(source,context);globalFetch=context.fetch;
   await self.onmessage({data:{type:'load',half:true}});const error=sent.at(-1);
   assert.equal(error.type,'error');assert.equal(error.code,({'no-api':'WORKER_GPU_UNAVAILABLE','null-adapter':'WORKER_GPU_ADAPTER_NULL',sdk:'SDK_LOAD_ERROR',memory:'GPU_MEMORY_ERROR',download:'RESOURCE_LOAD_ERROR'})[scenario]);

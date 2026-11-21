@@ -7,13 +7,13 @@
   <meta name="description" content="Yoga2 3D 瑜伽練習室：從一個伸展開始，旋轉視角，觀察女性教練的動作示範。">
   <title>Yoga2 · 3D 瑜伽練習室</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=0.9.3">
+  <link rel="stylesheet" href="./style.css?v=0.9.4">
   <script type="importmap">{"imports":{"html2canvas":"./vendor/html2canvas.esm.js","three":"./vendor/three/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
   <header class="header">
     <a class="brand" href="./" aria-label="Yoga2 首頁"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 31C7 31 5 21 7 15c8 0 13 6 13 16Zm0 0c13 0 15-10 13-16-8 0-13 6-13 16Z" stroke="currentColor" stroke-width="1.7"/><path d="M20 28c-8-7-8-13 0-20 8 7 8 13 0 20Z" stroke="currentColor" stroke-width="1.7"/></svg><span>yoga<span class="brand-number">2</span></span><i>個人練習室</i></a>
-    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.9.3</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
+    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.9.4</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
   </header>
   <main>
     <section class="intro"><div><p class="eyebrow">A LITTLE SPACE FOR YOURSELF</p><h1>慢下來，<em>回到自己。</em></h1></div><p class="intro-note">三個站姿動作，串起一段小練習。<br>跟著教練，用自己的節奏慢慢來。</p></section>
@@ -46,7 +46,7 @@
       <section id="voice-card" class="voice-card" aria-label="教練語音互動">
         <div class="voice-heading"><div><span class="eyebrow">TALK TO YOUR COACH</span><h3>說一句，教練陪你練。</h3></div><button id="voice-toggle" type="button" aria-pressed="false">開啟聆聽</button></div>
         <div class="guidance-options"><label id="guidance-control"><input id="guidance-toggle" type="checkbox" checked>帶練語音</label><span>按開始後自動播報動作與要領，不需麥克風。</span></div><p id="guidance-status" class="guidance-status" role="status" aria-live="polite">聲音會跟著上舉、換邊、收回等階段播放。</p>
-        <div id="local-ai-options" class="local-ai-options"><label><input id="local-ai-toggle" type="checkbox">AI 對話 · 0.5B（實驗）</label><p id="local-ai-status" role="status" aria-live="polite">預設關閉；基本語音指令仍可使用。</p><small>開啟才下載約 300–500 MB，模型約需 1 GB 記憶體。關閉釋放模型記憶體；下載快取可能保留。問題文字在手機處理，不傳送影像；語音辨識仍依瀏覽器服務。</small><details id="local-ai-details" hidden><summary>查看 AI 失敗診斷</summary><p>包含版號、瀏覽器、GPU 能力與錯誤，不含問答、相機圖或骨架。</p><button id="local-ai-copy" type="button">複製診斷</button><span id="local-ai-copy-status" role="status"></span><pre id="local-ai-diagnostic" tabindex="0"></pre></details></div>
+        <div id="local-ai-options" class="local-ai-options"><label><input id="local-ai-toggle" type="checkbox">AI 對話 · 0.5B（實驗）</label><p id="local-ai-status" role="status" aria-live="polite">預設關閉；基本語音指令仍可使用。</p><small>開啟才下載約 300–500 MB，模型約需 1 GB 記憶體。關閉釋放模型記憶體；下載快取可能保留。問題文字在手機處理，不傳送影像；語音辨識仍依瀏覽器服務。</small><details id="local-ai-details" hidden><summary>查看 AI 失敗診斷</summary><p>包含版號、瀏覽器、GPU 能力與錯誤，不含問答、相機圖或骨架。</p><button id="local-ai-redownload" type="button" hidden>重新下載模型</button><button id="local-ai-copy" type="button">複製診斷</button><span id="local-ai-copy-status" role="status"></span><pre id="local-ai-diagnostic" tabindex="0"></pre></details></div>
         <p class="voice-privacy">只有開啟聆聽才會使用麥克風；單純帶練口令不需要。語音服務可能由瀏覽器服務商處理；聆聽時偵測到你說話，動作與計時先暫停，回答完再接續；原本暫停或說「暫停」則保持暫停。教練說話時暫停聆聽，閒置會自動停止。</p>
         <p id="voice-status" role="status" aria-live="polite">尚未開啟聆聽；帶練口令會在按開始後播放。</p>
         <div class="voice-dialogue"><p><span>你說</span><span id="voice-transcript">還沒收到指令</span></p><p><span>教練</span><span id="voice-reply">可以問我現在做什麼、下一個動作，或還有多久。</span></p></div>
@@ -70,8 +70,8 @@
     <section class="journey" aria-label="開發里程碑"><div><span class="eyebrow">ONE STEP AT A TIME</span><h3>我們的練習，慢慢長大。</h3></div><ol><li class="finished"><span class="step-marker">✓</span><div><strong>認識教練</strong><span>已完成</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>完整帶練</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>姿勢觀察</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>語音互動</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>版號更新</strong><span>點版號更新</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>角色升級</strong><span>Luna 教練</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>真人入場</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>AI 骨架</strong><span>已交付</span></div></li><li class="current"><span class="step-marker">08</span><div><strong>除錯回報</strong><span>專用 App 代送</span></div></li></ol></section>
   </main>
   <footer><span>yoga2 <i>留一點時間，給自己。</i></span><a href="https://github.com/WangChengYeh/Yoga2" target="_blank" rel="noopener">專案與製作資訊</a></footer>
-  <script type="module" src="./update-entry.js?v=0.9.3"></script>
-  <script type="module" src="./app.js?v=0.9.3"></script>
+  <script type="module" src="./update-entry.js?v=0.9.4"></script>
+  <script type="module" src="./app.js?v=0.9.4"></script>
   <script>window.setTimeout(function(){if(!window.yogaAppStarted){document.getElementById('loading-title').textContent='練習空間未能啟動';document.getElementById('loading-detail').textContent='請確認網路連線並重新整理頁面。';document.querySelector('.spinner').hidden=true;var r=document.getElementById('retry');r.hidden=false;r.onclick=function(){location.reload()};}},20000);</script>
 </body>
 </html>
