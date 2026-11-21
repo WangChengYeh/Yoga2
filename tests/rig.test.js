@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { prepareStandingCoach } from '../src/rig.js';
 
-test('real character skeleton raises both hands above head and keeps feet fixed', async () => {
+
+async function loadCharacter() {
   const original = readFileSync('public/models/michelle.glb');
   const jsonLength = original.readUInt32LE(12);
   const json = JSON.parse(original.subarray(20, 20 + jsonLength).toString());
@@ -21,32 +22,96 @@ test('real character skeleton raises both hands above head and keeps feet fixed'
   header.writeUInt32LE(jsonBytes.length, 12); header.writeUInt32LE(0x4e4f534a, 16);
   const buffer = Buffer.concat([header, jsonBytes, binChunk]);
   const gltf = await new GLTFLoader().parseAsync(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), '');
-  const model = gltf.scene;
-  // Simulate an imported asset with a different forward direction.
-  model.rotation.y = Math.PI / 2;
-  const pose = prepareStandingCoach(model);
-  const find = (suffix) => { let result; model.traverse((o) => { if (o.isBone && o.name.endsWith(suffix)) result = o; }); return result; };
-  const position = (name) => find(name).getWorldPosition(new THREE.Vector3());
-  pose(0);
-  const feet = ['LeftFoot', 'RightFoot'].map(position);
-  const neutral = ['LeftHand', 'RightHand'].map(position);
-  assert.ok(neutral.every((p) => p.y < position('Head').y));
-  assert.ok(position('Head').y > position('Hips').y);
-  const forward = position('LeftToeBase').sub(position('LeftFoot')).add(position('RightToeBase').sub(position('RightFoot')));
-  assert.ok(forward.z > 0, 'coach faces the default +Z camera');
-  assert.ok(Math.abs(forward.x) < 1e-5, 'coach faces straight ahead');
-  const standingBox = new THREE.Box3().setFromObject(model, true);
-  assert.ok(Math.abs(standingBox.min.y - .02) < .001, 'standing on the mat');
-  assert.ok(neutral.every((p) => p.y < position('Spine2').y), 'hands down at startup');
+
+  return gltf.scene;
+}
+function position(model, suffix) {
+  let bone;
+  model.traverse((object) => { if (object.isBone && object.name.endsWith(suffix)) bone = object; });
+  assert.ok(bone, `missing bone: ${suffix}`);
+  return bone.getWorldPosition(new THREE.Vector3());
+}
+function skinCenter(model, part) {
+  const sum = new THREE.Vector3(); let count = 0;
+  model.updateMatrixWorld(true);
+  model.traverse((mesh) => {
+    if (!mesh.isSkinnedMesh) return;
+    const indices = mesh.geometry.attributes.skinIndex;
+    const weights = mesh.geometry.attributes.skinWeight;
+    for (let vertex = 0; vertex < indices.count; vertex++) {
+      for (let slot = 0; slot < 4; slot++) {
+        if (mesh.skeleton.bones[indices.getComponent(vertex, slot)].name.endsWith(part) && weights.getComponent(vertex, slot) > .7) {
+          sum.add(mesh.getVertexPosition(vertex, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld));
+          count++; break;
+        }
+      }
+    }
+  });
+  assert.ok(count > 0, `${part} has actual weighted skin vertices`);
+  return sum.divideScalar(count);
+}
+
+test('startup: upright standing pose with hands below shoulders and feet on mat', async () => {
+  const model = await loadCharacter();
+  prepareStandingCoach(model);
+  for (const side of ['Left', 'Right']) {
+    assert.ok(position(model, 'Head').y - position(model, `${side}Foot`).y > 1.2, 'head must be well above feet');
+    assert.ok(position(model, `${side}Hand`).y < position(model, 'Spine2').y, 'hands rest below shoulders');
+  }
+  const box = new THREE.Box3().setFromObject(model, true);
+  assert.ok(Math.abs(box.min.y - .02) < .001, 'skin rests on the mat');
+  assert.ok(Math.abs(box.getSize(new THREE.Vector3()).y - 1.72) < .001, 'standing height is normalized');
+});
+
+test('regression: displayed head and shoes are upright, not only joint coordinates', async () => {
+  const model = await loadCharacter();
+  prepareStandingCoach(model);
+  const head = skinCenter(model, 'Head');
+  for (const side of ['Left', 'Right']) {
+    const foot = skinCenter(model, `${side}Foot`);
+    assert.ok(head.y - foot.y > 1.3, 'visible head is above visible shoes');
+    assert.ok(Math.abs(head.z - foot.z) < .25, 'visible body is not lying along depth axis');
+    assert.ok(foot.y < .15, 'visible shoes rest near the mat');
+  }
+});
+
+test('orientation: default and rotated imported assets face the front camera', async () => {
+  for (const yaw of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+    const model = await loadCharacter(); model.rotation.y = yaw;
+    prepareStandingCoach(model);
+    const forward = position(model, 'LeftToeBase').sub(position(model, 'LeftFoot'))
+      .add(position(model, 'RightToeBase').sub(position(model, 'RightFoot')));
+    assert.ok(forward.z > 0, 'feet face the +Z front camera');
+    assert.ok(Math.abs(forward.x) < 1e-5, 'no sideways default orientation');
+    assert.ok(position(model, 'Head').y - position(model, 'LeftFoot').y > 1.2, 'orientation preserves vertical stance');
+  }
+});
+
+test('animation: both hands raise above head while feet stay planted', async () => {
+  const model = await loadCharacter(); const pose = prepareStandingCoach(model);
+  const feet = ['Left', 'Right'].map((side) => position(model, `${side}Foot`));
   for (const time of [0, 3, 6, 8, 10, 13, 16]) {
     pose(time);
-    for (const [i, name] of ['LeftFoot', 'RightFoot'].entries()) assert.ok(position(name).distanceTo(feet[i]) < 1e-5);
-    if (time >= 6 && time <= 10) {
-      assert.ok(position('LeftHand').y > position('Head').y);
-      assert.ok(position('RightHand').y > position('Head').y);
+    for (const [i, side] of ['Left', 'Right'].entries()) {
+      assert.ok(position(model, `${side}Foot`).distanceTo(feet[i]) < 1e-5, 'feet remain planted');
+      if (time >= 6 && time <= 10) {
+        assert.ok(position(model, `${side}Hand`).y > position(model, 'Head').y, 'hand bone is overhead');
+        assert.ok(skinCenter(model, `${side}Hand`).y > skinCenter(model, 'Head').y, 'visible hand is overhead');
+      }
     }
     const box = new THREE.Box3().setFromObject(model, true);
-    assert.ok([...box.min, ...box.max].every(Number.isFinite));
+    assert.ok([...box.min, ...box.max].every(Number.isFinite), 'mesh bounds are finite');
+    assert.ok(box.getSize(new THREE.Vector3()).z < .7, 'body does not tip backwards during animation');
   }
-  for (const [i, name] of ['LeftHand', 'RightHand'].entries()) assert.ok(position(name).distanceTo(neutral[i]) < 1e-5);
+});
+
+test('replay and scrubbing return to the same standing skin without drift', async () => {
+  const model = await loadCharacter(); const pose = prepareStandingCoach(model);
+  const before = ['Head', 'LeftHand', 'RightHand', 'LeftFoot', 'RightFoot'].map((part) => skinCenter(model, part));
+  for (let repeat = 0; repeat < 3; repeat++) {
+    for (const time of [6, 16, 3, 10, 0]) pose(time);
+  }
+  for (const [index, part] of ['Head', 'LeftHand', 'RightHand', 'LeftFoot', 'RightFoot'].entries()) {
+    assert.ok(skinCenter(model, part).distanceTo(before[index]) < 1e-5, 'replay returns skin to the original standing pose');
+  }
 });

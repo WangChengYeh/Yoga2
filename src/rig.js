@@ -4,13 +4,13 @@ import { armAngleAt } from './motion.js';
 // Normalize the actual asset's forward direction before framing it. A camera
 // on +Z must see the face even when an imported GLB uses another forward axis.
 export function prepareStandingCoach(model) {
-  const skeletons = new Set();
   const bones = [];
   model.traverse((object) => {
-    if (object.isSkinnedMesh) skeletons.add(object.skeleton);
     if (object.isBone) bones.push(object);
   });
-  for (const skeleton of skeletons) skeleton.pose();
+  // Keep the GLB's authored local rest transforms. This asset has a rotated,
+  // scaled Character parent; Skeleton.pose() reconstructs the root from glTF
+  // inverse-bind matrices in a different space and tips the body onto its back.
   model.updateMatrixWorld(true);
   const forward = new THREE.Vector3();
   const find = (suffix) => bones.find((bone) => bone.name.endsWith(suffix));

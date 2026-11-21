@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DURATION, phaseAt, advance } from './motion.js';
-import { prepareStandingCoach } from './rig.js?v=standing-1';
+import { prepareStandingCoach } from './rig.js?v=standing-2';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
