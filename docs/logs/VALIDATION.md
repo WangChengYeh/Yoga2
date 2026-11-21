@@ -6,7 +6,7 @@
 
 - 實際讀取 v0.9.12 使用者 ZIP：diagnostics.json、camera.png、scene.png；原檔不加入 repo。去識別化旗標與相對時序 fixture 僅用於回歸。
 - `npm run check`：301 項通過，0 失敗／跳過；含首次啟用、mic 失敗保留 TTS、恢復、暫停意圖、預取抑制與相機管線資料。
-- `npm run build` 通過、素材雜湊驗證完成；CI／Pages 待提交後確認。真實包有開始／完成事件，不代表已確認喇叭音訊；也沒有足夠 crash 根因證據。
+- `npm run build` 通過、素材雜湊驗證完成；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44949950567)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44949950565) 均成功，對應實作提交 [24c7e77](https://github.com/WangChengYeh/Yoga2/commit/24c7e7780b1528bcf505f0ff88eae1004bc21de6)。CI 含獨立真實人像 CPU 回歸。真實包有開始／完成事件，不代表已確認喇叭音訊；也沒有足夠 crash 根因證據。
 
 ## 2026-11-22 · v0.9.12
 
