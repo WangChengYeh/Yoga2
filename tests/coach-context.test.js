@@ -34,3 +34,8 @@ test('live guidance requests take a fresh context snapshot without changing targ
  let got;const ai={ready:true,guide:(cue,state,sensors)=>{got={cue,state,sensors};return Promise.resolve(null);}};
  const g=new AIGuidance({ai,getState:()=>({...state,ready:true}),getContext:context,speak(){}});g.update();assert.equal(got.cue.at,10);assert.equal(got.sensors.coach.courseTime,7);assert.equal(got.sensors.human.fresh,true);g.cancel();
 });
+test('4K compresses only conversation history while 16K carries six exchanges; both keep full sensor snapshot',()=>{
+ const history=Array.from({length:12},(_,i)=>({role:i%2?'assistant':'user',content:'x'.repeat(512)}));
+ const small=localAIMessages('問題',state,history,context(),4096),large=localAIMessages('問題',state,history,context(),16384);
+ assert.equal(small.length,4);assert.equal(large.length,14);assert.equal(small[1].content.length,96);assert.equal(large[1].content.length,512);assert.equal(small.at(-1).content,large.at(-1).content);
+});

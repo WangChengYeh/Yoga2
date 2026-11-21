@@ -1,4 +1,4 @@
-import { APP_VERSION } from './release.js?v=0.9.17';
+import { APP_VERSION } from './release.js?v=0.9.18';
 const KEY='yoga2.runtime.v1',LIMIT=32;
 // Persist only allowlisted breadcrumbs, never error messages, stack, transcripts or images.
 const token=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,80}$/.test(value)?value:'unknown';
@@ -6,6 +6,7 @@ function entry(type,data,at){
  const out={at,type:token(type)};
  for(const key of ['phase','code','name','source','hint'])if(data?.[key]!=null)out[key]=token(data[key]);
  for(const key of ['line','column'])if(Number.isSafeInteger(data?.[key])&&data[key]>=0)out[key]=data[key];
+ for(const key of ['selected','loading','active'])if(data&&key in data&&[null,4096,16384].includes(data[key]))out[key]=data[key];
  return out;
 }
 export function setupRuntimeLog({win=window,doc=document,getStorage=()=>win.localStorage,now=()=>new Date().toISOString()}={}){

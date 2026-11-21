@@ -11,7 +11,7 @@ function sdkFixture(errors=[]){
 }
 test('existing Cache API entries are bypassed with official IndexedDB backend',async()=>{
  const h=sdkFixture(),engine=await loadLocalModel(h.sdk,{modelId});
- assert.equal(engine.options.appConfig.cacheBackend,'indexeddb');assert.equal(h.deletions.length,0);assert.equal(h.loads.length,1);assert.equal(h.loads[0].options.context_window_size,16384);
+ assert.equal(engine.options.appConfig.cacheBackend,'indexeddb');assert.equal(h.deletions.length,0);assert.equal(h.loads.length,1);assert.equal(h.loads[0].options.context_window_size,4096);
 });
 test('reported 68 MB record versus empty shard clears only this model and retries once',async()=>{
  const h=sdkFixture([new Error(original)]),repairs=[];const engine=await loadLocalModel(h.sdk,{modelId,recovery:r=>repairs.push(r)});
@@ -38,4 +38,7 @@ test('empty and truncated shard streams are rejected before they can be cached a
 test('valid shards stream intact and remain cloneable for SDK caching',async()=>{
  const results=[],bytes=new Uint8Array([1,2,3,4]),response=checkedShardResponse(new Response(bytes),{url:'https://model.test/params_shard_1.bin',expected:4,onResult:r=>results.push(r)});
  const clone=response.clone();assert.deepEqual(new Uint8Array(await clone.arrayBuffer()),bytes);assert.deepEqual(new Uint8Array(await response.arrayBuffer()),bytes);assert.equal(results.length,1);assert.equal(results[0].valid,true);
+});
+test('both context choices reach model reload and unsupported sizes normalize to 4K',async()=>{
+ for(const [requested,expected] of [[4096,4096],[16384,16384],[8192,4096]]){const h=sdkFixture();await loadLocalModel(h.sdk,{modelId,contextWindow:requested});assert.equal(h.loads[0].options.context_window_size,expected);}
 });

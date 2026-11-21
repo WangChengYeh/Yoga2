@@ -1,21 +1,21 @@
-import { coachContext } from './coach-context.js?v=0.9.17';
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.17';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.17';
-import { setupDefaultMedia } from './default-media.js?v=0.9.17';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.17';
+import { coachContext } from './coach-context.js?v=0.9.18';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.18';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.18';
+import { setupDefaultMedia } from './default-media.js?v=0.9.18';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.18';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.17';
-import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.17';
-import { practiceLayout } from './practice-layout.js?v=0.9.17';
-import { setupFullscreen } from './fullscreen.js?v=0.9.17';
-import { setupHumanPanel } from './human-panel.js?v=0.9.17';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.18';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.18';
+import { practiceLayout } from './practice-layout.js?v=0.9.18';
+import { setupFullscreen } from './fullscreen.js?v=0.9.18';
+import { setupHumanPanel } from './human-panel.js?v=0.9.18';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.17';
-import { prepareStandingCoach } from './rig.js?v=0.9.17';
-import { setupPosePanel } from './pose-panel.js?v=0.9.17';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.17';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.18';
+import { prepareStandingCoach } from './rig.js?v=0.9.18';
+import { setupPosePanel } from './pose-panel.js?v=0.9.18';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.18';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -162,7 +162,7 @@ async function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   $('viewport').appendChild(renderer.domElement);
   renderer.domElement.addEventListener('webglcontextlost', (event) => {
-    event.preventDefault();runtimeLog.record('webgl-context-lost');
+    event.preventDefault();runtimeLog.record('webgl-context-lost',voicePanel?.contextState);
     showError('3D 畫面已暫停', '裝置暫時無法繼續顯示 3D。請重新載入後再試。');
   });
   scene = new THREE.Scene();

@@ -141,3 +141,13 @@ v0.9.15 使用者包顯示：手動關閉／開啟辨識後各有一組有效辨
 模型 `context_window_size=16384`（16K），診斷 model.contextWindow 可查；輸出上限仍為回答 160／口令 64 tokens。最近六輪問答只留記憶體，各使用者最多 300 字元、回答最多 512 字元，清背景／停用會清空。16K 是整體上下文上限，不代表每次送滿或有無限記憶；本版仍保留 45 秒生成逾時。增加 KV 配置與實際輸入長度可能增加 RAM、GPU 與等待時間，沒有宣稱手機穩定性已驗收。
 
 支援上限來源：[MLC 官方 Qwen2.5-0.5B q4f16 設定](https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC/blob/main/mlc-chat-config.json)，`context_window_size=32768`；採用 16384。
+
+### v0.9.18 · 4K／16K 對照
+
+AI 對話教練設定新增上下文選項：4K（4096，預設）與 16K（16384）。使用獨立 localStorage key `yoga2.ai.context-window.v1` 記住選擇；儲存被拒時只保留本頁記憶體。舊版固定 16K 不會自動成為已選擇值。全螢幕原控制會移入 ⋯，沒有新增常駐文字。
+
+切換先暫停帶練、取消舊口令／回覆，終止舊 AI worker 並以新值載入，清空問答記憶；不更動相機與麥克風原本狀態。舊 worker 的延遲 ready／reply 不會恢復舊模式或課程。4K prompt 僅帶上一輪各 96 字元的精簡歷史，16K 最多六輪；兩種模式都帶完整當下可用的真人與教練骨架，不以較小上下文刪骨架。沒有暗中降級或因 GPU 上限值推算可用記憶體。
+
+`voice.contextPreference` 記錄選擇值與儲存是否成功；`voice.localAIDiagnostics.context` 分開記錄 `selected`、`loading`、`active` 與 `status`。只有收到對應 worker 的 ready，且它回報 model.contextWindow 後，active 才會有值。選擇 16K 但仍在載入／失敗時，active 仍是 null。關閉／背景釋放也清除 active。
+
+操作時間線及持久化 runtime 的 ai／ai-context 事件包含當時 selected／loading／active；webgl-context-lost 額外帶當時上下文值，方便確認掉圖發生在何種模式。前一工作階段可保留這些值；這些不是 RAM 用量量測。上一份 v0.9.17 包的 WebGL context 遺失與非正常結束只能提示資源壓力，不能單憑此確認 OOM。

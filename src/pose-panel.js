@@ -1,7 +1,7 @@
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.17';
-import { CameraSession } from './camera-session.js?v=0.9.17';
-import { createPoseEngine } from './pose-engine.js?v=0.9.17';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.17';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.18';
+import { CameraSession } from './camera-session.js?v=0.9.18';
+import { createPoseEngine } from './pose-engine.js?v=0.9.18';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.18';
 
 export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{} }) {
   const $ = (id) => document.getElementById(id);

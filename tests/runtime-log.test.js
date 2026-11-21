@@ -28,3 +28,6 @@ test('unhandled rejection only records safe error category and filename, never p
  const h=harness();h.events.unhandledrejection({type:'unhandledrejection',reason:new TypeError('user private question fetch failed')});const event=h.log.diagnostics.current.events.at(-1);
  assert.equal(event.type,'unhandled-rejection');assert.equal(event.name,'TypeError');assert.equal(event.hint,'network-text');assert.doesNotMatch(JSON.stringify(h.log.diagnostics),/private question/);h.log.dispose();
 });
+test('context mode and null active/loading survive persistent logs and previous-session restoration',()=>{
+ const h=harness();h.log.record('ai',{phase:'loading',selected:4096,loading:4096,active:null});h.log.record('ai',{phase:'ready',selected:4096,loading:null,active:4096});h.log.record('webgl-context-lost',{selected:4096,active:4096});const restored=harness(h.values.get('yoga2.runtime.v1'));assert.equal(restored.log.diagnostics.previous.events.at(-1).active,4096);assert.equal(restored.log.diagnostics.previous.events.at(-3).active,null);h.log.dispose();restored.log.dispose();
+});

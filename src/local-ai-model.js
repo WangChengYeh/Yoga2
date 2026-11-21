@@ -1,4 +1,5 @@
-export const LOCAL_AI_CONTEXT_WINDOW=16384;
+import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.18';
+export const LOCAL_AI_CONTEXT_WINDOW=DEFAULT_CONTEXT_WINDOW;
 // Only tensor/shard data errors qualify for cache repair; never retry OOM/GPU errors.
 export const invalidModelData=error=>/Tensor-cache record range .*exceeds shard size|AI_SHARD_SIZE_MISMATCH/i.test(String(error?.message||error));
 export function validateShardBytes(received,expected,url){
@@ -14,7 +15,7 @@ export function checkedShardResponse(response,{url,expected,onResult=()=>{}}){
  }));
  return new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers});
 }
-export async function loadLocalModel(sdk,{modelId,progress=()=>{},recovery=()=>{},reset=false}){
+export async function loadLocalModel(sdk,{modelId,progress=()=>{},recovery=()=>{},reset=false,contextWindow=LOCAL_AI_CONTEXT_WINDOW}){
  const appConfig={...sdk.prebuiltAppConfig,cacheBackend:'indexeddb'};
  const options={appConfig,initProgressCallback:progress};
  const clear=async()=>{try{await sdk.deleteModelAllInfoInCache(modelId,appConfig);}catch(error){throw Object.assign(new Error(`無法清除此模型快取：${error.message}`),{code:'MODEL_CACHE_ERROR',cause:error});}};
@@ -25,7 +26,7 @@ export async function loadLocalModel(sdk,{modelId,progress=()=>{},recovery=()=>{
  }
  for(let attempt=0;attempt<2;attempt++){
   const engine=new sdk.MLCEngine(options);
-  try{await engine.reload(modelId,{context_window_size:LOCAL_AI_CONTEXT_WINDOW});return engine;}
+  try{await engine.reload(modelId,{context_window_size:normalizeContextWindow(contextWindow)});return engine;}
   catch(error){
    try{await engine.unload?.();}catch{/* Worker teardown still releases failed GPU allocations. */}
    if(!invalidModelData(error))throw error;

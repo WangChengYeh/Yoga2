@@ -1,5 +1,6 @@
-import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.17';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.17';
+import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.18';
+import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.18';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.18';
 let engine,stage='worker',resource=null;const shardSizes=new Map();
 // WebLLM has one engine: serialize generations so an interrupted old turn cannot overlap a new one.
 let inferenceQueue=Promise.resolve(),activeInference=null;
@@ -42,9 +43,10 @@ self.onmessage=async({data})=>{
    if(!adapter){self.postMessage({type:'error',stage,code:'WORKER_GPU_ADAPTER_NULL',error:aiErrorDetail(new Error('Worker requestAdapter() returned null'))});return;}
    enter('sdk');
    const sdk=await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm');
+   const contextWindow=normalizeContextWindow(data.contextWindow);
    const modelId=`Qwen2.5-0.5B-Instruct-${adapter.features.has('shader-f16')?'q4f16_1':'q4f32_1'}-MLC`;
-   self.postMessage({type:'model-info',modelId,cacheBackend:'indexeddb',contextWindow:LOCAL_AI_CONTEXT_WINDOW});enter('model');
-   engine=await loadLocalModel(sdk,{modelId,reset:Boolean(data.reset),progress:report=>self.postMessage({type:'progress',progress:report.progress,detail:cleanAIText(report.text||'')}),recovery:info=>{
+   self.postMessage({type:'model-info',modelId,cacheBackend:'indexeddb',contextWindow});enter('model');
+   engine=await loadLocalModel(sdk,{modelId,contextWindow,reset:Boolean(data.reset),progress:report=>self.postMessage({type:'progress',progress:report.progress,detail:cleanAIText(report.text||'')}),recovery:info=>{
     resource=null;enter('repair');self.postMessage({type:'recovery',info:{...info,reason:cleanAIText(info.reason)}});
    }});
    self.postMessage({type:'ready'});
