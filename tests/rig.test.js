@@ -87,7 +87,7 @@ test('orientation: default and rotated imported assets face the front camera', a
   }
 });
 
-test('animation: both hands raise above head while feet stay planted', async () => {
+test('reach skin: both hands raise above head while feet stay planted', async () => {
   const model = await loadCharacter(); const pose = prepareStandingCoach(model);
   const feet = ['Left', 'Right'].map((side) => position(model, `${side}Foot`));
   for (const time of [0, 3, 6, 8, 10, 13, 16]) {
@@ -102,6 +102,53 @@ test('animation: both hands raise above head while feet stay planted', async () 
     const box = new THREE.Box3().setFromObject(model, true);
     assert.ok([...box.min, ...box.max].every(Number.isFinite), 'mesh bounds are finite');
     assert.ok(box.getSize(new THREE.Vector3()).z < .7, 'body does not tip backwards during animation');
+  }
+});
+
+test('side skin: torso bends to both sides, hands follow it, feet remain planted', async () => {
+  const model = await loadCharacter(); const pose = prepareStandingCoach(model);
+  const feet = ['LeftFoot', 'RightFoot'].map((part) => skinCenter(model, part));
+  const initialHead = skinCenter(model, 'Head');
+  pose(10, 'side'); const rightHead = skinCenter(model, 'Head');
+  pose(22, 'side'); const leftHead = skinCenter(model, 'Head');
+  assert.ok(rightHead.x < initialHead.x - .07, 'visible head leans to coach right');
+  assert.ok(leftHead.x > initialHead.x + .07, 'visible head leans to coach left');
+  assert.ok(Math.abs((rightHead.x - initialHead.x) + (leftHead.x - initialHead.x)) < .001, 'both sides are symmetric');
+  for (const time of [0, 4, 8, 12, 16, 20, 24, 28, 32]) {
+    pose(time, 'side');
+    for (const [index, part] of ['LeftFoot', 'RightFoot'].entries()) assert.ok(skinCenter(model, part).distanceTo(feet[index]) < 1e-5);
+    if (time >= 4 && time <= 28) {
+      for (const hand of ['LeftHand', 'RightHand']) assert.ok(skinCenter(model, hand).y > skinCenter(model, 'Head').y, 'visible arms remain overhead');
+    }
+    assert.ok(skinCenter(model, 'Head').y - feet[0].y > 1.2, 'torso remains upright');
+  }
+});
+
+test('open skin: hands spread sideways and slightly back without moving feet or head', async () => {
+  const model = await loadCharacter(); const pose = prepareStandingCoach(model);
+  const head = skinCenter(model, 'Head');
+  const feet = ['LeftFoot', 'RightFoot'].map((part) => skinCenter(model, part));
+  pose(10, 'open');
+  const left = skinCenter(model, 'LeftHand'), right = skinCenter(model, 'RightHand');
+  assert.ok(left.x > .5 && right.x < -.5, 'visible hands extend to either side');
+  assert.ok(Math.abs(left.y - right.y) < .05, 'arms stay level');
+  assert.ok(left.z < head.z && right.z < head.z, 'hands open slightly behind torso');
+  assert.ok(skinCenter(model, 'Head').distanceTo(head) < 1e-5, 'chest opening does not tip the head backwards');
+  for (const time of [0, 3, 6, 10, 14, 17, 20]) {
+    pose(time, 'open');
+    for (const [index, part] of ['LeftFoot', 'RightFoot'].entries()) assert.ok(skinCenter(model, part).distanceTo(feet[index]) < 1e-5);
+  }
+});
+
+test('transitions: all three displayed skins return to the same neutral standing pose', async () => {
+  const model = await loadCharacter(); const pose = prepareStandingCoach(model);
+  const parts = ['Head', 'LeftHand', 'RightHand', 'LeftFoot', 'RightFoot'];
+  const neutral = parts.map((part) => skinCenter(model, part));
+  for (const [movement, duration] of [['reach', 16], ['side', 32], ['open', 20]]) {
+    pose(duration / 2, movement); pose(duration, movement);
+    for (const [index, part] of parts.entries()) assert.ok(skinCenter(model, part).distanceTo(neutral[index]) < 1e-5, `${movement} ends neutral`);
+    pose(0, movement);
+    for (const [index, part] of parts.entries()) assert.ok(skinCenter(model, part).distanceTo(neutral[index]) < 1e-5, `${movement} begins neutral`);
   }
 });
 

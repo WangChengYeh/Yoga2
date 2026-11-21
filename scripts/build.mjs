@@ -15,5 +15,5 @@ await cp('node_modules/three/examples/jsm/utils/BufferGeometryUtils.js', 'dist/v
 await cp('node_modules/three/LICENSE', 'dist/vendor/THREE-LICENSE.txt');
 await cp('THIRD_PARTY_ASSETS.md', 'dist/THIRD_PARTY_ASSETS.md');
 await writeFile('dist/.nojekyll', '');
-await writeFile('dist/build-info.json', JSON.stringify({ milestone: 1, three: '0.180.0' }));
+await writeFile('dist/build-info.json', JSON.stringify({ milestone: 2, three: '0.180.0' }));
 console.log('Built self-contained static site in dist/');

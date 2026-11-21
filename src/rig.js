@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { armAngleAt } from './motion.js';
+import { motionAt } from './course.js?v=m2-1';
 
 // Normalize the actual asset's forward direction before framing it. A camera
 // on +Z must see the face even when an imported GLB uses another forward axis.
@@ -40,6 +40,8 @@ export function makeStretchPose(model) {
   model.traverse((o) => { if (o.isBone) bones.push(o); });
   const rest = new Map(bones.map((b) => [b, b.quaternion.clone()]));
   const find = (suffix) => bones.find((b) => b.name.endsWith(suffix));
+  const spine = ['Spine', 'Spine1', 'Spine2'].map(find);
+  if (spine.some((bone) => !bone)) throw new Error('Model is missing the required spine bones');
   const arms = ['Left', 'Right'].map((side, i) => {
     const arm = find(`${side}Arm`), forearm = find(`${side}ForeArm`), hand = find(`${side}Hand`);
     if (!arm || !forearm || !hand) throw new Error('Model is missing the required arm bones');
@@ -59,12 +61,21 @@ export function makeStretchPose(model) {
     bone.updateWorldMatrix(false, true);
   }
   const target = new THREE.Vector3();
-  return (time) => {
+  const bendAxis = new THREE.Vector3(0, 0, 1);
+  return (time, movement = 'reach') => {
     for (const [bone, q] of rest) bone.quaternion.copy(q);
     model.updateMatrixWorld(true);
-    const angle = armAngleAt(time);
+    const { armAngle: angle, lean, depth } = motionAt(movement, time);
+    for (const bone of spine) {
+      bone.getWorldQuaternion(worldQ);
+      correction.setFromAxisAngle(bendAxis, lean / spine.length);
+      worldQ.premultiply(correction);
+      bone.parent.getWorldQuaternion(parentQ).invert();
+      bone.quaternion.copy(parentQ.multiply(worldQ)).normalize();
+      bone.updateWorldMatrix(false, true);
+    }
     for (const { arm, forearm, hand, sign } of arms) {
-      target.set(sign * Math.sin(angle), -Math.cos(angle), 0.06).normalize();
+      target.set(sign * Math.sin(angle), -Math.cos(angle), depth).normalize().applyAxisAngle(bendAxis, lean);
       aim(arm, forearm, target);
       aim(forearm, hand, target);
     }

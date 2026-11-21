@@ -1,12 +1,28 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DURATION, phaseAt, advance } from './motion.js';
-import { prepareStandingCoach } from './rig.js?v=standing-2';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=m2-1';
+import { prepareStandingCoach } from './rig.js?v=m2-1';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
-const state = { ready: false, playing: false, time: 0, speed: 1, powerSaving: false };
+const state = { ...createPlayback(), ready: false, powerSaving: false };
+let activeLesson = -1;
+const lessonButtons = [];
+for (const [index, lesson] of LESSONS.entries()) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.disabled = true;
+  button.innerHTML = `<span class="lesson-number">${index + 1}</span><span class="lesson-item-name">${lesson.name}</span><span class="lesson-length">${formatTime(lesson.duration)}</span>`;
+  button.setAttribute('aria-label', `選擇${lesson.name}`);
+  button.addEventListener('click', () => dispatch({ type: 'seek', time: lessonStart(index), pause: true }));
+  $('lesson-list').appendChild(button); lessonButtons.push(button);
+}
+$('seek').max = COURSE_DURATION;
+$('course-total').textContent = formatTime(COURSE_DURATION);
+function dispatch(action) {
+  Object.assign(state, reducePlayback(state, action));
+  if (state.ready) { syncPlayback(); syncTime(); }
+}
 let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0;
 let framePending = false;
 
@@ -20,40 +36,45 @@ function showError(title, detail) {
   $('retry').hidden = false;
   $('playback-status').textContent = '尚未就緒';
   for (const id of ['play', 'restart', 'seek']) $(id).disabled = true;
+  lessonButtons.forEach((button) => { button.disabled = true; });
 }
 $('retry').addEventListener('click', () => location.reload());
 
 function syncPlayback() {
   $('play-icon').textContent = state.playing ? 'Ⅱ' : '▶';
-  $('play-label').textContent = state.playing ? '暫停示範' : state.time >= DURATION ? '再看一次' : state.time > 0 ? '繼續播放' : '播放示範';
-  $('playback-status').textContent = state.playing ? '示範播放中' : state.time >= DURATION ? '示範完成' : state.time > 0 ? '已暫停' : '準備就緒';
+  $('play-label').textContent = state.playing ? '暫停課程' : state.time >= COURSE_DURATION ? '再練一次' : state.time > 0 ? '繼續課程' : '開始帶練';
+  $('playback-status').textContent = state.playing ? '帶練中' : state.time >= COURSE_DURATION ? '課程完成' : state.time > 0 ? '已暫停' : '準備就緒';
 }
 function syncTime() {
+  const frame = courseFrame(state.time);
   $('seek').value = state.time;
-  $('elapsed').textContent = `00:${String(Math.floor(state.time)).padStart(2, '0')}`;
-  const phase = phaseAt(state.time);
-  $('phase-label').textContent = state.time === 0 && !state.playing ? '站立準備' : phase.label;
-  $('phase-cue').textContent = state.time === 0 && !state.playing ? '教練已正面站好，按播放開始示範。' : phase.cue;
+  $('elapsed').textContent = formatTime(Math.floor(state.time));
+  $('course-remaining').textContent = formatTime(COURSE_DURATION - state.time);
+  $('movement-remaining').textContent = formatTime(frame.remaining);
+  $('lesson-count').textContent = `${frame.index + 1} / ${LESSONS.length}`;
+  if (activeLesson !== frame.index) {
+    activeLesson = frame.index;
+    $('lesson-title').textContent = frame.lesson.name;
+    $('lesson-english').textContent = frame.lesson.english;
+    $('lesson-description').textContent = frame.lesson.description;
+    $('lesson-duration').textContent = `${frame.lesson.duration} 秒`;
+  }
+  lessonButtons.forEach((button, index) => {
+    if (index === frame.index) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+    button.classList.toggle('done', index < frame.index || frame.complete);
+  });
+  const initial = state.time === 0 && !state.playing;
+  $('phase-label').textContent = frame.complete ? '今天的練習完成了' : initial ? '站立準備' : frame.label;
+  $('phase-cue').textContent = frame.complete ? '三個動作已完成，教練回到站姿。可以重播再看一次。' : initial ? '教練已正面站好，按開始進入三個動作的帶練。' : frame.cue;
+  $('next-lesson').textContent = frame.complete ? '完成 · 3 / 3' : frame.index < LESSONS.length - 1 ? `下一個：${LESSONS[frame.index + 1].name}` : '最後一個動作，慢慢收回。';
 }
-$('play').addEventListener('click', () => {
-  if (!state.ready) return;
-  if (state.time >= DURATION) state.time = 0;
-  state.playing = !state.playing;
-  syncPlayback(); syncTime();
-});
-$('restart').addEventListener('click', () => {
-  if (!state.ready) return;
-  state.time = 0; state.playing = true;
-  syncPlayback(); syncTime();
-});
-$('seek').addEventListener('input', (event) => {
-  state.time = Number(event.target.value);
-  if (state.time >= DURATION) state.playing = false;
-  syncPlayback(); syncTime();
-});
+$('play').addEventListener('click', () => { if (state.ready) dispatch({ type: 'toggle' }); });
+$('restart').addEventListener('click', () => { if (state.ready) dispatch({ type: 'restart' }); });
+$('seek').addEventListener('input', (event) => { if (state.ready) dispatch({ type: 'seek', time: Number(event.target.value) }); });
 for (const button of document.querySelectorAll('[data-speed]')) {
   button.addEventListener('click', () => {
-    state.speed = Number(button.dataset.speed);
+    dispatch({ type: 'speed', speed: Number(button.dataset.speed) });
     document.querySelectorAll('[data-speed]').forEach((b) => b.setAttribute('aria-pressed', b === button));
   });
 }
@@ -158,6 +179,7 @@ async function init() {
     state.ready = true;
     $('loading').hidden = true;
     for (const id of ['play', 'restart', 'seek']) $(id).disabled = false;
+    lessonButtons.forEach((button) => { button.disabled = false; });
     syncPlayback(); syncTime();
     console.info(`Yoga2: model ready in ${((performance.now() - started) / 1000).toFixed(2)}s`);
   } finally { clearTimeout(timeout); }
@@ -167,23 +189,24 @@ function animate(now) {
   framePending = true;
   requestAnimationFrame((time) => { framePending = false; animate(time); });
   if (document.hidden) { lastFrame = now; return; }
-  const delta = lastFrame ? Math.min((now - lastFrame) / 1000, .1) : 0;
+  const delta = lastFrame ? Math.max(0, (now - lastFrame) / 1000) : 0;
   lastFrame = now;
   if (state.ready && state.playing) {
-    state.time = advance(state.time, delta, state.speed);
-    if (state.time >= DURATION) { state.playing = false; syncPlayback(); }
-    syncTime();
+    dispatch({ type: 'tick', delta });
   }
   const interval = 1000 / (state.powerSaving ? 24 : 60);
   if (now - lastRender < interval) return;
   lastRender = now;
-  if (pose) pose(state.time);
+  if (pose) {
+    const frame = courseFrame(state.time);
+    pose(frame.localTime, frame.lesson.id);
+  }
   controls.update();
   renderer.render(scene, camera);
 }
 document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
-  if (document.hidden && state.playing) { state.playing = false; syncPlayback(); }
+  if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);

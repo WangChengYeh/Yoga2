@@ -7,16 +7,16 @@
   <meta name="description" content="Yoga2 3D 瑜伽練習室：從一個伸展開始，旋轉視角，觀察女性教練的動作示範。">
   <title>Yoga2 · 3D 瑜伽練習室</title>
   <link rel="icon" href="./public/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./src/style.css">
+  <link rel="stylesheet" href="./src/style.css?v=m2-1">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head>
 <body>
   <header class="header">
     <a class="brand" href="./" aria-label="Yoga2 首頁"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 31C7 31 5 21 7 15c8 0 13 6 13 16Zm0 0c13 0 15-10 13-16-8 0-13 6-13 16Z" stroke="currentColor" stroke-width="1.7"/><path d="M20 28c-8-7-8-13 0-20 8 7 8 13 0 20Z" stroke="currentColor" stroke-width="1.7"/></svg><span>yoga<span class="brand-number">2</span></span><i>個人練習室</i></a>
-    <span class="version">初次見面 <span>·</span> 第一版</span>
+    <span class="version">三個動作 <span>·</span> 第二版</span>
   </header>
   <main>
-    <section class="intro"><div><p class="eyebrow">A LITTLE SPACE FOR YOURSELF</p><h1>慢下來，<em>回到自己。</em></h1></div><p class="intro-note">認識你的 3D 教練。<br>先從一個簡單的伸展開始。</p></section>
+    <section class="intro"><div><p class="eyebrow">A LITTLE SPACE FOR YOURSELF</p><h1>慢下來，<em>回到自己。</em></h1></div><p class="intro-note">三個站姿動作，串起一段小練習。<br>跟著教練，用自己的節奏慢慢來。</p></section>
     <div class="workspace">
       <section class="studio" aria-label="3D 教練互動畫面">
         <div class="studio-top"><span class="pill"><span class="live-dot"></span>3D 練習空間</span><button id="quality" class="text-button" type="button" aria-pressed="false">省電模式</button></div>
@@ -29,21 +29,21 @@
         <p class="gesture-hint"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9-3 3 3 3m12-6 3 3-3 3M3 12h18" stroke="currentColor" stroke-width="1.5"/></svg>拖曳旋轉 · 雙指縮放</p>
       </section>
       <aside class="lesson">
-        <div class="lesson-heading"><span class="eyebrow">MEET YOUR PRACTICE</span><span class="outline-pill">動作預覽</span></div>
-        <h2>站姿上舉伸展</h2><p class="english-name">Standing arm stretch</p>
-        <div class="lesson-meta"><span>入門</span><span>16 秒示範</span><span>站姿</span></div>
-        <p class="lesson-description">跟著教練，觀察雙臂緩緩上舉、停留，再放下的動作。</p>
+        <div class="lesson-heading"><span class="eyebrow">MEET YOUR PRACTICE</span><span class="outline-pill">順序帶練 <b id="lesson-count">1 / 3</b></span></div>
+        <h2 id="lesson-title">站姿上舉伸展</h2><p id="lesson-english" class="english-name">Standing arm stretch</p>
+        <div class="lesson-meta"><span>入門</span><span id="lesson-duration">16 秒</span><span>站姿</span></div>
+        <p id="lesson-description" class="lesson-description">跟著教練，觀察雙臂緩緩上舉、停留，再放下的動作。</p>
         <div class="cue-card"><span class="cue-icon" aria-hidden="true">✧</span><div><span id="phase-label">準備開始</span><p id="phase-cue">點擊播放，先看看完整動作。</p></div></div>
-        <div class="timeline"><div class="time-label"><span id="playback-status" role="status" aria-live="polite">等待角色載入</span><span><b id="elapsed">00:00</b> / 00:16</span></div><label class="sr-only" for="seek">示範進度</label><input id="seek" type="range" min="0" max="16" step="0.01" value="0" disabled></div>
-        <div class="playback"><button id="play" class="primary-button" type="button" disabled><span id="play-icon" aria-hidden="true">▶</span><span id="play-label">播放示範</span></button><button id="restart" class="restart-button" type="button" aria-label="從頭重播" disabled>↺</button></div>
+        <div class="remaining-row"><span>動作剩餘 <b id="movement-remaining">00:16</b></span><span>課程剩餘 <b id="course-remaining">01:08</b></span></div><div class="timeline"><div class="time-label"><span id="playback-status" role="status" aria-live="polite">等待角色載入</span><span><b id="elapsed">00:00</b> / <span id="course-total">01:08</span></span></div><label class="sr-only" for="seek">課程進度</label><input id="seek" type="range" min="0" max="68" step="0.01" value="0" disabled></div>
+        <div class="playback"><button id="play" class="primary-button" type="button" disabled><span id="play-icon" aria-hidden="true">▶</span><span id="play-label">開始帶練</span></button><button id="restart" class="restart-button" type="button" aria-label="從頭重播整段課程" disabled>↺</button></div>
         <div class="speed-row"><span>播放速度</span><div role="group" aria-label="播放速度"><button data-speed="0.5" type="button" aria-pressed="false">0.5×</button><button data-speed="1" type="button" aria-pressed="true">1×</button><button data-speed="1.5" type="button" aria-pressed="false">1.5×</button></div></div>
-        <details class="tips"><summary>怎麼使用這個練習室？<span aria-hidden="true">＋</span></summary><p>用一根手指拖曳畫面來旋轉角色，雙指縮放。也可以直接切換正面、側面與背面；播放時仍可調整視角。</p><p>這是角色動作原型，尚未經教練校正。此版本不會開啟攝影機或麥克風。</p></details>
+        <div class="course-outline"><div class="course-outline-heading"><strong>今天的三個動作</strong><span>1× 約 1 分 8 秒</span></div><div id="lesson-list" class="lesson-list" role="group" aria-label="選擇課程動作"></div><p id="next-lesson">下一個：左右側伸展</p></div><details class="tips"><summary>怎麼使用這個練習室？<span aria-hidden="true">＋</span></summary><p>用一根手指拖曳畫面來旋轉角色，雙指縮放。也可以直接切換正面、側面與背面；帶練時仍可調整視角。點選動作清單可跳到該動作並暫停預覽；變速會同步調整動畫與課程計時。</p><p>這是角色動作原型，尚未經教練校正。此版本不會開啟攝影機或麥克風。</p></details>
       </aside>
     </div>
-    <section class="journey" aria-label="開發里程碑"><div><span class="eyebrow">ONE STEP AT A TIME</span><h3>我們的練習，慢慢長大。</h3></div><ol><li class="current"><span class="step-marker">01</span><div><strong>認識教練</strong><span>目前版本</span></div></li><li><span class="step-marker">02</span><div><strong>完整帶練</strong><span>接下來</span></div></li><li><span class="step-marker">03</span><div><strong>姿勢觀察</strong><span>規劃中</span></div></li><li><span class="step-marker">04</span><div><strong>語音互動</strong><span>規劃中</span></div></li></ol></section>
+    <section class="journey" aria-label="開發里程碑"><div><span class="eyebrow">ONE STEP AT A TIME</span><h3>我們的練習，慢慢長大。</h3></div><ol><li class="finished"><span class="step-marker">✓</span><div><strong>認識教練</strong><span>已完成</span></div></li><li class="current"><span class="step-marker">02</span><div><strong>完整帶練</strong><span>目前版本</span></div></li><li><span class="step-marker">03</span><div><strong>姿勢觀察</strong><span>規劃中</span></div></li><li><span class="step-marker">04</span><div><strong>語音互動</strong><span>規劃中</span></div></li></ol></section>
   </main>
   <footer><span>yoga2 <i>留一點時間，給自己。</i></span><a href="https://github.com/WangChengYeh/Yoga2" target="_blank" rel="noopener">專案與製作資訊</a></footer>
-  <script type="module" src="./src/app.js?v=standing-2"></script>
+  <script type="module" src="./src/app.js?v=m2-1"></script>
   <script>window.setTimeout(function(){if(!window.yogaAppStarted){document.getElementById('loading-title').textContent='練習空間未能啟動';document.getElementById('loading-detail').textContent='請確認網路連線並重新整理頁面。';document.querySelector('.spinner').hidden=true;var r=document.getElementById('retry');r.hidden=false;r.onclick=function(){location.reload()};}},20000);</script>
 </body>
 </html>
