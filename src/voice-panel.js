@@ -18,6 +18,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     $('local-ai-details').hidden=phase!=='error';
     $('local-ai-redownload').hidden=phase!=='error'||!['model','repair'].includes(ai.diagnostics?.failure?.stage);
     if(phase==='error')$('local-ai-diagnostic').textContent=JSON.stringify(ai.diagnostics,null,2);
+    if(phase==='ready')queueMicrotask(()=>welcome());
   }});
   $('local-ai-redownload').addEventListener('click',()=>{aiGuidance.cancel({clearCache:true});session.cancelSpeech();void ai.enable({reset:true});});
   $('local-ai-copy').addEventListener('click',async()=>{
@@ -81,12 +82,12 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   function startAI(){if(['off','error'].includes(ai.phase)){aiGuidance.cancel({clearCache:true});void ai.enable();}}
   $('local-ai-retry').addEventListener('click',startAI);
   function welcome({gesture=false}={}){
-    if(document.hidden||welcomeDelivered||welcomeEngaged||getState().playing||conversation||session.inputActive||!$('voice-output').checked||session.speechKind&&session.speechKind!=='welcome')return false;
-    if(welcomeAttempted&&!gesture)return false;
+    if(!ai.ready||document.hidden||welcomeDelivered||welcomeEngaged||getState().playing||conversation||session.inputActive||!$('voice-output').checked||session.speechKind&&session.speechKind!=='welcome')return false;
+    if(welcomeAttempted&&!gesture&&!audioBlocked)return false;
     if(session.speechKind==='welcome')session.cancelSpeech('welcome');
     welcomeAttempted=true;session.speak(welcomeText,{kind:'welcome',retry:gesture});return true;
   }
-  function activateAudio(){if(!welcome({gesture:true}))session.primeAudio();}
+  function activateAudio(){if(!ai.ready){session.primeAudio();return;}if(!welcome({gesture:true}))session.primeAudio();}
   guidanceToggle.addEventListener('change',()=>{narrator.setEnabled(guidanceToggle.checked,getState());if(!guidanceToggle.checked)guidanceStatus.textContent='帶練語音已關閉。';});
   if(!Recognition){$('voice-toggle').disabled=true;$('voice-status').textContent='此瀏覽器不支援語音辨識，仍可使用按鈕或輸入問題。';}
   $('voice-toggle').addEventListener('click',()=>{if(session.wanted){welcomeEngaged=true;session.stop();}else {session.enable();activateAudio();}});
