@@ -6,7 +6,7 @@
 
 - 操作／課程／語音狀態與每秒身體骨架加入本機除錯時間線，不新增影音擷取。
 - `npm run check`：312 項通過，0 失敗／跳過；`npm run build` 通過，`git diff --check` 通過。
-- GitHub CI／Pages 待發布後確認；尚無新版實機驗收。
+- GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44952447453)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44952446644) 均成功，實作提交 `de700291414ab6a47009b467887a1747e54ca101`；CI 含真實人像／骨架 CPU 回歸。尚無新版實機驗收。
 
 ## 2026-11-22 · v0.9.14
 
