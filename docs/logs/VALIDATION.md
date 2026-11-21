@@ -6,7 +6,7 @@
 
 - 讀取第二份使用者 v0.9.13 ZIP 與 scene.png。確認語音事件與相機結果更新，截圖含下載介面遮擋；未由包內證據定位 crash。
 - `npm run check`：308 項通過，0 失敗／跳過；含麥克風事件／計數、無內容、回音／手動區分、晚到及截圖 clone。
-- `npm run build` 通過、素材雜湊驗證完成；CI／Pages 待提交後確認。尚未取得新版手機收音事件。
+- `npm run build` 通過、素材雜湊驗證完成；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44951500143)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44951499536) 均成功，對應實作提交 [761d269](https://github.com/WangChengYeh/Yoga2/commit/761d2693b503f565dbaeafdf11d825a2638c22c7)。CI 含獨立真實人像 CPU 回歸。尚未取得新版手機收音事件。
 
 ## 2026-11-22 · v0.9.13
 
