@@ -195,7 +195,7 @@ test('blocked arrival speech retries audibly on a gesture without requiring cour
 test('a person can interrupt welcome; a late welcome event cannot start practice or greet again',async()=>{
  const h=readyGreetingHarness();try{
   h.panel.enableListening();await Promise.resolve();const greeting=h.spoken.at(-1),late=greeting.onend;greeting.onstart();const r=h.recognitions[0];
-  recognitionResult(r,'你好',false);assert.equal(h.panel.diagnostics.speaking,false);recognitionResult(r,'你好');assert.match(h.spoken.at(-1).text,/嗨，我在這裡/);
+  recognitionResult(r,'你好',false);assert.equal(h.panel.diagnostics.speaking,false);recognitionResult(r,'你好');await Promise.resolve();assert.match(h.spoken.at(-1).text,/嗨，我在這裡/);
   late();assert.equal(h.state.playing,false);h.spoken.at(-1).onend();h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.state.playing,false);
   recognitionResult(r,'準備好了');assert.equal(h.state.playing,false);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
  }finally{h.close();}
