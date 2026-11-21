@@ -128,3 +128,17 @@ test('auto-pause preserves the fresh pre-pause observation for posture questions
  let h;h=harness(undefined,()=>h.state.playing?{active:true,valid:true,message:'雙手已上舉。',updatedAt:performance.now()}:{active:true,valid:false});
  try{h.dispatch({type:'play'});ask(h,'我的姿勢如何');assert.equal(h.state.playing,false);assert.match(h.spoken.at(-1).text,/雙手已上舉/);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);}finally{h.close();}
 });
+
+test('AI writes automatic coaching cues; a live question cancels cue generation and retains pause/resume behavior',async()=>{
+ const requests=[];let pending;
+ const ai={phase:'ready',diagnostics:{},get ready(){return this.phase==='ready';},get pending(){return pending;},guide(cue){this.phase='thinking';return new Promise(resolve=>{pending={kind:'guidance',resolve};requests.push({kind:'guidance',cue,resolve});});},ask(text){this.phase='thinking';return new Promise(resolve=>{pending={kind:'reply',resolve};requests.push({kind:'reply',text,resolve});});},cancelGuidance(){if(pending?.kind==='guidance'){pending.resolve(null);pending=null;this.phase='ready';}},disable(){pending?.resolve(null);pending=null;this.phase='off';}};
+ const h=harness(()=>ai);
+ try{
+  h.element('local-ai-toggle').checked=true;h.dispatch({type:'play'});assert.equal(requests[0].kind,'guidance');assert.equal(h.spoken.length,0);
+  ai.phase='ready';pending=null;requests[0].resolve('雙手輕輕舉高，肩膀放鬆。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'雙手輕輕舉高，肩膀放鬆。');assert.equal(h.panel.diagnostics.guidanceSource,'AI');
+  h.spoken.at(-1).onend();h.panel.update(100);assert.equal(requests.at(-1).cue.key,'reach:6');const stale=requests.at(-1);
+  ask(h,'關鍵要領');assert.equal(h.state.playing,false);assert.equal(requests.at(-1).kind,'reply');
+  stale.resolve('肩膀放鬆，保持自然呼吸。');const answer=requests.at(-1);ai.phase='ready';pending=null;answer.resolve('手臂放鬆，不必勉強。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'手臂放鬆，不必勉強。');assert.equal(h.state.playing,false);
+  h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
+ }finally{h.close();}
+});

@@ -1,6 +1,7 @@
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.4';
-import { courseFrame } from './course.js?v=0.9.4';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.4';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.5';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.5';
+import { courseFrame } from './course.js?v=0.9.5';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.5';
 
 export function localAIMessages(text,state) {
   const frame=courseFrame(state.time);
@@ -13,7 +14,7 @@ export function localAIMessages(text,state) {
 // No worker, library, weights, GPU request or storage access before opt-in.
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.4',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.5',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;
   }
@@ -67,7 +68,7 @@ export class LocalCoachAI {
         if(data.type==='progress'&&data.detail)this.diagnostics.lastProgress=data.detail;
         if(data.type==='progress'&&this.phase==='loading')this.emit('loading',`正在下載／載入本機 AI：${Math.round(Math.max(0,Math.min(1,Number(data.progress)||0))*100)}%`);
         if(data.type==='ready'){this.record('ready');this.clearPending();this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');}
-        if(data.type==='error'){if(data.resource)this.diagnostics.failedResource=data.resource;this.fail(data.code||aiErrorCode(data.error,data.stage),data.error,data.stage||this.diagnostics.stage);return;}
+        if(data.type==='error'){if(data.id&&data.id!==this.pending?.id)return;if(data.resource)this.diagnostics.failedResource=data.resource;this.fail(data.code||aiErrorCode(data.error,data.stage),data.error,data.stage||this.diagnostics.stage);return;}
         if(data.type==='reply'&&this.pending?.id===data.id){
           const pending=this.pending;this.pending=null;this.clearPending();
           const text=String(data.text||'').trim().slice(0,240);
@@ -77,14 +78,24 @@ export class LocalCoachAI {
       worker.postMessage({type:'load',half:adapter.features.has('shader-f16'),...(reset?{reset:true}:{})});
     }catch(error){if(generation===this.generation)this.fail(aiErrorCode(error,this.diagnostics.stage),error);}
   }
+  cancelGuidance(){
+    if(this.pending?.kind!=='guidance')return;
+    const pending=this.pending;this.pending=null;this.clearPending();pending.resolve(null);
+    try{this.worker?.postMessage({type:'cancel-guidance',id:pending.id});}catch{/* stale worker */}
+    this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');
+  }
   ask(text,state){
+    this.cancelGuidance();return this.request(localAIMessages(text,state),'reply');
+  }
+  guide(cue,state){return this.request(guidanceMessages(cue,state),'guidance');}
+  request(messages,kind){
     if(!this.ready||this.pending)return Promise.resolve(null);
     const id=++this.serial;this.record('inference');this.diagnostics.failedResource=null;
-    this.emit('thinking','AI 正在想，基本控制仍可使用。');
+    this.emit('thinking',kind==='guidance'?'AI 正在準備帶練口令。':'AI 正在想，基本控制仍可使用。');
     return new Promise(resolve=>{
-      this.pending={id,resolve};
+      this.pending={id,resolve,kind};
       this.timer=this.setTimer(()=>this.fail('INFERENCE_TIMEOUT',new Error('Generation exceeded 45000 ms')),45000);
-      try{this.worker.postMessage({type:'ask',id,messages:localAIMessages(text,state)});}catch(error){this.fail('WORKER_MESSAGE_ERROR',error);}
+      try{this.worker.postMessage({type:'ask',id,kind,messages});}catch(error){this.fail('WORKER_MESSAGE_ERROR',error);}
     });
   }
 }

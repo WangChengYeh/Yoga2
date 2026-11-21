@@ -66,7 +66,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.4');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.5');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -125,4 +125,13 @@ test('GPU checking is bounded to ten seconds and cannot create late workers afte
  h.timers.get(10000)();await enabling;assert.equal(h.ai.phase,'error');assert.equal(h.ai.diagnostics.failure.code,'GPU_CHECK_TIMEOUT');assert.equal(h.ai.diagnostics.failure.stage,'adapter');assert.equal(h.timers.size,0);
  resolve({features:new Set()});await Promise.resolve();assert.equal(h.workers.length,0);
  h.ai.gpu.requestAdapter=async()=>({features:new Set()});await h.ai.enable();assert.equal(h.workers.length,1);h.ai.disable();
+});
+
+test('user question preempts AI guidance, stale completion/error cannot steal the newer reply',async()=>{
+ const {guidanceAt}=await import('../src/guidance.js');const h=harness();await h.ai.enable();h.ready();const w=h.workers[0];
+ const guidance=h.ai.guide(guidanceAt(0),{time:0});const first=w.messages.at(-1);assert.equal(first.kind,'guidance');
+ const reply=h.ai.ask('手要怎麼放？',{time:0});const second=w.messages.at(-1);assert.equal(await guidance,null);assert.equal(w.messages.at(-2).type,'cancel-guidance');assert.equal(second.kind,'reply');
+ w.onmessage({data:{type:'error',id:first.id,stage:'inference',error:{message:'cancelled'}}});assert.equal(h.ai.phase,'thinking');
+ w.onmessage({data:{type:'reply',id:first.id,text:'舊口令'}});assert.equal(h.ai.phase,'thinking');
+ w.onmessage({data:{type:'reply',id:second.id,text:'保持自然呼吸。'}});assert.equal(await reply,'保持自然呼吸。');h.ai.disable();
 });

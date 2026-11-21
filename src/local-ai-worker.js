@@ -1,6 +1,6 @@
-import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.4';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.4';
-let engine,stage='worker',resource=null,redactions=[];const shardSizes=new Map();
+import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.5';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.5';
+let engine,stage='worker',resource=null;const shardSizes=new Map();
 const enter=value=>{stage=value;self.postMessage({type:'stage',stage});};
 // Record only failed resource locations/status, never request bodies or URL queries.
 if(globalThis.fetch){
@@ -23,6 +23,8 @@ if(globalThis.fetch){
  };
 }
 self.onmessage=async({data})=>{
+ let redactions=[];
+ if(data.type==='cancel-guidance'){try{engine?.interruptGenerate?.();}catch{/* Already finished */}return;}
  try{
   if(data.type==='load'){
    resource=null;enter('workerGpu');
@@ -41,9 +43,9 @@ self.onmessage=async({data})=>{
    self.postMessage({type:'ready'});
   }else if(data.type==='ask'&&engine){
    resource=null;redactions=(data.messages||[]).flatMap(m=>[m.content,String(m.content||'').split('使用者問題：')[1]]).filter(Boolean);enter('inference');
-   const result=await engine.chat.completions.create({messages:data.messages,max_tokens:160,temperature:.3,stream:false});
+   const result=await engine.chat.completions.create({messages:data.messages,max_tokens:data.kind==='guidance'?64:160,temperature:.3,stream:false});
    self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||''});
   }
- }catch(error){self.postMessage({type:'error',stage,code:aiErrorCode(error,stage,resource),error:aiErrorDetail(error,redactions),resource});}
+ }catch(error){self.postMessage({type:'error',...(data.type==='ask'?{id:data.id}:{}),stage,code:aiErrorCode(error,stage,resource),error:aiErrorDetail(error,redactions),resource});}
  finally{redactions=[];}
 };
