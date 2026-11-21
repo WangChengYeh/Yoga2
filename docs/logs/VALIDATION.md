@@ -6,7 +6,7 @@
 
 - 讀取使用者 v0.9.15 除錯包，確認兩次手動重開辨識後各成功問答一輪，回答正常結束後沒有後續輸入事件；未據此斷言原生根因。
 - `npm run check`：317 項通過、0 失敗／跳過，含正式面板三輪問答與輸入連線重建、打斷、停止／失敗。`npm run build` 與 `git diff --check` 通過。
-- GitHub CI／Pages 待發布確認；iPhone 連續問答待實機驗證。
+- GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44953540327)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44953539652) 均成功；實作提交 `2d6e2ca`。CI 包含真實人像／骨架 CPU 回歸；iPhone 連續問答待實機驗證。
 
 ## 2026-11-22 · v0.9.15
 
