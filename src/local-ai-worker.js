@@ -1,6 +1,9 @@
 import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.8';
 import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.8';
 let engine,stage='worker',resource=null;const shardSizes=new Map();
+// WebLLM has one engine: serialize generations so an interrupted old turn cannot overlap a new one.
+let inferenceQueue=Promise.resolve(),activeInference=null;
+const cancelledInference=new Set();
 const enter=value=>{stage=value;self.postMessage({type:'stage',stage});};
 // Record only failed resource locations/status, never request bodies or URL queries.
 if(globalThis.fetch){
@@ -24,7 +27,11 @@ if(globalThis.fetch){
 }
 self.onmessage=async({data})=>{
  let redactions=[];
- if(data.type==='cancel-guidance'||data.type==='cancel-reply'){try{engine?.interruptGenerate?.();}catch{/* Already finished */}return;}
+ if(data.type==='cancel-guidance'||data.type==='cancel-reply'){
+  if(Number.isInteger(data.id))cancelledInference.add(data.id);
+  if(activeInference===data.id)try{engine?.interruptGenerate?.();}catch{/* Already finished */}
+  return;
+ }
  try{
   if(data.type==='load'){
    resource=null;enter('workerGpu');
@@ -43,8 +50,19 @@ self.onmessage=async({data})=>{
    self.postMessage({type:'ready'});
   }else if(data.type==='ask'&&engine){
    resource=null;redactions=(data.messages||[]).flatMap(m=>[m.content,String(m.content||'').split('使用者問題：')[1]]).filter(Boolean);enter('inference');
-   const result=await engine.chat.completions.create({messages:data.messages,max_tokens:data.kind==='guidance'?64:160,temperature:.3,stream:false});
-   self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||''});
+   const run=async()=>{
+    if(cancelledInference.delete(data.id))return;
+    activeInference=data.id;
+    try{
+     const result=await engine.chat.completions.create({messages:data.messages,max_tokens:data.kind==='guidance'?64:160,temperature:.3,stream:false});
+     if(!cancelledInference.has(data.id))self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||''});
+    }catch(error){
+     if(!cancelledInference.has(data.id))throw error;
+    }finally{activeInference=null;cancelledInference.delete(data.id);}
+   };
+   const next=inferenceQueue.then(run);
+   inferenceQueue=next.catch(()=>{});
+   await next;
   }
  }catch(error){self.postMessage({type:'error',...(data.type==='ask'?{id:data.id}:{}),stage,code:aiErrorCode(error,stage,resource),error:aiErrorDetail(error,redactions),resource});}
  finally{redactions=[];}
