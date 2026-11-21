@@ -6,7 +6,7 @@
 
 - 依要求新增 1K 並設預設，遷移舊偏好避免自動重回 4K／16K。1K 以感知／骨架摘要縮小 prompt，完整來源留在除錯包。
 - `npm run check`：339 項通過，0 失敗／跳過；含兩種精度的三種 window、遷移、1K prompt／來源快照分離、未知值及持久化 1K 狀態。`npm run build`、`git diff --check` 通過。
-- GitHub CI／Pages 待發布確認；手機 crash 是否改善仍待實測。
+- GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44957096157)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44957095861) 均成功；實作提交 `c45d44f`。CI 含真實人像／骨架 CPU 回歸；手機 crash 是否改善仍待實測。
 
 ## 2026-11-22 · v0.9.18
 
