@@ -1,8 +1,8 @@
-import { CameraSession } from './camera-session.js?v=0.9.14';
-import { createPoseEngine } from './pose-engine.js?v=0.9.14';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.14';
+import { CameraSession } from './camera-session.js?v=0.9.15';
+import { createPoseEngine } from './pose-engine.js?v=0.9.15';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.15';
 
-export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{} }) {
+export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
   const ctx = overlay.getContext('2d');
@@ -69,6 +69,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
         }
       }
       const stable = filter.update(observation, data.context.key, now);
+      onObservation(data,observation,stable);
       feedback(stable.message, stable.kind);
     },
   });

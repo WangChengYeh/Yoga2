@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.14。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.15。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -70,3 +70,5 @@ npm run test:portrait
 - [ ] 連續五分鐘記錄幀率、延遲、耗電、發熱與語音／3D 同時執行品質。
 
 自動測試包含替身相機、語音與 GPU；真實人像 CPU 測試不等於 Safari WASM／WebGPU 或即時相機實測。離線 Blender 圖也不是手機截圖。雲端瀏覽器曾無 WebGL，無法據此完成角色渲染驗收。
+
+- `tests/activity-log.test.js`：骨架抽樣頻率／容量、隱藏關節、時間對齊、快照隔離及操作選項過濾。

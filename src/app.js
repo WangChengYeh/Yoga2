@@ -1,24 +1,28 @@
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.14';
-import { setupDefaultMedia } from './default-media.js?v=0.9.14';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.14';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.15';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.15';
+import { setupDefaultMedia } from './default-media.js?v=0.9.15';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.15';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.14';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.14';
-import { practiceLayout } from './practice-layout.js?v=0.9.14';
-import { setupFullscreen } from './fullscreen.js?v=0.9.14';
-import { setupHumanPanel } from './human-panel.js?v=0.9.14';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.15';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.15';
+import { practiceLayout } from './practice-layout.js?v=0.9.15';
+import { setupFullscreen } from './fullscreen.js?v=0.9.15';
+import { setupHumanPanel } from './human-panel.js?v=0.9.15';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.14';
-import { prepareStandingCoach } from './rig.js?v=0.9.14';
-import { setupPosePanel } from './pose-panel.js?v=0.9.14';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.14';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.15';
+import { prepareStandingCoach } from './rig.js?v=0.9.15';
+import { setupPosePanel } from './pose-panel.js?v=0.9.15';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.15';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
 const state = { ...createPlayback(), ready: false, powerSaving: false };
+const activityLog=createActivityLog({getState:()=>state});
+trackActivityControls({doc:document,log:activityLog});
+const recordActivity=(type,data)=>{runtimeLog.record(type,data);activityLog.record(type,data);};
 let activeLesson = -1;
 let posePanel;
 let voicePanel,defaultMedia;
@@ -29,7 +33,7 @@ function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dual
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
-  button.type = 'button'; button.disabled = true;
+  button.type = 'button'; button.disabled = true; button.dataset.lessonIndex=String(index);
   button.innerHTML = `<span class="lesson-number">${index + 1}</span><span class="lesson-item-name">${lesson.name}</span><span class="lesson-length">${formatTime(lesson.duration)}</span>`;
   button.setAttribute('aria-label', `選擇${lesson.name}`);
   button.addEventListener('click', () => dispatch({ type: 'seek', time: lessonStart(index), pause: true }));
@@ -38,8 +42,8 @@ for (const [index, lesson] of LESSONS.entries()) {
 $('seek').max = COURSE_DURATION;
 $('course-total').textContent = formatTime(COURSE_DURATION);
 function dispatch(action) {
-  if(action.type!=='tick')runtimeLog.record('course',{phase:action.type});
   Object.assign(state, reducePlayback(state, action));
+  if(action.type!=='tick')recordActivity('course',{phase:action.type,lesson:courseFrame(state.time).lesson.id});
   if(action.type==='speed')document.querySelectorAll('[data-speed]').forEach((button)=>button.setAttribute('aria-pressed',Number(button.dataset.speed)===state.speed));
   if (state.ready) { syncPlayback(); syncTime(); }
   voicePanel?.playbackChanged(action);
@@ -73,6 +77,7 @@ function syncPlayback() {
 }
 function syncTime() {
   const frame = courseFrame(state.time);
+  activityLog.course(frame);
   const stageText=`${frame.lesson.name} · ${formatTime(COURSE_DURATION-state.time)}`;
   if($('stage-lesson').textContent!==stageText)$('stage-lesson').textContent=stageText;
   $('seek').value = state.time;
@@ -231,6 +236,7 @@ function animate(now) {
   lastRender = now;
   if (pose) {
     const frame = courseFrame(state.time);
+  activityLog.course(frame);
     pose(frame.localTime, frame.lesson.id);
   }
   controls.update();
@@ -259,9 +265,9 @@ setupFullscreen({document,window,onChange:active=>{fullscreenTools.setActive(act
 humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
-posePanel = setupPosePanel({onRuntime:(type,data)=>runtimeLog.record(type,data), human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
-voicePanel = setupVoicePanel({ onMediaState:()=>defaultMedia?.refresh(),onRuntime:(type,data)=>runtimeLog.record(type,data), getState: () => state, dispatch, getPose: () => posePanel?.summary });
-setupReportPanel({onEvent:(type,data)=>runtimeLog.record(type,data),endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({runtime:runtimeLog.diagnostics,voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
+posePanel = setupPosePanel({onObservation:(data,observation,stable)=>activityLog.pose(data,observation,stable),onRuntime:recordActivity, human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
+voicePanel = setupVoicePanel({ onMediaState:()=>defaultMedia?.refresh(),onRuntime:recordActivity, getState: () => state, dispatch, getPose: () => posePanel?.summary });
+setupReportPanel({onEvent:(type,data)=>runtimeLog.record(type,data),endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({runtime:runtimeLog.diagnostics,activity:activityLog.diagnostics,voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 defaultMedia=setupDefaultMedia({document,camera:posePanel,voice:voicePanel,onError:()=>{ $('media-start-status').textContent='自動啟用未完成，請點擊啟用相機與語音。'; }});
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);

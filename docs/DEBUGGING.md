@@ -119,3 +119,9 @@ origin 區分 browser-event、recognition-result（結果衍生判斷）與 cont
 - 執行輸出可重導向本機檔案，例如 `npm run check > /tmp/yoga-check.log 2>&1`。`*.log`、`test-results/`、`.venv/` 與 `dist/` 已忽略，不納入 git。
 - 長期追查只保存必要的去識別摘要、可重現步驟、版本與結論，寫入 [問題日誌](logs/ISSUES.md)；測試指令／結果寫入 [驗證日誌](logs/VALIDATION.md)。
 - 不保存或貼出權杖、私鑰、cookie、一次性 code、管理者帳號及完整對話。後端金鑰名稱與部署規則見其 README；不可任意旋轉已用於加密 App 設定的金鑰。
+
+### v0.9.15 操作與真人動作時間線
+
+`diagnostics.json.activity` 包含最近 256 筆操作／課程階段／AI、語音、麥克風與相機事件，以及每秒一筆、最多 120 筆的真人骨架樣本。UTC `at`、頁面單調時鐘 `elapsedMs`、`sequence` 與 `courseTime` 可用來對照先後順序。操作保留課程索引、速度、視角及開關值，不保存輸入文字。骨架僅保留可見身體關節的來源影像正規化 x/y 與可信度，排除臉部；不可見、多人、過期或相機關閉不能解讀為正確動作。`observation` 是原始規則結果、`stable` 是穩定化結果，不是任意動作辨識或醫療判斷。
+
+時間線只保留本頁記憶體，重新整理會清空；完整與精簡 ZIP 都包含。沒有連續影片或音訊，無法逐幀重播；原有前一工作階段精簡執行日誌維持獨立。分享 ZIP 也會分享上述動作座標。

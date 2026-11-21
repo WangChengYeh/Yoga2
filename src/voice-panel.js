@@ -1,10 +1,10 @@
-import { APP_VERSION } from './release.js?v=0.9.14';
-import { AIGuidance } from './ai-guidance.js?v=0.9.14';
-import { LocalCoachAI } from './local-ai.js?v=0.9.14';
-import { CourseNarrator } from './guidance.js?v=0.9.14';
-import { VoiceSession } from './voice-session.js?v=0.9.14';
-import { respondToUtterance } from './voice-intents.js?v=0.9.14';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.14';
+import { APP_VERSION } from './release.js?v=0.9.15';
+import { AIGuidance } from './ai-guidance.js?v=0.9.15';
+import { LocalCoachAI } from './local-ai.js?v=0.9.15';
+import { CourseNarrator } from './guidance.js?v=0.9.15';
+import { VoiceSession } from './voice-session.js?v=0.9.15';
+import { respondToUtterance } from './voice-intents.js?v=0.9.15';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.15';
 
 export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
