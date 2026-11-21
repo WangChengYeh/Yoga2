@@ -1,9 +1,10 @@
-import { APP_VERSION } from './release.js?v=0.9.2';
-export const AI_STAGE_NAMES={idle:'尚未啟動',environment:'瀏覽器環境',adapter:'取得 GPU',worker:'啟動背景執行緒',workerGpu:'背景 GPU 檢查',sdk:'下載 AI 程式',model:'下載／載入模型',ready:'模型就緒',inference:'產生回答'};
+import { APP_VERSION } from './release.js?v=0.9.3';
+export const AI_STAGE_NAMES={idle:'尚未啟動',environment:'瀏覽器環境',adapter:'取得 GPU',worker:'啟動背景執行緒',workerGpu:'背景 GPU 檢查（最多 10 秒）',sdk:'下載 AI 程式',model:'下載／載入模型',ready:'模型就緒',inference:'產生回答'};
 const descriptions={
  INSECURE_CONTEXT:'頁面不是安全環境，瀏覽器可能不開放 WebGPU。請用 HTTPS 開啟正式網站。',
  WEBGPU_UNAVAILABLE:'瀏覽器沒有提供 navigator.gpu，無法執行 WebLLM。',
  GPU_ADAPTER_NULL:'WebGPU API 存在，但 requestAdapter() 回傳 null，瀏覽器未提供可用 GPU。瀏覽器沒有回傳更詳細原因；不能據此判定記憶體不足。',
+ GPU_CHECK_TIMEOUT:'取得 GPU 超過 10 秒，瀏覽器未完成 requestAdapter()。尚未開始下載模型；這不能證明記憶體不足。已取消本次啟動，可稍後重試。',
  GPU_ADAPTER_ERROR:'瀏覽器在取得 GPU 時拋出錯誤；詳見原始錯誤。',
  WORKER_UNAVAILABLE:'瀏覽器沒有提供 Worker，無法啟動本機 AI 背景執行緒。',
  WORKER_START_ERROR:'背景執行緒建立或啟動失敗；可能涉及執行環境或載入限制，實際證據見原始錯誤。',
@@ -32,7 +33,7 @@ export function aiErrorDetail(error,redactions=[]) {
  return {name:cleanAIText(error?.name||'Error'),message:cleanAIText(error?.message||error||'瀏覽器未提供錯誤訊息。',redactions),...(error?.stack?{stack:cleanAIText(error.stack,redactions)}:{}),...(error?.filename?{location:cleanAIText(error.filename)+':'+(error.lineno||0)+':'+(error.colno||0)}:{}),...(error?.cause?{cause:cleanAIText(error.cause?.message||error.cause,redactions)}:{})};
 }
 export function aiErrorCode(error,stage,resource) {
- if(error?.code==='WORKER_UNAVAILABLE')return error.code;
+ if(['WORKER_UNAVAILABLE','GPU_CHECK_TIMEOUT'].includes(error?.code))return error.code;
  const text=String(error?.message||error||'');
  if(error?.name==='GPUOutOfMemoryError'||/out of memory|failed to allocate|allocation failed/i.test(text))return 'GPU_MEMORY_ERROR';
  if(error?.name==='GPUValidationError')return 'GPU_VALIDATION_ERROR';

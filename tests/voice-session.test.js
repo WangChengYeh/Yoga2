@@ -95,3 +95,15 @@ test('async AI answer speaks normally and blocks microphone while thinking',asyn
  session.acceptText('AI');session.wanted=true;session.listen();assert.equal(microphones,0);
  resolve('肩膀放鬆');await Promise.resolve();await Promise.resolve();assert.equal(spoken[0].text,'肩膀放鬆');session.stop();
 });
+
+test('input starts once on speechstart/interim/final, and finishes only after reply, never for guidance',()=>{
+ const events=[],h=harness({onInputStart:()=>events.push('start'),onReplyEnd:()=>events.push('end'),onInputCancel:()=>events.push('cancel')});
+ h.session.enable();const r=h.instances[0];r.onspeechstart();r.onspeechstart();r.result('關鍵',.9,false);assert.deepEqual(events,['start']);
+ r.result('關鍵要領');assert.deepEqual(events,['start']);h.utterances.at(-1).onend();assert.deepEqual(events,['start','end']);
+ h.session.speak('雙手上舉',{kind:'guidance'});h.utterances.at(-1).onend();assert.deepEqual(events,['start','end']);h.session.stop();
+});
+test('speech with no final text asks for clarification and finishes after prompt; stale events cannot pause',()=>{
+ const events=[],h=harness({onInputStart:()=>events.push('start'),onReplyEnd:()=>events.push('end'),onInputCancel:()=>events.push('cancel')});
+ h.session.enable();const r=h.instances[0],late=r.onspeechstart;r.onspeechstart();r.onend();assert.match(h.replies.at(-1),/聽清楚/);assert.deepEqual(events,['start']);
+ h.utterances.at(-1).onend();assert.deepEqual(events,['start','end']);h.session.stop();late();assert.deepEqual(events,['start','end']);
+});

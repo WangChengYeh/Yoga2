@@ -1,4 +1,4 @@
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.2';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.3';
 let engine,stage='worker',resource=null,redactions=[];
 const enter=value=>{stage=value;self.postMessage({type:'stage',stage});};
 // Record only failed resource locations/status, never request bodies or URL queries.
@@ -15,7 +15,9 @@ self.onmessage=async({data})=>{
   if(data.type==='load'){
    resource=null;enter('workerGpu');
    if(!globalThis.navigator?.gpu){self.postMessage({type:'error',stage,code:'WORKER_GPU_UNAVAILABLE',error:aiErrorDetail(new Error('Worker navigator.gpu is unavailable'))});return;}
-   const adapter=await navigator.gpu.requestAdapter();
+   let timer,adapter;
+   try{adapter=await Promise.race([navigator.gpu.requestAdapter(),new Promise((_,reject)=>{timer=globalThis.setTimeout(()=>reject(Object.assign(new Error('Worker requestAdapter() did not settle within 10000 ms'),{code:'GPU_CHECK_TIMEOUT'})),10000);})]);}
+   finally{globalThis.clearTimeout(timer);}
    if(!adapter){self.postMessage({type:'error',stage,code:'WORKER_GPU_ADAPTER_NULL',error:aiErrorDetail(new Error('Worker requestAdapter() returned null'))});return;}
    enter('sdk');
    const {MLCEngine}=await import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm');
