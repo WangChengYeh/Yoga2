@@ -1,6 +1,6 @@
-import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.8.4';
-import { CutoutSession } from './cutout-core.js?v=0.8.4';
-import { createHumanLayer } from './human-scene.js?v=0.8.4';
+import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.8.5';
+import { CutoutSession } from './cutout-core.js?v=0.8.5';
+import { createHumanLayer } from './human-scene.js?v=0.8.5';
 
 export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createHumanLayer, createSkeleton=createSkeletonLayer }) {
   const $=id=>document.getElementById(id);
@@ -12,7 +12,7 @@ export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createH
     if(!layer?.mesh||!lastSkeleton||!skeletonFresh(lastSkeleton.capturedAt,now)){
       userBones?.clear();skeletonStatus('等待 AI 關節');return;
     }
-    userBones ||= createSkeleton({parent:layer.mesh,color:0x087c71,radius:.0035,name:'Yoga2AISkeleton'});
+    userBones ||= createSkeleton({parent:layer.mesh,color:0x087c71,radius:.008,worldRadius:true,name:'Yoga2AISkeleton'});
     userBones.update(lastSkeleton.pose);
     const message=lastSkeleton.pose.edges.length?'AI 骨架 · 只顯示清楚的關節':'尚未辨識到清楚的關節';
     skeletonStatus(message);

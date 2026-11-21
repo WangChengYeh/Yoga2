@@ -1,7 +1,7 @@
-import { CourseNarrator } from './guidance.js?v=0.8.4';
-import { VoiceSession } from './voice-session.js?v=0.8.4';
-import { respondToUtterance } from './voice-intents.js?v=0.8.4';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.8.4';
+import { CourseNarrator } from './guidance.js?v=0.8.5';
+import { VoiceSession } from './voice-session.js?v=0.8.5';
+import { respondToUtterance } from './voice-intents.js?v=0.8.5';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.8.5';
 
 export function setupVoicePanel({ getState, dispatch, getPose }) {
   const $=(id)=>document.getElementById(id);

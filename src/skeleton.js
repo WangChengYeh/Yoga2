@@ -17,7 +17,7 @@ export function skeletonFresh(capturedAt,now){return Number.isFinite(capturedAt)
 
 // Two instanced draw calls per skeleton: thick bones plus joint markers.
 // Cylinders remain readable on mobile GPUs whose native line width is 1px.
-export function createSkeletonLayer({parent,color=0x087c71,radius=.008,name='Yoga2Skeleton'}) {
+export function createSkeletonLayer({parent,color=0x087c71,radius=.008,worldRadius=false,name='Yoga2Skeleton'}) {
   const group=new THREE.Group();group.name=name;parent.add(group);
   const material=new THREE.MeshBasicMaterial({color,depthTest:false,depthWrite:false,toneMapped:false,transparent:true,opacity:.95});
   const bones=new THREE.InstancedMesh(new THREE.CylinderGeometry(1,1,1,6),material,128);
@@ -26,21 +26,25 @@ export function createSkeletonLayer({parent,color=0x087c71,radius=.008,name='Yog
   bones.renderOrder=joints.renderOrder=20;group.add(bones,joints);
   bones.instanceMatrix.setUsage(THREE.DynamicDrawUsage);joints.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   const a=new THREE.Vector3(),b=new THREE.Vector3(),direction=new THREE.Vector3(),mid=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion(),matrix=new THREE.Matrix4(),up=new THREE.Vector3(0,1,0);
+  const world=new THREE.Matrix4(),inverse=new THREE.Matrix4();
   let disposed=false;
   return {
     group,bones,joints,
     update({points,edges}) {
       if(disposed)return;
+      if(worldRadius){group.updateWorldMatrix(true,false);world.copy(group.matrixWorld);inverse.copy(world).invert();}
       let count=0;const visible=new Set();
       for(const [i,j] of edges){
         if(count>=128||!points[i]||!points[j])continue;
-        a.fromArray(points[i]);b.fromArray(points[j]);direction.subVectors(b,a);
+        a.fromArray(points[i]);b.fromArray(points[j]);
+        if(worldRadius){a.applyMatrix4(world);b.applyMatrix4(world);}
+        direction.subVectors(b,a);
         const length=direction.length();if(!Number.isFinite(length)||length<1e-6)continue;
         rotation.setFromUnitVectors(up,direction.divideScalar(length));mid.addVectors(a,b).multiplyScalar(.5);scale.set(radius,length,radius);
-        matrix.compose(mid,rotation,scale);bones.setMatrixAt(count++,matrix);visible.add(i);visible.add(j);
+        matrix.compose(mid,rotation,scale);if(worldRadius)matrix.premultiply(inverse);bones.setMatrixAt(count++,matrix);visible.add(i);visible.add(j);
       }
       bones.count=count;count=0;rotation.identity();scale.setScalar(radius*1.8);
-      for(const i of visible){if(count>=128)break;a.fromArray(points[i]);matrix.compose(a,rotation,scale);joints.setMatrixAt(count++,matrix);}
+      for(const i of visible){if(count>=128)break;a.fromArray(points[i]);if(worldRadius)a.applyMatrix4(world);matrix.compose(a,rotation,scale);if(worldRadius)matrix.premultiply(inverse);joints.setMatrixAt(count++,matrix);}
       joints.count=count;bones.instanceMatrix.needsUpdate=true;joints.instanceMatrix.needsUpdate=true;group.visible=bones.count>0;
     },
     clear(){bones.count=joints.count=0;group.visible=false;},

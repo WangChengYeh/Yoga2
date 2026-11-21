@@ -67,3 +67,20 @@ test('an unsupported coach rig returns only available edges rather than origin p
   const model=new THREE.Group(),hips=new THREE.Bone();hips.name='Hips';model.add(hips);
   const source=createCoachSkeletonSource(model,model),r=source();assert.equal(r.edges.length,0);assert.equal(r.points.filter(Boolean).length,1);
 });
+
+
+test('AI bones and round joints keep coach-sized thickness across camera crop sizes',()=>{
+  for(const [width,height] of [[.4,.6],[1.4,2.2],[3,4]]){
+    const parent=new THREE.Mesh();parent.scale.set(width,height,1);parent.rotation.y=.5;
+    const layer=createSkeletonLayer({parent,radius:.008,worldRadius:true});
+    layer.update({points:[[.1,.1,.012],[-.2,.4,.012]],edges:[[0,1]]});parent.updateMatrixWorld(true);
+    const instance=new THREE.Matrix4(),world=new THREE.Matrix4();
+    layer.bones.getMatrixAt(0,instance);world.multiplyMatrices(layer.group.matrixWorld,instance);
+    const scale=new THREE.Vector3();world.decompose(new THREE.Vector3(),new THREE.Quaternion(),scale);
+    near(scale.x,.008);near(scale.z,.008);
+    layer.joints.getMatrixAt(0,instance);world.multiplyMatrices(layer.group.matrixWorld,instance);
+    world.decompose(new THREE.Vector3(),new THREE.Quaternion(),scale);
+    for(const value of scale)near(value,.008*1.8);
+    layer.dispose();
+  }
+});
