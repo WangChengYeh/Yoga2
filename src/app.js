@@ -1,16 +1,16 @@
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.8.0';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.8.0';
-import { practiceLayout } from './practice-layout.js?v=0.8.0';
-import { setupFullscreen } from './fullscreen.js?v=0.8.0';
-import { setupHumanPanel } from './human-panel.js?v=0.8.0';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.8.1';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.8.1';
+import { practiceLayout } from './practice-layout.js?v=0.8.1';
+import { setupFullscreen } from './fullscreen.js?v=0.8.1';
+import { setupHumanPanel } from './human-panel.js?v=0.8.1';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.8.0';
-import { prepareStandingCoach } from './rig.js?v=0.8.0';
-import { setupPosePanel } from './pose-panel.js?v=0.8.0';
-import { setupVoicePanel } from './voice-panel.js?v=0.8.0';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.8.1';
+import { prepareStandingCoach } from './rig.js?v=0.8.1';
+import { setupPosePanel } from './pose-panel.js?v=0.8.1';
+import { setupVoicePanel } from './voice-panel.js?v=0.8.1';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);

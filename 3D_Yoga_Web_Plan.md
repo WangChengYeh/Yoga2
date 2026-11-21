@@ -226,3 +226,10 @@
 - 私有 Worker 使用訪客的 ChatGPT 身分與 GitHub 連線，限制固定 repo、8 MB、圖片尺寸、同源 POST。附件放獨立分支，原子認領避免並行或不確定回應時重複建立 Issue；成功回傳實際 Issue 連結。
 - 首次需登入／授權；登入切斷 opener 時可回原頁重試同一份回報。限流遵守回傳等待時間。不確定的 Issue 寫入先查既有紀錄，不盲目重送。
 - 打包、擷取及服務安全／錯誤／重試測試已加入。部署與雲端登入入口已驗證；雲端瀏覽器無訪客登入身分且不支援 WebGL，**尚未完成 hosted visitor write 與手機橫向全螢幕圖片驗收**。M8 完整驗收仍須這兩項通過。
+
+### v0.8.1：專用 GitHub App 匿名回報
+
+- 移除訪客 GitHub／ChatGPT 登入要求，改由專用 App 代送；固定 Yoga2，短效 installation token 只授予 Contents／Issues 寫入。
+- 管理者 `/setup` 提供 GitHub manifest 建立／安裝流程，GitHub 交換出的私鑰由後端加密保存。訪客不接觸憑證。
+- 公開 API 增加 HMAC 短效驗證、附件摘要綁定、自動計算、持久限額與 R2 CAS 防重複狀態機；未知的 Issue 寫入不自動重播。
+- 新增 RSA、AES、防 CSRF、設定 callback、匿名 HTTP、並行與 lease 競爭測試。**實際 App 仍需擁有者在 GitHub 核准；完成前上傳停用，不能宣稱匿名實際 Issue 驗收通過。**

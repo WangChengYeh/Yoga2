@@ -2,11 +2,11 @@
 
 手機網頁的 3D 女性教練原型。完整分期規劃見 [3D_Yoga_Web_Plan.md](./3D_Yoga_Web_Plan.md)。
 
-## 目前版本 v0.8.0（M8 除錯回報）
+## 目前版本 v0.8.1（M8 匿名除錯回報）
 
-按場景上的「回報問題」，擷取相機圖、當下練習場景與控制介面（包含全螢幕模式）、版號、螢幕尺寸、AI 與校準狀態，打包 JSON／PNG／ZIP 後建立 GitHub Issue。第一次需登入回報視窗並授權 GitHub。主站仍為 GitHub Pages；回報服務為私有 Worker，不在前端保存憑證。
+按場景上的「回報問題」，擷取相機圖、當下練習場景與控制介面（包含全螢幕模式）、版號、螢幕尺寸、AI 與校準狀態，打包 JSON／PNG／ZIP 後建立 GitHub Issue。由專用 GitHub App 代送，訪客不需要登入 GitHub／ChatGPT。主站仍為 GitHub Pages；回報服務為公開 Worker，私鑰在後端加密保存。擁有者需先完成一次性 App 建立／安裝。
 
-M8 程式及部署已交付，**手機登入後的一鍵回報與圖片品質仍待實機驗收**。雲端瀏覽器沒有登入身分且不支援 WebGL，尚未確認 hosted visitor write；單元測試不可替代這項驗收。
+M8 匿名流程已實作。**專用 App 仍待擁有者在 GitHub 核准建立／安裝，完成前上傳保持停用（503），不算完整驗收。** 設定入口與操作見 [debug-server/README.md](./debug-server/README.md)。仍須用未登入的手機驗收實際 Issue 與圖片品質。
 
 ## 保留的 M7 AI 骨架
 
@@ -264,10 +264,10 @@ M5 已換成白皙膚色、運動服的 Luna，M6 已加入即時去背影像。
 ## M8 操作與驗收
 
 1. 開啟相機，進入橫向全螢幕；看到問題時按「回報問題」。按鈕旁說明圖片將上傳到公開 GitHub。
-2. 第一次在回報視窗登入 ChatGPT／授權 GitHub。若登入切斷原視窗連線，返回練習頁按「重試回報」，沿用先前已擷取的圖和 ID。
+2. 一般訪客不需登入；短效驗證自動執行。管理者需先在回報服務 `/setup` 完成一次性 App 建立／安裝。網路中斷時按「重試回報」，沿用已擷取的圖和 ID。
 3. 看到成功連結後開啟 Issue，核對 `camera.png`、`scene.png`、`diagnostics.json`、`report.zip`；確認當下版號、尺寸、DPR、鏡像、校準與人物位置正確。
 4. 相機關閉或辨識失敗仍可回報；JSON 標明缺失、過期或未配對的相機圖。場景圖只包含練習場景，沒有瀏覽器工具列或其他 App。
 
 原始圖使用目前去背採用的同幀輸入，保留未鏡像 RGB；場景為鏡像。無有效推論幀時備援拍攝即時相機並明示未配對。圖片最大邊 2048 px，整包最多 8 MB。附件位於獨立回報分支；Issue 使用固定 commit URL，更新主程式不會改變舊附件。
 
-測試：`npm run check` 包含 M8 的 ZIP／CRC、同幀與過期、螢幕尺寸、截圖失敗、無相機、身分／來源驗證、provider response、限流、重試與並行防重複測試。後端來源與部署說明在 [debug-server](./debug-server/README.md)。尚待實機通過後才將 M8 標為完整驗收。
+測試：`npm run check` 包含 M8 的 ZIP／CRC、同幀與過期、螢幕尺寸、截圖失敗、無相機、身分／來源驗證、provider response、限流、重試與並行防重複測試。後端來源與部署說明在 [debug-server](./debug-server/README.md)。專用 App 尚待擁有者核准安裝，之後仍需手機實測通過才將 M8 標為完整驗收。

@@ -1,5 +1,5 @@
-import { APP_VERSION } from './release.js?v=0.8.0';
-import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.8.0';
+import { APP_VERSION } from './release.js?v=0.8.1';
+import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.8.1';
 
 const toBlob=canvas=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('截圖編碼失敗')),'image/png'));
 export async function captureReport({stage, human, render, diagnostics, screenshot, win=window, doc=document, id=crypto.randomUUID()}) {
@@ -49,7 +49,7 @@ export function setupReportPanel({capture,endpoint,win=window,doc=document}) {
     // Open during the visitor click, before any await (mobile popup rules).
     popup=win.open(`${endpoint}/?id=${encodeURIComponent(id)}`,'yoga-debug-report');
     if(!popup){message('瀏覽器阻擋回報視窗，請允許彈出式視窗後重試。');finish();return;}
-    try {message(report?'重試同一份回報…':'正在擷取畫面，準備登入與上傳…');report ||= await capture(id);button.textContent='回報處理中';
+    try {message(report?'重試同一份回報…':'正在擷取畫面，準備匿名回報…');report ||= await capture(id);button.textContent='回報處理中';
       // Popup repeats ready until it receives the package, including after sign-in.
       timer=setInterval(()=>{if(popup.closed||Date.now()-started>180000){message('回報尚未確認完成，可重試同一份回報。');finish();}},1000);
     }catch(e){message(`擷取失敗：${e.message}`);finish();}
