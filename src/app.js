@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DURATION, phaseAt, advance } from './motion.js';
-import { makeStretchPose } from './rig.js';
+import { prepareStandingCoach } from './rig.js?v=standing-1';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -32,8 +32,8 @@ function syncTime() {
   $('seek').value = state.time;
   $('elapsed').textContent = `00:${String(Math.floor(state.time)).padStart(2, '0')}`;
   const phase = phaseAt(state.time);
-  $('phase-label').textContent = state.time === 0 && !state.playing ? '準備開始' : phase.label;
-  $('phase-cue').textContent = state.time === 0 && !state.playing ? '點擊播放，先看看完整動作。' : phase.cue;
+  $('phase-label').textContent = state.time === 0 && !state.playing ? '站立準備' : phase.label;
+  $('phase-cue').textContent = state.time === 0 && !state.playing ? '教練已正面站好，按播放開始示範。' : phase.cue;
 }
 $('play').addEventListener('click', () => {
   if (!state.ready) return;
@@ -147,22 +147,13 @@ async function init() {
     $('loading-detail').textContent = '角色已下載，正在準備材質與骨架。';
     const gltf = await new GLTFLoader().parseAsync(data, new URL('.', new URL(modelURL, location.href)).href);
     const model = gltf.scene;
-    const skeletons = new Set();
     model.traverse((o) => {
-      if (o.isSkinnedMesh) skeletons.add(o.skeleton);
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
     });
-    for (const skeleton of skeletons) skeleton.pose();
-    model.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(model, true);
-    const size = box.getSize(new THREE.Vector3());
-    model.scale.multiplyScalar(1.72 / size.y);
-    model.updateMatrixWorld(true);
-    box.setFromObject(model, true);
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.add(new THREE.Vector3(-center.x, .02 - box.min.y, -center.z));
     scene.add(model);
-    pose = makeStretchPose(model); pose(0);
+    pose = prepareStandingCoach(model);
+    state.time = 0; state.playing = false;
+    setView('front');
     renderer.compile(scene, camera);
     state.ready = true;
     $('loading').hidden = true;

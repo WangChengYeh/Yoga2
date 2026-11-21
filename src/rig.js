@@ -1,6 +1,38 @@
 import * as THREE from 'three';
 import { armAngleAt } from './motion.js';
 
+// Normalize the actual asset's forward direction before framing it. A camera
+// on +Z must see the face even when an imported GLB uses another forward axis.
+export function prepareStandingCoach(model) {
+  const skeletons = new Set();
+  const bones = [];
+  model.traverse((object) => {
+    if (object.isSkinnedMesh) skeletons.add(object.skeleton);
+    if (object.isBone) bones.push(object);
+  });
+  for (const skeleton of skeletons) skeleton.pose();
+  model.updateMatrixWorld(true);
+  const forward = new THREE.Vector3();
+  const find = (suffix) => bones.find((bone) => bone.name.endsWith(suffix));
+  for (const side of ['Left', 'Right']) {
+    const foot = find(`${side}Foot`), toe = find(`${side}ToeBase`);
+    if (foot && toe) forward.add(toe.getWorldPosition(new THREE.Vector3()).sub(foot.getWorldPosition(new THREE.Vector3())));
+  }
+  forward.y = 0;
+  if (forward.lengthSq() > 1e-8) model.rotation.y -= Math.atan2(forward.x, forward.z);
+  model.updateMatrixWorld(true);
+  const pose = makeStretchPose(model);
+  pose(0); // Standing, hands resting beside the body; no autoplay.
+  const box = new THREE.Box3().setFromObject(model, true);
+  model.scale.multiplyScalar(1.72 / box.getSize(new THREE.Vector3()).y);
+  model.updateMatrixWorld(true);
+  box.setFromObject(model, true);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.add(new THREE.Vector3(-center.x, .02 - box.min.y, -center.z));
+  pose(0);
+  return pose;
+}
+
 // Set bone world directions using bind-pose orientations so twisting is preserved.
 // The GLB's embedded SambaDance clip is deliberately not used.
 export function makeStretchPose(model) {

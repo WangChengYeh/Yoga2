@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { makeStretchPose } from '../src/rig.js';
+import { prepareStandingCoach } from '../src/rig.js';
 
 test('real character skeleton raises both hands above head and keeps feet fixed', async () => {
   const original = readFileSync('public/models/michelle.glb');
@@ -22,16 +22,22 @@ test('real character skeleton raises both hands above head and keeps feet fixed'
   const buffer = Buffer.concat([header, jsonBytes, binChunk]);
   const gltf = await new GLTFLoader().parseAsync(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), '');
   const model = gltf.scene;
-  const skeletons = new Set();
-  model.traverse((o) => { if (o.isSkinnedMesh) skeletons.add(o.skeleton); });
-  for (const skeleton of skeletons) skeleton.pose();
-  const pose = makeStretchPose(model);
+  // Simulate an imported asset with a different forward direction.
+  model.rotation.y = Math.PI / 2;
+  const pose = prepareStandingCoach(model);
   const find = (suffix) => { let result; model.traverse((o) => { if (o.isBone && o.name.endsWith(suffix)) result = o; }); return result; };
   const position = (name) => find(name).getWorldPosition(new THREE.Vector3());
   pose(0);
   const feet = ['LeftFoot', 'RightFoot'].map(position);
   const neutral = ['LeftHand', 'RightHand'].map(position);
   assert.ok(neutral.every((p) => p.y < position('Head').y));
+  assert.ok(position('Head').y > position('Hips').y);
+  const forward = position('LeftToeBase').sub(position('LeftFoot')).add(position('RightToeBase').sub(position('RightFoot')));
+  assert.ok(forward.z > 0, 'coach faces the default +Z camera');
+  assert.ok(Math.abs(forward.x) < 1e-5, 'coach faces straight ahead');
+  const standingBox = new THREE.Box3().setFromObject(model, true);
+  assert.ok(Math.abs(standingBox.min.y - .02) < .001, 'standing on the mat');
+  assert.ok(neutral.every((p) => p.y < position('Spine2').y), 'hands down at startup');
   for (const time of [0, 3, 6, 8, 10, 13, 16]) {
     pose(time);
     for (const [i, name] of ['LeftFoot', 'RightFoot'].entries()) assert.ok(position(name).distanceTo(feet[i]) < 1e-5);
