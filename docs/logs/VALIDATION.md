@@ -6,7 +6,7 @@
 
 - `npm run check`：268 項通過，0 失敗／跳過；含 AI ready 招呼、按鈕時序與取消回歸。
 - 驗證下載期間零招呼、ready 後生成／播放、招呼結束不開始、失敗與取消入口保留、遲到招呼隔離、合成指令不進問答記憶。
-- `npm run build` 通過，保留最新版推論排隊及相關測試；CI／Pages 待本次提交後確認。手機實際聲音待驗收。
+- `npm run build` 通過，保留最新版推論排隊及相關測試；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44945268336)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44945267416) 均成功，對應實作提交 [94e0ffa](https://github.com/WangChengYeh/Yoga2/commit/94e0ffa31d0f87f78d980f7804ff7cdf7a9f916f)。CI 亦通過獨立真實人像 CPU 整合。手機實際聲音待驗收。
 
 ## 2026-11-21 · v0.9.8
 
