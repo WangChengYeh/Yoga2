@@ -21,7 +21,7 @@ test('coach bones remain independent of overlay visibility and preserve 3D named
  assert.deepEqual(coachContext(null,{ready:false}).joints,[]);
 });
 test('dialogue and guidance prompts include both skeletons, observation and playback context',()=>{
- const c=context(),messages=localAIMessages('我的動作呢',state,[],c),cue=guidanceMessages(guidanceAt(6),state,c);
+ const c=context(),messages=localAIMessages('我的動作呢',state,[],c,4096),cue=guidanceMessages(guidanceAt(6),state,c);
  for(const m of [messages[1],cue[1]]){assert.match(m.content,/reach-seen/);assert.match(m.content,/Hips/);assert.match(m.content,/400,200,-100,900/);}
  assert.match(messages[0].content,/stable.valid/);assert.match(messages[1].content,/速度：0.5/);assert.match(cue[0].content,/未來/);
 });
@@ -38,4 +38,9 @@ test('4K compresses only conversation history while 16K carries six exchanges; b
  const history=Array.from({length:12},(_,i)=>({role:i%2?'assistant':'user',content:'x'.repeat(512)}));
  const small=localAIMessages('問題',state,history,context(),4096),large=localAIMessages('問題',state,history,context(),16384);
  assert.equal(small.length,4);assert.equal(large.length,14);assert.equal(small[1].content.length,96);assert.equal(large[1].content.length,512);assert.equal(small.at(-1).content,large.at(-1).content);
+});
+test('1K uses bounded camera and skeleton summaries while preserving unknowns and source snapshots',()=>{
+ const c=context(),full=JSON.stringify(c),messages=localAIMessages('a'.repeat(300),state,Array.from({length:12},()=>({role:'user',content:'x'.repeat(500)})),c,1024);
+ assert.equal(messages.length,4);assert.equal(messages[1].content.length,24);assert.equal(messages.at(-1).content.split('使用者問題：')[1].length,80);assert.match(messages.at(-1).content,/skeleton-summary/);assert.match(messages.at(-1).content,/reach-seen/);assert.doesNotMatch(messages.at(-1).content,/Hips|400,200,-100,900/);assert.equal(JSON.stringify(c),full);
+ c.human.fresh=false;c.human.observation={code:'unavailable-or-stale',valid:false};assert.match(localAIMessages('怎麼樣',state,[],c,1024).at(-1).content,/"handsAboveHead":\[null,null\]/);
 });

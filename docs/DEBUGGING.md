@@ -151,3 +151,11 @@ AI 對話教練設定新增上下文選項：4K（4096，預設）與 16K（1638
 `voice.contextPreference` 記錄選擇值與儲存是否成功；`voice.localAIDiagnostics.context` 分開記錄 `selected`、`loading`、`active` 與 `status`。只有收到對應 worker 的 ready，且它回報 model.contextWindow 後，active 才會有值。選擇 16K 但仍在載入／失敗時，active 仍是 null。關閉／背景釋放也清除 active。
 
 操作時間線及持久化 runtime 的 ai／ai-context 事件包含當時 selected／loading／active；webgl-context-lost 額外帶當時上下文值，方便確認掉圖發生在何種模式。前一工作階段可保留這些值；這些不是 RAM 用量量測。上一份 v0.9.17 包的 WebGL context 遺失與非正常結束只能提示資源壓力，不能單憑此確認 OOM。
+
+### v0.9.19 · 預設 1K
+
+新增 1024 token 選項並設為預設，保留 4096／16384。偏好 key 升級為 `yoga2.ai.context-window.v2`，不沿用舊版較大的模式；新選擇仍會記住。載入狀態、持久化 runtime／操作時間線與 context-loss 模式欄位接受 1024。
+
+1K 無法容納完整雙方座標及既有 prompt，因此明確使用 `representation:skeleton-summary`，包含相機狀態／新鮮度／人數／規則結果、可見關節數、雙手是否高於頭部、真人影像平面肘角及教練模型肘角／動作時間等。未知仍為 null；它不等於送出完整骨架，也不作醫療或正確性判斷。1K 問句最多 80 字元，上一輪各 24 字元；4K／16K 保留既有完整骨架格式。
+
+`localAIDiagnostics.sensors` 為實際送出的摘要，`sourceSensors` 另保留同時的完整來源快照，供除錯而非額外送入 1K。這是降低配置與輸入負擔的對照模式，不代表 WebGL 遺失根因已確認或手機已通過穩定性驗收。

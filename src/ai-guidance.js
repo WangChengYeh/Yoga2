@@ -1,12 +1,12 @@
-import { sensorText } from './coach-context.js?v=0.9.18';
-import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.18';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.18';
+import { sensorText } from './coach-context.js?v=0.9.19';
+import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.19';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.19';
 const cues=LESSONS.flatMap((lesson,index)=>GUIDANCE[lesson.id].map(([time])=>guidanceAt(lessonStart(index)+time))).concat(guidanceAt(COURSE_DURATION));
 export const nextGuidance=time=>cues.find(cue=>cue.at>time);
-export function guidanceMessages(cue,state,context=null){
+export function guidanceMessages(cue,state,context=null,contextWindow=4096){
  const frame=courseFrame(cue.at);
  return [{role:'system',content:'你是瑜伽教練 Luna。只輸出一句繁體中文帶練口令，最多 24 個中文字，不要解釋、引號、清單或自我介紹。保留提供的核心口令意思，不得換動作、提前換邊或新增方向。附有當下感知及骨架；預備口令的目標階段可能在未來，不得把當下骨架當成未來真人動作。不宣稱姿勢正確，不提供醫療建議。'},
- {role:'user',content:`動作：${frame.lesson.name}。階段：${frame.complete?'完成休息':frame.label}。核心口令：${cue.text}。請用溫柔自然的一句話帶練。\n${sensorText(context)}`}];
+ {role:'user',content:`動作：${frame.lesson.name}。階段：${frame.complete?'完成休息':frame.label}。核心口令：${cue.text}。請用溫柔自然的一句話帶練。\n${sensorText(context,contextWindow)}`}];
 }
 const required={
  'reach:0':/上舉|舉高|抬高|舉起|往上/,'reach:6':/呼吸/,'reach:10':/放下|放回|收回/,

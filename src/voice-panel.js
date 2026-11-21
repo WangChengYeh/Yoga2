@@ -1,16 +1,16 @@
-import { contextPreference } from './ai-context-settings.js?v=0.9.18';
-import { APP_VERSION } from './release.js?v=0.9.18';
-import { AIGuidance } from './ai-guidance.js?v=0.9.18';
-import { LocalCoachAI } from './local-ai.js?v=0.9.18';
-import { CourseNarrator } from './guidance.js?v=0.9.18';
-import { VoiceSession } from './voice-session.js?v=0.9.18';
-import { respondToUtterance } from './voice-intents.js?v=0.9.18';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.18';
+import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.19';
+import { APP_VERSION } from './release.js?v=0.9.19';
+import { AIGuidance } from './ai-guidance.js?v=0.9.19';
+import { LocalCoachAI } from './local-ai.js?v=0.9.19';
+import { CourseNarrator } from './guidance.js?v=0.9.19';
+import { VoiceSession } from './voice-session.js?v=0.9.19';
+import { respondToUtterance } from './voice-intents.js?v=0.9.19';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.19';
 
 export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const preference=contextPreference();$('ai-context-window').value=String(preference.value);
-  $('ai-context-status').textContent=`已選擇 ${preference.value===4096?'4K':'16K'}，等待載入。`;
+  $('ai-context-status').textContent=`已選擇 ${contextLabel(preference.value)}，等待載入。`;
   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
   let speaking=false, mouth, speechStart=0,answering=false,narrator,conversation=null,managedPlayback=false,aiGuidance,voicePhase='off',audioBlocked=false;
   const guidanceToggle=$('guidance-toggle'),guidanceStatus=$('guidance-status');
@@ -19,8 +19,8 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
   const welcomeText='嗨，我是 Luna。今天想先聊聊，還是一起伸展？不用急，我會陪你慢慢來。';
   const ai=createAI({onState:({phase,message})=>{
     onRuntime('ai',{selected:preference.value,loading:ai.diagnostics?.context?.loading,active:ai.diagnostics?.context?.active,phase,code:phase==='error'?ai.diagnostics?.failure?.code:'none',source:ai.diagnostics?.stage||phase});
-    const context=ai.diagnostics?.context,mode=preference.value===4096?'4K':'16K';
-    $('ai-context-status').textContent=context?.active?`已啟用 ${context.active===4096?'4K':'16K'}`:`已選擇 ${mode} · ${phase==='error'?'載入失敗':phase==='off'?'尚未啟用':'準備中'}`;
+    const context=ai.diagnostics?.context,mode=contextLabel(preference.value);
+    $('ai-context-status').textContent=context?.active?`已啟用 ${contextLabel(context.active)}`:`已選擇 ${mode} · ${phase==='error'?'載入失敗':phase==='off'?'尚未啟用':'準備中'}`;
     aiStatus.textContent=message;$('local-ai-retry').hidden=!['off','error'].includes(phase);
     $('local-ai-details').hidden=phase!=='error';
     $('local-ai-redownload').hidden=phase!=='error'||!['model','repair'].includes(ai.diagnostics?.failure?.stage);

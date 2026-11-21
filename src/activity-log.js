@@ -1,5 +1,5 @@
 // Bounded, in-memory diagnostic timeline. No audio, images or user text.
-import { feedbackWindow } from './pose-rules.js?v=0.9.18';
+import { feedbackWindow } from './pose-rules.js?v=0.9.19';
 const token=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,80}$/.test(value)?value:'unknown';
 const round=value=>Number.isFinite(value)?Math.round(value*1000)/1000:null;
 const JOINTS=[11,12,13,14,15,16,23,24,25,26,27,28,31,32];
@@ -7,7 +7,7 @@ export function createActivityLog({now=()=>new Date().toISOString(),clock=()=>pe
  let events=[],poses=[],sequence=0,lastSample=-Infinity,lastPhase='';
  const context=()=>{const state=getState();return {courseTime:round(state.time),playing:Boolean(state.playing),speed:round(state.speed)};};
  const stamp=()=>({sequence:++sequence,at:now(),elapsedMs:round(clock()),...context()});
- function record(type,data={}){const event={...stamp(),type:token(type)};for(const key of ['phase','code','source','control','value','lesson'])if(data[key]!=null)event[key]=token(String(data[key]));for(const key of ['selected','loading','active'])if([4096,16384].includes(data[key]))event[key]=data[key];events.push(event);if(events.length>256)events.shift();}
+ function record(type,data={}){const event={...stamp(),type:token(type)};for(const key of ['phase','code','source','control','value','lesson'])if(data[key]!=null)event[key]=token(String(data[key]));for(const key of ['selected','loading','active'])if([1024,4096,16384].includes(data[key]))event[key]=data[key];events.push(event);if(events.length>256)events.shift();}
  function course(frame){const phase=`${frame.lesson.id}:${feedbackWindow(frame)}`;if(phase===lastPhase)return;lastPhase=phase;record('course-phase',{lesson:frame.lesson.id,phase:feedbackWindow(frame)});}
  function pose(data,observation,stable){const time=clock();if(time-lastSample<1000)return;lastSample=time;
   // Only visible body joints; exclude facial landmarks and never invent hidden joints.

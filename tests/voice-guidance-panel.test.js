@@ -323,7 +323,7 @@ test('pose questions reach LLM with live human and coach context instead of stop
 test('context selection defaults to 4K and reloads selected mode while pausing motion and retaining listening',()=>{
  const loads=[],logs=[],ai={phase:'ready',ready:true,diagnostics:{context:{selected:4096,active:4096,status:'ready'}},disable(){this.phase='off';},enable(options){loads.push(options);this.phase='loading';}};
  const h=harness(()=>ai,()=>null,()=>null,(type,data)=>logs.push({type,...data}));try{
-  assert.equal(h.element('ai-context-window').value,'4096');h.panel.enableListening();h.dispatch({type:'play'});const r=h.recognitions.at(-1),old=h.spoken.at(-1),late=old.onend;
+  assert.equal(h.element('ai-context-window').value,'1024');h.panel.enableListening();h.dispatch({type:'play'});const r=h.recognitions.at(-1),old=h.spoken.at(-1),late=old.onend;
   h.element('ai-context-window').value='16384';h.element('ai-context-window').listeners.change();assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.active,true);assert.equal(r.onresult!=null,true);assert.deepEqual(loads,[{contextWindow:16384}]);late();assert.equal(h.state.playing,false);
   assert.equal(h.panel.diagnostics.contextPreference.selected,16384);assert.ok(logs.some(e=>e.type==='ai-context'&&e.selected===16384&&e.active===4096));
   h.element('ai-context-window').value='4096';h.element('ai-context-window').listeners.change();assert.equal(loads.at(-1).contextWindow,4096);assert.equal(h.panel.mediaStatus.active,true);

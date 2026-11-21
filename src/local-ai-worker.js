@@ -1,6 +1,6 @@
-import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.18';
-import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.18';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.18';
+import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.19';
+import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.19';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.19';
 let engine,stage='worker',resource=null;const shardSizes=new Map();
 // WebLLM has one engine: serialize generations so an interrupted old turn cannot overlap a new one.
 let inferenceQueue=Promise.resolve(),activeInference=null;

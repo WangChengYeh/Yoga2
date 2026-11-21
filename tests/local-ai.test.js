@@ -18,7 +18,7 @@ test('unsupported GPU and missing adapter fall back without creating a worker',a
   for(const options of [{supported:false},{adapter:false}]){const h=harness(options);await h.ai.enable();assert.equal(h.ai.phase,'error');assert.equal(h.workers.length,0);assert.equal(h.ai.enabled,false);}
 });
 test('enable loads only 0.5B worker, reports progress, and accepts course-only messages',async()=>{
- const h=harness();await h.ai.enable();const w=h.workers[0];assert.deepEqual(w.messages,[{type:'load',half:true,contextWindow:4096}]);
+ const h=harness();await h.ai.enable();const w=h.workers[0];assert.deepEqual(w.messages,[{type:'load',half:true,contextWindow:1024}]);
  w.onmessage({data:{type:'progress',progress:.5}});assert.match(h.states.at(-1).message,/50%/);h.ready();assert.equal(h.ai.ready,true);
  const promise=h.ai.ask('手臂應該放哪裡？',{time:20});const ask=w.messages.at(-1);assert.equal(h.ai.phase,'thinking');assert.equal(ask.messages.length,2);
  assert.match(ask.messages[1].content,/左右側伸展/);assert.doesNotMatch(JSON.stringify(ask),/rgba|landmarks|data:image/);
@@ -44,7 +44,7 @@ test('inference, error and timeout all release resources and settle pending ques
  const h=harness();await h.ai.enable();h.timers.get(180000)();assert.equal(h.workers[0].terminated,true);assert.equal(h.ai.phase,'error');
 });
 test('AI receives bounded text and no invented visual observation or executable action',()=>{
- const messages=localAIMessages('a'.repeat(1000),{time:0});assert.equal(messages.length,2);
+ const messages=localAIMessages('a'.repeat(1000),{time:0},[],null,4096);assert.equal(messages.length,2);
  assert.match(messages[0].content,/真人、教練骨架/);assert.match(messages[1].content,/"available":false/);assert.match(messages[0].content,/不輸出程式/);
  assert.equal(messages[1].content.split('使用者問題：')[1].length,300);
 });
@@ -52,7 +52,7 @@ test('AI receives bounded text and no invented visual observation or executable 
 test('production worker initializes supported SDK/model then returns bounded text replies and errors',async()=>{
  const {readFile}=await import('node:fs/promises');const {runInNewContext}=await import('node:vm');
  const source=await readFile(new URL('../src/local-ai-worker.js',import.meta.url),'utf8');
- for(const [half,contextWindow] of [[true,4096],[true,16384],[false,4096],[false,16384]]){
+ for(const [half,contextWindow] of [[true,1024],[true,4096],[true,16384],[false,1024],[false,4096],[false,16384]]){
   const messages=[],reloads=[],requests=[];let fail=false;
   class Engine{constructor(options){this.options=options;this.chat={completions:{create:async request=>{requests.push(request);if(fail)throw Error('GPU lost');return {choices:[{message:{content:'自然呼吸。'}}]};}}};}async reload(...args){reloads.push(args);this.options.initProgressCallback({progress:1});}}
   const self={postMessage:m=>messages.push(m)};
@@ -67,7 +67,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.18');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.19');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -214,7 +214,7 @@ test('activated AI generates welcome through its model without recording synthet
  w.onmessage({data:{type:'reply',id:request.id,text:'嗨，我是 Luna，想先聊聊嗎？'}});assert.equal(await greeting,'嗨，我是 Luna，想先聊聊嗎？');assert.deepEqual(h.ai.history,[]);h.ai.disable();
 });
 test('real AI transport includes sensors for greetings, answers and guidance and reports only consumed snapshot',async()=>{
- const h=harness();await h.ai.enable();h.ready();const w=h.workers[0],context={capturedAtMs:200,human:{fresh:true,camera:'active',joints:[[100,200,0,900]],observation:{code:'reach-seen'}},coach:{ready:true,order:['Hips'],joints:[[0,1000,0]],edges:[]}};
+ const h=harness();await h.ai.enable({contextWindow:4096});h.ready();const w=h.workers[0],context={capturedAtMs:200,human:{fresh:true,camera:'active',joints:[[100,200,0,900]],observation:{code:'reach-seen'}},coach:{ready:true,order:['Hips'],joints:[[0,1000,0]],edges:[]}};
  for(const start of [()=>h.ai.greet({time:0},context),()=>h.ai.ask('我的動作如何',{time:7},context),()=>h.ai.guide({at:6,text:'保持呼吸'}, {time:7},context)]){
   const response=start(),request=w.messages.at(-1);assert.equal(request.type,'ask');assert.match(JSON.stringify(request.messages),/reach-seen/);assert.match(JSON.stringify(request.messages),/Hips/);assert.match(JSON.stringify(request.messages),/100,200,0,900/);
   if(request.kind==='reply'){const snapshot=JSON.stringify(h.ai.diagnostics.sensors);await h.ai.ask('busy',{time:0},{human:{fresh:false}});assert.equal(JSON.stringify(h.ai.diagnostics.sensors),snapshot);}
@@ -240,4 +240,8 @@ test('switching context terminates old worker and records selected/loading/activ
 });
 test('failed context load records error and does not claim the selected window is active',async()=>{
  const h=harness();await h.ai.enable({contextWindow:16384});h.workers[0].onmessage({data:{type:'error',code:'GPU_MEMORY_ERROR',stage:'model',error:{message:'allocation failed'}}});assert.equal(h.ai.diagnostics.context.status,'error');assert.equal(h.ai.diagnostics.context.selected,16384);assert.equal(h.ai.diagnostics.context.active,null);assert.equal(h.ai.diagnostics.context.loading,null);
+});
+test('1K worker receives summary but debug report retains full source bones separately',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0],c={human:{fresh:true,joints:Array.from({length:33},()=>[400,200,0,900]),observation:{code:'reach-seen',valid:true}},coach:{ready:true,order:['Hips'],joints:[[0,1000,0]]}};
+ const pending=h.ai.ask('姿勢如何',{time:0},c),request=w.messages.at(-1);assert.match(JSON.stringify(request.messages),/skeleton-summary/);assert.doesNotMatch(JSON.stringify(request.messages),/Hips/);assert.equal(h.ai.diagnostics.sensors.representation,'skeleton-summary');assert.equal(h.ai.diagnostics.sourceSensors.human.joints.length,33);w.onmessage({data:{type:'reply',id:request.id,text:'請保持舒適幅度。'}});await pending;h.ai.disable();
 });

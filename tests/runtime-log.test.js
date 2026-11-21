@@ -31,3 +31,6 @@ test('unhandled rejection only records safe error category and filename, never p
 test('context mode and null active/loading survive persistent logs and previous-session restoration',()=>{
  const h=harness();h.log.record('ai',{phase:'loading',selected:4096,loading:4096,active:null});h.log.record('ai',{phase:'ready',selected:4096,loading:null,active:4096});h.log.record('webgl-context-lost',{selected:4096,active:4096});const restored=harness(h.values.get('yoga2.runtime.v1'));assert.equal(restored.log.diagnostics.previous.events.at(-1).active,4096);assert.equal(restored.log.diagnostics.previous.events.at(-3).active,null);h.log.dispose();restored.log.dispose();
 });
+test('1K selection and activation persist with the same diagnostic fields as larger modes',()=>{
+ const h=harness();h.log.record('ai',{phase:'ready',selected:1024,loading:null,active:1024});const next=harness(h.values.get('yoga2.runtime.v1'));assert.equal(next.log.diagnostics.previous.events.at(-1).selected,1024);assert.equal(next.log.diagnostics.previous.events.at(-1).active,1024);h.log.dispose();next.log.dispose();
+});
