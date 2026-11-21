@@ -45,3 +45,18 @@ test('AI is optional: known commands bypass model; unknown questions use it only
   ai.phase='ready';globalThis.document.hidden=true;h.events.visibilitychange();assert.equal(ai.phase,'off');
  }finally{h.close();}
 });
+
+test('AI error exposes exact diagnostic and copy fallback never needs microphone',async()=>{
+ let options;const ai={phase:'off',diagnostics:{failure:{code:'GPU_ADAPTER_NULL',stage:'adapter',error:{name:'Error',message:'returned null'}}},enable(){this.phase='error';options.onState({phase:'error',message:'GPU_ADAPTER_NULL: returned null'});},disable(){},ready:false};
+ const h=harness(o=>{options=o;return ai;});
+ try{
+  h.element('local-ai-toggle').checked=true;h.element('local-ai-toggle').listeners.change();assert.equal(h.element('local-ai-toggle').checked,false);assert.equal(h.element('local-ai-details').hidden,false);
+  assert.match(h.element('local-ai-diagnostic').textContent,/GPU_ADAPTER_NULL/);
+  const original=Object.getOwnPropertyDescriptor(globalThis,'navigator');
+  try{
+   let copied;Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async text=>copied=text}}});
+   await h.element('local-ai-copy').listeners.click();assert.match(copied,/GPU_ADAPTER_NULL/);assert.match(h.element('local-ai-copy-status').textContent,/已複製/);
+   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{}});await h.element('local-ai-copy').listeners.click();assert.equal(h.element('local-ai-details').open,true);assert.match(h.element('local-ai-copy-status').textContent,/長按/);assert.equal(h.microphones,0);
+  }finally{if(original)Object.defineProperty(globalThis,'navigator',original);else delete globalThis.navigator;}
+ }finally{h.close();}
+});

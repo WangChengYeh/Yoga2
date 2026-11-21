@@ -73,3 +73,8 @@ body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #p
 .local-ai-options input {accent-color:#195448;width:20px;height:20px;}
 .local-ai-options p {margin:8px 0;}.local-ai-options small {display:block;line-height:1.6;color:#597068;}
 .practice-settings-content .local-ai-options {margin:0;max-width:300px;}
+
+#local-ai-status {white-space:pre-wrap;overflow-wrap:anywhere;}
+#local-ai-diagnostic {white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;user-select:text;font-size:11px;}
+#local-ai-details[hidden] {display:none;}
+#local-ai-details summary {cursor:pointer;}#local-ai-copy-status {display:block;}

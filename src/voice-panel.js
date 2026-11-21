@@ -1,8 +1,8 @@
-import { LocalCoachAI } from './local-ai.js?v=0.9.0';
-import { CourseNarrator } from './guidance.js?v=0.9.0';
-import { VoiceSession } from './voice-session.js?v=0.9.0';
-import { respondToUtterance } from './voice-intents.js?v=0.9.0';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.0';
+import { LocalCoachAI } from './local-ai.js?v=0.9.1';
+import { CourseNarrator } from './guidance.js?v=0.9.1';
+import { VoiceSession } from './voice-session.js?v=0.9.1';
+import { respondToUtterance } from './voice-intents.js?v=0.9.1';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.1';
 
 export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options) }) {
   const $=(id)=>document.getElementById(id);
@@ -10,7 +10,16 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   let speaking=false, mouth, speechStart=0,answering=false,narrator;
   const guidanceToggle=$('guidance-toggle'),guidanceStatus=$('guidance-status');
   const aiToggle=$('local-ai-toggle'),aiStatus=$('local-ai-status');
-  const ai=createAI({onState:({phase,message})=>{aiStatus.textContent=message;aiToggle.checked=!['off','error'].includes(phase);}});
+  const ai=createAI({onState:({phase,message})=>{
+    aiStatus.textContent=message;aiToggle.checked=!['off','error'].includes(phase);
+    $('local-ai-details').hidden=phase!=='error';
+    if(phase==='error')$('local-ai-diagnostic').textContent=JSON.stringify(ai.diagnostics,null,2);
+  }});
+  $('local-ai-copy').addEventListener('click',async()=>{
+    const text=JSON.stringify(ai.diagnostics,null,2);$('local-ai-diagnostic').textContent=text;
+    try{await navigator.clipboard.writeText(text);$('local-ai-copy-status').textContent='診斷已複製，可貼回對話。';}
+    catch{$('local-ai-details').open=true;$('local-ai-copy-status').textContent='瀏覽器不允許自動複製，請長按下方診斷文字複製。';}
+  });
   const session=new VoiceSession({
     Recognition,Utterance:window.SpeechSynthesisUtterance,synthesis:window.speechSynthesis,
     audioEnabled:kind=>kind==='guidance'?guidanceToggle.checked:$('voice-output').checked,
@@ -49,7 +58,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   return {
     playbackChanged(action){if(!answering&&['seek','restart','repeat'].includes(action.type))session.cancelSpeech();narrator.update(getState(),action);},
     silence(){narrator.suspend();session.stop(false);},
-    get diagnostics(){return {localAI:ai.phase,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
+    get diagnostics(){return {localAI:ai.phase,localAIDiagnostics:ai.diagnostics||null,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
     attachModel(model){mouth=createMouthMotion(model);},
     update(now){mouth?.setAmount(mouthAmount(speaking,now/1000-speechStart));},
   };
