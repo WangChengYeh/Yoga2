@@ -1,6 +1,6 @@
-import { CameraSession } from './camera-session.js?v=0.7.0';
-import { createPoseEngine } from './pose-engine.js?v=0.7.0';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.7.0';
+import { CameraSession } from './camera-session.js?v=0.7.1';
+import { createPoseEngine } from './pose-engine.js?v=0.7.1';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.7.1';
 
 export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const $ = (id) => document.getElementById(id);
@@ -21,7 +21,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const config = document.documentElement.dataset;
   const sdkRoot = config.visionRoot || new URL('./vendor/mediapipe/', location.href).href;
   const modelUrl = config.poseModelUrl || new URL('./models/pose_landmarker_lite.task', location.href).href;
-  const segmentationModelUrl=config.segmentationModelUrl || new URL('./models/selfie_segmenter.tflite',location.href).href;
+  const segmentationModelUrl=config.segmentationModelUrl || new URL('./models/selfie_multiclass_256x256.tflite',location.href).href;
   const session = new CameraSession({
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
     createEngine: () => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl }),

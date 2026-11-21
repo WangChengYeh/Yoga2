@@ -23,7 +23,7 @@ test('sliders adjust scene placement and alignment invalidates in-flight data',(
   const h=harness();h.panel.attach({});h.panel.cameraState(true);
   h.el('human-x').value='-0.4';h.el('human-scale').value='1.2';h.el('human-scale').listeners.input();
   assert.deepEqual(h.placements,[{x:-.4,scale:1.2}]);assert.equal(h.el('human-size').textContent,'120%');
-  const old=h.panel.context.humanToken;h.click('human-align');assert.ok(h.panel.context.humanToken>old);assert.match(h.el('human-status').textContent,/重新對齊/);
+  const old=h.panel.context.humanToken;h.click('human-align');assert.ok(h.panel.context.humanToken>old);assert.match(h.el('human-status').textContent,/重新校準/);
   h.panel.dispose();assert.equal(h.disposed,1);assert.equal(h.panel.context.segment,false);
 });
 test('camera restart after background re-enters automatically without reloading the scene',()=>{
@@ -58,5 +58,5 @@ test('camera off, watchdog, late old generation and render-time expiry cannot re
 });
 test('uncertain/no pose clears bone geometry while a valid portrait cutout remains visible',()=>{
   const h=boneHarness();const d=h.data();d.landmarks=[];h.panel.accept(d,200);
-  assert.equal(h.frames,1);assert.equal(h.lastPose.edges.length,0);assert.match(h.el('skeleton-status').textContent,/尚未看清/);assert.equal(h.panel.context.segment,true);
+  assert.equal(h.frames,1);assert.equal(h.lastPose.edges.length,0);assert.match(h.el('skeleton-status').textContent,/尚未辨識/);assert.equal(h.panel.context.segment,true);
 });

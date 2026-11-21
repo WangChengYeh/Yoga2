@@ -95,7 +95,7 @@ function processorHarness() {
   const ctx={drawImage:()=>events.push('snapshot'),getImageData:()=>({data:rgba})};
   const canvas={width:1,height:1,getContext:()=>ctx};
   const detector={detectForVideo:input=>{events.push('detect');poseInputs.push(input);return {landmarks:[points()],close:()=>resultsClosed++};},close:()=>detectorsClosed++};
-  const portrait={foregroundIndex:0,segmentForVideo:input=>{events.push('portrait');portraitInputs.push(input);const values=new Float32Array([0,1,0,1]);return {confidenceMasks:[{width:2,height:2,getAsFloat32Array:()=>values}],close:()=>{portraitResultsClosed++;values.fill(0);}};},close:()=>portraitsClosed++};
+  const portrait={labels:['background','hair','body-skin','face-skin','clothes','others'],segmentForVideo:input=>{events.push('portrait');portraitInputs.push(input);const values=new Float32Array([0,1,0,1]);return {confidenceMasks:Array.from({length:6},(_,i)=>({width:2,height:2,getAsFloat32Array:()=>i===4?values:new Float32Array(4)})),close:()=>{portraitResultsClosed++;values.fill(0);}};},close:()=>portraitsClosed++};
   const processor=createFrameProcessor({detector,createCanvas:()=>canvas,createSegmenter:async()=>{loads++;return portrait;}});
   return {processor,detector,portrait,canvas,events,poseInputs,portraitInputs,source:{width:2,height:2},get loads(){return loads;},get resultsClosed(){return resultsClosed;},get portraitResultsClosed(){return portraitResultsClosed;},get detectorsClosed(){return detectorsClosed;},get portraitsClosed(){return portraitsClosed;}};
 }
@@ -159,10 +159,10 @@ test('regression: close-up/no feet can enter with portrait segmentation independ
     assert.match(h.states.at(-1).message,/半身模式/);assert.equal(h.s.enabled,true);
   }
 });
-test('portrait switches to full-body floor calibration when visible feet become available',()=>{
+test('calibration stays locked when pose visibility changes until explicit recalibration',()=>{
   const h=sessionHarness();h.start();const close=h.data();close.landmarks=[];h.s.accept(close,200);
   assert.equal(h.frames[0].c.mode,'portrait');h.s.accept(h.data(),300);
-  assert.equal(h.frames[1].c.mode,'full');assert.match(h.states.at(-1).message,/對齊地面/);
+  assert.equal(h.frames[1].c.mode,'portrait');h.s.recalibrate();h.s.accept(h.data(),400);assert.equal(h.frames[2].c.mode,'full');
 });
 test('close-up can occupy almost the entire frame without being incorrectly rejected',()=>{
   const h=sessionHarness();h.start();const d=h.data();d.landmarks=[];d.segmentation.confidence.fill(1);

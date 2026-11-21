@@ -23,7 +23,7 @@ source = Path(args.image)
 out = Path(args.output)
 out.mkdir(parents=True, exist_ok=True)
 models = {
-    'selfie_segmenter.tflite': '191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b',
+    'selfie_multiclass_256x256.tflite': 'c6748b1253a99067ef71f7e26ca71096cd449baefa8f101900ea23016507e0e0',
     'pose_landmarker_lite.task': '59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a',
 }
 for name, expected in models.items():
@@ -39,15 +39,15 @@ image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(rgb
 base = lambda name: mp.tasks.BaseOptions(model_asset_path=str(root / 'public/models' / name))
 started = time.perf_counter()
 with vision.ImageSegmenter.create_from_options(vision.ImageSegmenterOptions(
-    base_options=base('selfie_segmenter.tflite'), running_mode=vision.RunningMode.VIDEO,
+    base_options=base('selfie_multiclass_256x256.tflite'), running_mode=vision.RunningMode.VIDEO,
     output_confidence_masks=True, output_category_mask=False,
 )) as segmenter:
     labels = segmenter.labels
-    foreground = next((i for i, label in enumerate(labels) if label.lower() in ('selfie', 'person')), None)
-    if foreground is None:
-        raise ValueError(f'Unknown foreground labels: {labels}')
     result = segmenter.segment_for_video(image, 0)
-    mask = result.confidence_masks[foreground].numpy_view().copy()
+    masks = [mask.numpy_view().copy() for mask in result.confidence_masks]
+    mask = sum(masks[labels.index(label)] for label in ['hair','body-skin','face-skin','clothes'])
+    for i, channel in enumerate(masks):
+        channel.astype('<f4').tofile(out / f'class-{i}.f32')
 with vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
     base_options=base('pose_landmarker_lite.task'), running_mode=vision.RunningMode.VIDEO,
     num_poses=2, min_pose_detection_confidence=.6,
@@ -64,7 +64,7 @@ metadata = {
     'runtime': f'mediapipe-python-{mp.__version__}',
     'models': models, 'width': width, 'height': height,
     'maskWidth': int(mask.shape[1]), 'maskHeight': int(mask.shape[0]),
-    'labels': labels, 'foregroundIndex': foreground,
+    'labels': labels, 'maskChannels': len(masks),
     'landmarks': poses,
     'metrics': {'foregroundFraction': float(np.mean(mask > .5)),
                 'elapsedSeconds': time.perf_counter() - started},

@@ -1,4 +1,5 @@
-import { frameSize } from './cutout-core.js?v=0.7.0';
+import { portraitMask } from './portrait-mask.js?v=0.7.1';
+import { frameSize } from './cutout-core.js?v=0.7.1';
 
 // The same snapshot supplies pose, portrait segmentation and RGB, including when
 // there are no usable body landmarks. Frames never leave the browser.
@@ -33,9 +34,10 @@ export function createFrameProcessor({ detector, createCanvas, createSegmenter }
           let portrait;
           try {
             portrait=segmenter.segmentForVideo(input,timestamp);
-            const mask=portrait.confidenceMasks?.[segmenter.foregroundIndex];
-            if(!mask)throw new Error('Portrait mask missing');
-            segmentation={width:mask.width,height:mask.height,confidence:new Float32Array(mask.getAsFloat32Array()),frame:{width:canvas.width,height:canvas.height,rgba:new Uint8ClampedArray(ctx.getImageData(0,0,canvas.width,canvas.height).data)}};
+            const masks=portrait.confidenceMasks;
+            if(!masks?.length)throw new Error('Semantic masks missing');
+            const semantic=portraitMask({width:masks[0].width,height:masks[0].height,labels:segmenter.labels,channels:masks.map(mask=>mask.getAsFloat32Array())});
+            segmentation={...semantic,frame:{width:canvas.width,height:canvas.height,rgba:new Uint8ClampedArray(ctx.getImageData(0,0,canvas.width,canvas.height).data)}};
           }catch{segmentationFailed=true;segmentationError=true;}
           finally{portrait?.close();if(segmentationFailed)releasePortrait();}
         }

@@ -1,8 +1,8 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-const path = 'public/models/selfie_segmenter.tflite';
-const url = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite';
-const expected = '191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b';
+const path = 'public/models/selfie_multiclass_256x256.tflite';
+const url = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite';
+const expected = 'c6748b1253a99067ef71f7e26ca71096cd449baefa8f101900ea23016507e0e0';
 const digest = (data) => createHash('sha256').update(data).digest('hex');
 let data;
 try { data = await readFile(path); } catch (error) { if (error.code !== 'ENOENT') throw error; }
@@ -14,4 +14,4 @@ if (!data || digest(data) !== expected) {
   await mkdir('public/models', { recursive: true });
   await writeFile(path, data);
 }
-console.log('Selfie Segmenter model verified (SHA-256).');
+console.log('Semantic person segmenter model verified (SHA-256).');

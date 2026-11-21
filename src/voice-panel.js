@@ -1,6 +1,6 @@
-import { VoiceSession } from './voice-session.js?v=0.7.0';
-import { respondToUtterance } from './voice-intents.js?v=0.7.0';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.7.0';
+import { VoiceSession } from './voice-session.js?v=0.7.1';
+import { respondToUtterance } from './voice-intents.js?v=0.7.1';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.7.1';
 
 export function setupVoicePanel({ getState, dispatch, getPose }) {
   const $=(id)=>document.getElementById(id);

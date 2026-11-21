@@ -1,8 +1,8 @@
-import { createFrameProcessor } from './pose-frame.js?v=0.7.0';
-import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.7.0';
+import { createFrameProcessor } from './pose-frame.js?v=0.7.1';
+import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.7.1';
 
 async function workerEngine(config) {
-  const worker = new Worker(new URL('./pose-worker.js?v=0.7.0', import.meta.url));
+  const worker = new Worker(new URL('./pose-worker.js?v=0.7.1', import.meta.url));
   let nextId = 0, closed = false, portraitRequested=false;
   const pending = new Map();
   const fail = () => {
@@ -34,7 +34,7 @@ async function workerEngine(config) {
       const bitmap = await createImageBitmap(video);
       if (closed) { bitmap.close(); throw new Error('Engine closed'); }
       try {
-        const timeout=options?.segment&&!portraitRequested?45000:10000;
+        const timeout=options?.segment&&!portraitRequested?90000:10000;
         portraitRequested=Boolean(options?.segment);
         return await send({ type: 'frame', bitmap, timestamp, options }, [bitmap],timeout);
       }

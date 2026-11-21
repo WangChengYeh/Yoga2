@@ -57,11 +57,20 @@ export function calibratePortrait(frame) {
   if(right<left)return null;
   return {mode:'portrait',hipX:(left+right+1)/(2*frame.width),footY:(bottom+1)/frame.height,bodySpan:Math.max(.25,(bottom-top+1)/frame.height)};
 }
+// A face-size reference matches the coach's anatomical scale even for a
+// half-body camera view. Freeze this reference until explicit recalibration.
+export function calibrateFace(face) {
+  if(!face||![face.left,face.right,face.top,face.bottom].every(Number.isFinite))return null;
+  const span=face.bottom-face.top;
+  if(span<.035||span>.85||face.left<0||face.right>1||face.top<0||face.bottom>1||face.right<=face.left)return null;
+  return {mode:'face',anchorX:(face.left+face.right)/2,anchorY:(face.top+face.bottom)/2,faceSpan:span};
+}
 export function personPlacement(calibration, aspect, { x=.72, scale=1 } = {}) {
   if (!calibration || !Number.isFinite(aspect) || aspect<=0) throw new Error('Invalid placement');
   x=clamp(Number.isFinite(x)?x:.72,-1.4,1.4); scale=clamp(Number.isFinite(scale)?scale:1,.65,1.4);
-  const height=(calibration.mode==='portrait'?1.3:1.72)/calibration.bodySpan*scale, width=height*aspect;
-  return { x:x-(.5-calibration.hipX)*width, y:(calibration.mode==='portrait'?.35:.025)+(calibration.footY-.5)*height, z:.12, width, height };
+  const face=calibration.mode==='face';
+  const height=(face ? .22/calibration.faceSpan : 1.72/calibration.bodySpan)*scale,width=height*aspect;
+  return {x:x-(.5-(face?calibration.anchorX:calibration.hipX))*width,y:face?1.59-(.5-calibration.anchorY)*height:.025+(calibration.footY-.5)*height,z:.12,width,height};
 }
 
 // Owns visibility and frame generations separately from course playback, so
@@ -69,7 +78,7 @@ export function personPlacement(calibration, aspect, { x=.72, scale=1 } = {}) {
 export class CutoutSession {
   constructor({ onFrame=()=>{}, onClear=()=>{}, onState=()=>{} }={}) {
     Object.assign(this,{onFrame,onClear,onState});
-    this.enabled=false; this.cameraActive=false; this.ready=false; this.token=0;
+    this.enabled=false; this.cameraActive=false; this.ready=false; this.token=0;this.hasFrame=false;
   }
   emit(message) { this.onState({enabled:this.enabled,available:this.ready&&this.cameraActive,message}); }
   invalidate() { this.token++; this.calibration=null; this.aspect=null; this.onClear(); }
@@ -77,12 +86,12 @@ export class CutoutSession {
   setCamera(active) { this.cameraActive=active; if(!active){this.enabled=false;this.invalidate();} this.emit(active?'正在準備自動去背，半身也可以。':'開啟相機即自動去背入場。'); }
   toggle() {
     if(!this.ready||!this.cameraActive)return;
-    this.enabled=!this.enabled; this.invalidate();
-    this.emit(this.enabled?'正在準備去背，半身也可以；全身入鏡可對齊地面。':'真人已離場。');
+    this.enabled=!this.enabled;this.hasFrame=false; this.invalidate();
+    this.emit(this.enabled?'正在準備精細人像去背（首次約 16 MB），完成後自動顯示。':'真人已離場。');
   }
   get context() { return { segment:this.enabled, humanToken:this.token }; }
-  recalibrate() { this.invalidate(); this.emit('重新對齊中，請直立並讓頭腳完整入鏡。'); }
-  stale() { this.onClear(); if(this.enabled)this.emit('畫面未及時更新，暫時隱藏真人。'); }
+  recalibrate() { this.invalidate(); this.emit('重新校準中，請放下手、正面看鏡頭。'); }
+  stale() { this.onClear(); if(this.enabled)this.emit(this.hasFrame?'畫面未及時更新，暫時隱藏真人。':'精細去背模型準備中（首次約 16 MB），暫時隱藏真人；完成後自動顯示。'); }
   accept(data, now) {
     if(!this.enabled||!this.ready||!this.cameraActive||data.context?.humanToken!==this.token)return false;
     if(!Number.isFinite(data.capturedAt)||now-data.capturedAt<0||now-data.capturedAt>1500){this.stale();return false;}
@@ -90,10 +99,10 @@ export class CutoutSession {
     if(data.landmarks?.length>1||!validSegmentation(data.segmentation)) { this.onClear();this.emit('等待去背畫面，請讓一人入鏡。');return false; }
     const frame = composeCutout(data.segmentation);
     if(frame.coverage<.015) {this.onClear();this.emit('去背畫面不清楚，請調整光線或背景。');return false;}
-    const calibration=(data.landmarks?.length===1?calibratePerson(data.landmarks[0]):null)||calibratePortrait(frame);
+    const calibration=(data.landmarks?.length===1?calibratePerson(data.landmarks[0]):null)||calibrateFace(data.segmentation.face)||calibratePortrait(frame);
     if(!calibration){this.onClear();return false;}
     const aspect=frame.width/frame.height;
-    if(!this.calibration||Math.abs(aspect-this.aspect)>.02||calibration.mode!==this.calibration.mode){this.calibration=calibration;this.aspect=aspect;}
-    this.onFrame(frame,this.calibration);this.emit(this.calibration.mode==='full'?'真人已入場 · 全身已對齊地面':'真人已入場 · 半身模式；全身入鏡可對齊地面');return true;
+    if(!this.calibration||Math.abs(aspect-this.aspect)>.02){this.calibration=calibration;this.aspect=aspect;}
+    this.hasFrame=true;this.onFrame(frame,this.calibration);this.emit(this.calibration.mode==='full'?'全身比例已鎖定 · 伸展時站位不變':this.calibration.mode==='face'?'頭肩比例已校準 · 位置與大小固定':'半身模式 · 可重新校準比例');return true;
   }
 }

@@ -1,20 +1,20 @@
-import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.7.0';
-import { CutoutSession } from './cutout-core.js?v=0.7.0';
-import { createHumanLayer } from './human-scene.js?v=0.7.0';
+import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.7.1';
+import { CutoutSession } from './cutout-core.js?v=0.7.1';
+import { createHumanLayer } from './human-scene.js?v=0.7.1';
 
 export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createHumanLayer, createSkeleton=createSkeletonLayer }) {
   const $=id=>document.getElementById(id);
   let layer, enabled=false,userBones,lastSkeleton;
   const skeletonStatus=message=>{if($('skeleton-status').textContent!==message)$('skeleton-status').textContent=message;};
-  const clearBones=()=>{userBones?.dispose();userBones=null;lastSkeleton=null;skeletonStatus($('ai-skeleton-toggle').checked?'等待新的 AI 關節畫面':'AI 骨架已隱藏');};
+  const clearBones=()=>{userBones?.dispose();userBones=null;lastSkeleton=null;skeletonStatus($('ai-skeleton-toggle').checked?'等待 AI 關節':'AI 骨架已隱藏');};
   function renderBones(now){
     if(!$('ai-skeleton-toggle').checked){clearBones();skeletonStatus('AI 骨架已隱藏');return;}
     if(!layer?.mesh||!lastSkeleton||!skeletonFresh(lastSkeleton.capturedAt,now)){
-      userBones?.clear();skeletonStatus('等待 AI 辨識可見的身體關節');return;
+      userBones?.clear();skeletonStatus('等待 AI 關節');return;
     }
     userBones ||= createSkeleton({parent:layer.mesh,color:0x087c71,radius:.0035,name:'Yoga2AISkeleton'});
     userBones.update(lastSkeleton.pose);
-    const message=lastSkeleton.pose.edges.length?'AI 骨架 · 只顯示清楚的關節':'AI 尚未看清身體關節；去背仍可使用';
+    const message=lastSkeleton.pose.edges.length?'AI 骨架 · 只顯示清楚的關節':'尚未辨識到清楚的關節';
     skeletonStatus(message);
   }
   const session=new CutoutSession({
@@ -41,6 +41,8 @@ export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createH
     attach(scene){clearBones();layer?.dispose();layer=createLayer({scene});session.setReady(true);enterIfReady();},
     get context(){return session.context;},
     get bounds(){return layer?.bounds;},
+    get calibration(){return layer?.calibration;},
+    get cropMinY(){return layer?.cropMinY||0;},
     setLayout(value){layer?.setLayout(value);},
     cameraState(active){session.setCamera(active);if(active)enterIfReady();},
     accept(data,now){

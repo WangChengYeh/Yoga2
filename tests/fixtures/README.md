@@ -2,7 +2,7 @@
 
 `half-body-portrait.jpg` is the user-provided portrait, included at the user's explicit request for GitHub testing. It is a test asset, not a stock-photo license grant.
 
-The test runs the repository's exact SHA-256-verified Selfie Segmenter and Pose Landmarker Lite model files, then feeds their real outputs into the production JavaScript cutout, AI skeleton and layout functions.
+The test runs the repository's exact SHA-256-verified Selfie Multiclass and Pose Landmarker Lite model files, then feeds their real outputs into the production JavaScript cutout, AI skeleton and layout functions.
 
 ## Reproduce
 
@@ -23,10 +23,14 @@ Generated confidence masks, frame bytes and landmarks go to ignored `test-result
 ## Observed result
 
 - Input: 1080 × 1440; model frame: 384 × 512, matching the web frame budget.
-- Selfie foreground label: `selfie`, channel 0.
-- Foreground area: approximately 52.9% of the frame; this is an area measurement, not an accuracy score.
+- Labels: background, hair, body-skin, face-skin, clothes, others; production JS combines the actual person classes and cleans disconnected regions.
+- Foreground area: approximately 51.2% of the frame; this is an area measurement, not an accuracy score.
 - One pose detected. Nose and both shoulders are visible; the shoulder midpoint is derived from those shoulders.
 - Three valid upper-body links: nose → shoulder midpoint, left shoulder → midpoint, right shoulder → midpoint.
 - Hips, legs and feet are outside the photo or have insufficient confidence, so they must not be drawn.
 
 Five integration checks cover source/output matching, face/clothing versus tree-background alpha, half-body entry without feet, AI bone visibility, and separated coach/person framing in portrait and landscape.
+
+## Chair cleanup replay
+
+`semantic-chair-mask.json` contains only recorded semantic probabilities (64×64, 8-bit run-length encoding) from the reported chair case. No RGB photo pixels are included. Unit tests replay foreground-class selection, connected-person filtering and preservation of the facial calibration reference. This recorded replay is separate from the real-model JPEG integration test above.

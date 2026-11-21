@@ -25,11 +25,11 @@
 - SHA-256: `59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a`.
 - The model is excluded from Git and verified when building. GitHub Pages downloads fixed-version SDK/WASM and model resources only when the user enables observation; the self-contained build includes them locally. Camera images are not uploaded to these providers.
 
-## Selfie Segmenter (v0.6.1)
+## Selfie Multiclass 256×256 (v0.7.1)
 
-- Official Google MediaPipe person segmentation model, float16, version 1: `https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite`.
-- 249,537 bytes; SHA-256: `191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b`.
-- Pinned model metadata labels: `selfie` (foreground channel 0). The adapter reads labels rather than assuming the background/person ordering of other models.
+- Official Google MediaPipe semantic person segmentation model, float32, version 1: `https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite`.
+- 16,371,837 bytes; SHA-256: `c6748b1253a99067ef71f7e26ca71096cd449baefa8f101900ea23016507e0e0`.
+- Labels: background, hair, body-skin, face-skin, clothes, others. Yoga2 retains person classes, restricts accessories and cleans detached regions. Facial skin supplies a fixed anatomical calibration reference.
 - [Official task documentation](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter/index); Google MediaPipe, Apache-2.0.
-- Downloaded and checksum-verified during builds; excluded from Git. Pages loads the fixed-version Google asset only with the camera active; the self-contained build includes the verified model.
-- Portrait segmentation is independent of pose landmark availability. Mask confidence and captured RGB remain in browser memory; results close after copying, and the task closes with the camera.
+- Downloaded and checksum-verified during builds; excluded from Git. Pages loads the pinned Google model after the camera is enabled; the self-contained build includes it.
+- RGB/masks stay in browser memory. This replaces the small binary Selfie Segmenter used in v0.6.1–v0.7.0; higher quality comes with a larger download and inference cost.

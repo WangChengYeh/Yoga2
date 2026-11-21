@@ -9,19 +9,18 @@ export async function createDetector(config) {
   });
 }
 
-// Portrait segmentation must not depend on whether pose landmarks include feet.
-// The pinned Selfie Segmenter exposes one foreground label: "selfie".
+// Semantic person segmentation separates hair/skin/clothes from scene objects.
 export async function createPortraitSegmenter(config) {
   const { FilesetResolver, ImageSegmenter } = await import(config.moduleUrl);
   const files = await FilesetResolver.forVisionTasks(config.wasmRoot);
-  const response=await fetch(config.segmentationModelUrl,{signal:AbortSignal.timeout(30000)});
+  const response=await fetch(config.segmentationModelUrl,{signal:AbortSignal.timeout(60000)});
   if(!response.ok)throw new Error('Portrait model download failed');
   const modelAssetBuffer=new Uint8Array(await response.arrayBuffer());
   const task = await ImageSegmenter.createFromOptions(files, {
     baseOptions:{modelAssetBuffer,delegate:'CPU'},
     runningMode:'VIDEO',outputConfidenceMasks:true,outputCategoryMask:false,
   });
-  const foregroundIndex=task.getLabels().findIndex(label=>/^(selfie|person)$/i.test(label));
-  if(foregroundIndex<0){task.close();throw new Error('Unknown portrait segmentation labels');}
-  return {foregroundIndex,segmentForVideo:(...args)=>task.segmentForVideo(...args),close:()=>task.close()};
+  const labels=task.getLabels();
+  if(!['background','hair','body-skin','face-skin','clothes','others'].every(label=>labels.includes(label))){task.close();throw new Error('Unknown semantic segmentation labels');}
+  return {labels,segmentForVideo:(...args)=>task.segmentForVideo(...args),close:()=>task.close()};
 }

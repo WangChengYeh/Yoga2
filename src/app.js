@@ -1,14 +1,14 @@
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.7.0';
-import { practiceLayout } from './practice-layout.js?v=0.7.0';
-import { setupFullscreen } from './fullscreen.js?v=0.7.0';
-import { setupHumanPanel } from './human-panel.js?v=0.7.0';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.7.1';
+import { practiceLayout } from './practice-layout.js?v=0.7.1';
+import { setupFullscreen } from './fullscreen.js?v=0.7.1';
+import { setupHumanPanel } from './human-panel.js?v=0.7.1';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.7.0';
-import { prepareStandingCoach } from './rig.js?v=0.7.0';
-import { setupPosePanel } from './pose-panel.js?v=0.7.0';
-import { setupVoicePanel } from './voice-panel.js?v=0.7.0';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.7.1';
+import { prepareStandingCoach } from './rig.js?v=0.7.1';
+import { setupPosePanel } from './pose-panel.js?v=0.7.1';
+import { setupVoicePanel } from './voice-panel.js?v=0.7.1';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -16,10 +16,11 @@ const state = { ...createPlayback(), ready: false, powerSaving: false };
 let activeLesson = -1;
 let posePanel;
 let voicePanel;
-let humanPanel, coachStage, dualView=false, manualView=false;
-let coachBones=[],coachWidth=.8,coachHeight=2.2,coachSkeleton,coachSkeletonSource;
-const actorPoint=new THREE.Vector3(),layoutRight=new THREE.Vector3();
-function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView,coachWidth,humanWidth:humanPanel?.bounds?.width||.8,height:Math.max(coachHeight,humanPanel?.bounds?.height||0),fov:camera.fov});}
+let humanPanel, coachStage, dualView=false, framingMode=null;
+let coachSkeleton,coachSkeletonSource,coachModel,coachClipEnabled=false;
+const coachClip=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+const layoutRight=new THREE.Vector3();
+function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView,portrait:dualView&&humanPanel?.calibration?.mode==='face',fov:camera.fov});}
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
@@ -104,7 +105,7 @@ function setView(view) {
   const angles = { front: 0, side: Math.PI / 2, back: Math.PI };
   const angle = angles[view];
   camera.position.set(Math.sin(angle) * distance, 1.25, Math.cos(angle) * distance);
-  controls.target.set(0, 1.17, 0);
+  controls.target.set(0, currentLayout().targetY, 0);
   controls.update();
   document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === view));
 }
@@ -127,10 +128,9 @@ function resize(resetCamera = false) {
   camera.aspect = width / height;
   // Frame raised hands as well as the full body, including on narrow phones.
   if (resetCamera || !state.ready) {
-    manualView=false;
     const distance=currentLayout().distance;
     camera.position.set(0, 1.25, distance);
-    controls.target.set(0, 1.17, 0);
+    controls.target.set(0, currentLayout().targetY, 0);
     controls.minDistance = distance * 0.7;
     controls.maxDistance = distance * 1.65;
   }
@@ -140,6 +140,7 @@ function resize(resetCamera = false) {
 async function init() {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.localClippingEnabled=true;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
@@ -158,7 +159,7 @@ async function init() {
   controls.enablePan = false;
   controls.minPolarAngle = Math.PI * .24;
   controls.maxPolarAngle = Math.PI * .58;
-  controls.addEventListener('start', () => {manualView=true;document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', 'false'));});
+  controls.addEventListener('start', () => {document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', 'false'));});
   scene.add(new THREE.HemisphereLight(0xf7fff2, 0x8d9a85, 2.5));
   const key = new THREE.DirectionalLight(0xfff6e9, 3.3);
   key.position.set(-3, 5, 5); key.castShadow = true;
@@ -187,13 +188,12 @@ async function init() {
     const data = await response.arrayBuffer();
     $('loading-detail').textContent = '角色已下載，正在準備材質與骨架。';
     const gltf = await new GLTFLoader().parseAsync(data, new URL('.', new URL(modelURL, location.href)).href);
-    const model = gltf.scene;
+    const model = gltf.scene;coachModel=model;
     model.traverse((o) => {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
     });
     coachStage.add(model);
     pose = prepareStandingCoach(model);
-    coachBones=[];model.traverse(o=>{if(o.isBone)coachBones.push(o);});
     coachSkeletonSource=createCoachSkeletonSource(model,coachStage);
     humanPanel.attach(scene);
     voicePanel?.attachModel(model);
@@ -227,25 +227,24 @@ function animate(now) {
   }
   controls.update();
   voicePanel?.update(now);
-  if(coachStage&&coachBones.length){
+  if(coachStage&&state.ready){
+    const mode=dualView?humanPanel.calibration?.mode:null;
+    if(mode&&mode!==framingMode){framingMode=mode;resize(true);}
     const yaw=Math.atan2(camera.position.x-controls.target.x,camera.position.z-controls.target.z);
     layoutRight.set(Math.cos(yaw),0,-Math.sin(yaw));
-    let radius=.3,top=1.72;
-    for(const bone of coachBones){bone.getWorldPosition(actorPoint);coachStage.worldToLocal(actorPoint);radius=Math.max(radius,Math.abs(actorPoint.dot(layoutRight))+.1);top=Math.max(top,actorPoint.y+.15);}
-    coachWidth+=(radius*2-coachWidth)*.18;coachHeight+=(top-coachHeight)*.18;
+    const partial=dualView&&humanPanel.calibration?.mode==='face';
+    coachClip.constant=-humanPanel.cropMinY;
+    if(partial!==coachClipEnabled){
+      coachClipEnabled=partial;coachModel?.traverse(o=>{if(o.isMesh)for(const m of Array.isArray(o.material)?o.material:[o.material]){m.clippingPlanes=partial?[coachClip]:[];m.needsUpdate=true;}});
+    }
     const fit=currentLayout();
     coachStage.position.set(layoutRight.x*fit.coachX,0,layoutRight.z*fit.coachX);
     humanPanel.setLayout({x:layoutRight.x*fit.humanX,z:layoutRight.z*fit.humanX,yaw});
-    if(!manualView){
-      actorPoint.copy(camera.position).sub(controls.target);
-      const distance=actorPoint.length();
-      actorPoint.setLength(distance+(fit.distance-distance)*.12);
-      camera.position.copy(controls.target).add(actorPoint);
-      controls.minDistance=fit.distance*.7;controls.maxDistance=fit.distance*1.65;
-    }
   }
   if(state.ready&&coachSkeletonSource&&$('coach-skeleton-toggle').checked){
     coachSkeleton ||= createSkeletonLayer({parent:coachStage,color:0xb25813,name:'Yoga2CoachSkeleton'});
+    const boneMaterial=coachSkeleton.bones.material;
+    if(Boolean(boneMaterial.clippingPlanes?.length)!==coachClipEnabled){boneMaterial.clippingPlanes=coachClipEnabled?[coachClip]:[];boneMaterial.needsUpdate=true;}
     coachSkeleton.update(coachSkeletonSource());
   }
   humanPanel?.update(camera,now);
@@ -257,7 +256,7 @@ document.addEventListener('visibilitychange', () => {
 });
 $('coach-skeleton-toggle').addEventListener('change',()=>{if(!$('coach-skeleton-toggle').checked){coachSkeleton?.dispose();coachSkeleton=null;}});
 setupFullscreen({document,window,onChange:()=>resize(true)});
-humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-.65:0;resize(true);}});
+humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;framingMode=null;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
 posePanel = setupPosePanel({ human:humanPanel, getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });

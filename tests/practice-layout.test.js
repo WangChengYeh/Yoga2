@@ -14,8 +14,8 @@ for(const [name,aspect] of [['phone portrait',390/844],['phone landscape',844/39
     }
   });
 }
-test('wider people/raised arms automatically increase framing distance, solo coach returns to center',()=>{
+test('stretching or wider masks cannot move either lane or change zoom; solo coach returns to center',()=>{
   const a=practiceLayout({aspect:.6,paired:true,coachWidth:.7,humanWidth:.7});
-  const b=practiceLayout({aspect:.6,paired:true,coachWidth:1.8,humanWidth:1.6});assert.ok(b.distance>a.distance);
+  const b=practiceLayout({aspect:.6,paired:true,coachWidth:1.8,humanWidth:1.6});assert.deepEqual(a,b);
   assert.equal(practiceLayout({aspect:1.7}).coachX,0);assert.throws(()=>practiceLayout({aspect:0}));
 });

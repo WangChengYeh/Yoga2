@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { personPlacement } from './cutout-core.js?v=0.7.0';
+import { personPlacement } from './cutout-core.js?v=0.7.1';
 
 export function createHumanLayer({ scene, createCanvas=()=>document.createElement('canvas') }) {
-  let mesh, texture, canvas, ctx, calibration, aspect, bounds, layout;
+  let mesh, texture, canvas, ctx, calibration, aspect, bounds, layout, referenceBottom;
   let placement={x:.72,scale:1}, disposed=false;
   function align() {
     if(!mesh||!calibration)return;
@@ -20,10 +20,12 @@ export function createHumanLayer({ scene, createCanvas=()=>document.createElemen
   }
   return {
     get mesh(){return mesh;},
+    get calibration(){return calibration;},
+    get cropMinY(){if(!mesh||calibration?.mode!=='face')return 0;const p=personPlacement(calibration,aspect,placement);return p.y+(.5-(referenceBottom??1))*p.height;},
     get bounds(){
       if(!mesh||!bounds)return null;
       const p=personPlacement(calibration,aspect,placement);
-      return {width:2*Math.max(Math.abs(bounds.left-calibration.hipX),Math.abs(bounds.right-calibration.hipX))*p.width,height:Math.max(1.72,p.y+(.5-bounds.top)*p.height)};
+      return {width:2*Math.max(Math.abs(bounds.left-(calibration.anchorX??calibration.hipX)),Math.abs(bounds.right-(calibration.anchorX??calibration.hipX)))*p.width,height:Math.max(1.72,p.y+(.5-bounds.top)*p.height)};
     },
     setLayout(value){layout=value;align();},
     apply(frame,alignment) {
@@ -39,7 +41,7 @@ export function createHumanLayer({ scene, createCanvas=()=>document.createElemen
       }
       if(canvas.width!==frame.width)canvas.width=frame.width;if(canvas.height!==frame.height)canvas.height=frame.height;
       const pixels=ctx.createImageData(frame.width,frame.height);pixels.data.set(frame.rgba);ctx.putImageData(pixels,0,0);
-      texture.needsUpdate=true;bounds=frame.bounds;calibration=alignment;aspect=frame.width/frame.height;align();
+      texture.needsUpdate=true;bounds=frame.bounds;if(calibration!==alignment)referenceBottom=frame.bounds?.bottom??1;calibration=alignment;aspect=frame.width/frame.height;align();
     },
     setPlacement(value){placement={...placement,...value};align();},
     update(camera){if(mesh)mesh.rotation.y=Math.atan2(camera.position.x-mesh.position.x,camera.position.z-mesh.position.z);},
