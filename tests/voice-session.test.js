@@ -151,3 +151,8 @@ test('browser-aborted recognition reconnects without cancelling coach output or 
  const h=harness();h.session.enable();h.session.speak('自然呼吸',{kind:'guidance'});const cue=h.utterances.at(-1);cue.onstart();
  h.instances[0].onerror({error:'aborted'});assert.equal(h.session.wanted,true);assert.equal(h.session.utterance,cue);h.run(150);assert.equal(h.instances.length,2);h.session.stop();
 });
+
+test('failed microphone startup during reconnect cannot leave orphan coach audio playing',()=>{
+ const h=harness({Recognition:class{start(){throw new Error('not allowed');}abort(){}}});h.session.wanted=true;
+ h.session.speak('歡迎',{kind:'welcome'});assert.equal(h.session.wanted,false);assert.equal(h.utterances.length,0);assert.equal(h.timers.size,0);
+});

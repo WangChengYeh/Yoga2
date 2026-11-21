@@ -19,7 +19,10 @@ export function setupDefaultMedia({document,camera,voice,onError=()=>{}}){
   try{if(!camera.mediaStatus.open&&!['requesting','loading'].includes(camera.mediaStatus.phase))Promise.resolve(camera.start()).catch(onError);}catch(error){onError(error);}
   try{if(!voice.mediaStatus.active&&voice.mediaStatus.phase!=='starting')voice.enableListening();}catch(error){onError(error);}
   if(event)prime();
-  if(first)try{voice.enableAI?.();}catch(error){onError(error); }
+  if(first){
+   try{voice.welcome?.();}catch(error){onError(error);}
+   try{voice.enableAI?.();}catch(error){onError(error);}
+  }
   refresh();
  }
  document.addEventListener('click',prime,{capture:true});

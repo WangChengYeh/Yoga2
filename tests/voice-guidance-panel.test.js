@@ -38,15 +38,15 @@ test('mute, background and output failure stop guidance and never start micropho
 });
 
 
-test('AI is optional: known commands bypass model; unknown questions use it only when ready',async()=>{
+test('standard AI entry serves questions when ready while commands stay deterministic',async()=>{
  let options,requests=0,closed=0,resolve;const ai={phase:'off',get ready(){return this.phase==='ready';},enable(){this.phase='ready';options.onState({phase:'ready',message:'ready'});},disable(){closed++;this.phase='off';options.onState({phase:'off',message:'off'});},ask(){requests++;return new Promise(r=>resolve=r);}};
  const h=harness(o=>{options=o;return ai;});const ask=text=>{h.element('voice-input').value=text;h.element('voice-form').listeners.submit({preventDefault(){}});};
  try{
-  assert.equal(h.element('local-ai-toggle').checked,false);ask('手可以彎一點嗎');assert.equal(requests,0);assert.match(h.spoken.at(-1).text,/沒聽懂/);
-  h.element('local-ai-toggle').checked=true;h.element('local-ai-toggle').listeners.change();ask('暫停');assert.equal(requests,0);
+  assert.equal(h.element('local-ai-retry').hidden,undefined);ask('手可以彎一點嗎');assert.equal(requests,0);assert.match(h.spoken.at(-1).text,/完整對話暫時還沒準備好/);
+  h.panel.enableAI();ask('暫停');assert.equal(requests,0);
   ask('手可以彎一點嗎');assert.equal(requests,1);h.state.playing=true;h.state.time=7;const count=h.spoken.length;h.panel.playbackChanged({type:'tick'});assert.equal(h.spoken.length,count);
   resolve('手臂自然伸展，不必鎖死。');await new Promise(r=>setImmediate(r));assert.match(h.spoken.at(-1).text,/不必鎖死/);
-  h.element('local-ai-toggle').checked=false;h.element('local-ai-toggle').listeners.change();assert.equal(closed,1);assert.equal(h.panel.diagnostics.localAI,'off');assert.equal(h.microphones,0);
+  globalThis.document.hidden=true;h.events.visibilitychange();assert.equal(closed,1);assert.equal(h.panel.diagnostics.localAI,'off');assert.equal(h.microphones,0);
   ai.phase='ready';globalThis.document.hidden=true;h.events.visibilitychange();assert.equal(ai.phase,'off');
  }finally{h.close();}
 });
@@ -55,7 +55,7 @@ test('AI error exposes exact diagnostic and copy fallback never needs microphone
  let options;const ai={phase:'off',diagnostics:{failure:{code:'GPU_ADAPTER_NULL',stage:'adapter',error:{name:'Error',message:'returned null'}}},enable(){this.phase='error';options.onState({phase:'error',message:'GPU_ADAPTER_NULL: returned null'});},disable(){},ready:false};
  const h=harness(o=>{options=o;return ai;});
  try{
-  h.element('local-ai-toggle').checked=true;h.element('local-ai-toggle').listeners.change();assert.equal(h.element('local-ai-toggle').checked,false);assert.equal(h.element('local-ai-details').hidden,false);
+  h.panel.enableAI();assert.equal(h.element('local-ai-retry').hidden,false);assert.equal(h.element('local-ai-details').hidden,false);
   assert.match(h.element('local-ai-diagnostic').textContent,/GPU_ADAPTER_NULL/);
   const original=Object.getOwnPropertyDescriptor(globalThis,'navigator');
   try{
@@ -71,7 +71,7 @@ const recognitionResult=(recognition,text,final=true)=>{const results=recognitio
 test('speech onset pauses before final recognition; interim words never execute a command',()=>{
  const h=harness();try{
   h.element('guidance-toggle').checked=false;h.element('guidance-toggle').listeners.change();h.state.time=9;h.dispatch({type:'play'});
-  h.element('voice-toggle').listeners.click();const r=h.recognitions.at(-1);assert.equal(h.state.playing,true,'opening microphone alone is not speech');
+  h.panel.enableListening();const r=h.recognitions.at(-1);assert.equal(h.state.playing,true,'opening microphone alone is not speech');
   r.onspeechstart();assert.equal(h.state.playing,false);assert.equal(h.panel.diagnostics.resumeAfterReply,true);
   recognitionResult(r,'暫停',false);assert.equal(h.spoken.length,0);h.dispatch({type:'tick',delta:10});assert.equal(h.state.time,9);
   recognitionResult(r,'現在做什麼');assert.equal(h.state.playing,false);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);assert.equal(h.state.time,9);
@@ -79,7 +79,7 @@ test('speech onset pauses before final recognition; interim words never execute 
 });
 test('interim text pauses even when browser omits speechstart',()=>{
  const h=harness();try{
-  h.element('guidance-toggle').checked=false;h.element('guidance-toggle').listeners.change();h.dispatch({type:'play'});h.element('voice-toggle').listeners.click();
+  h.element('guidance-toggle').checked=false;h.element('guidance-toggle').listeners.change();h.dispatch({type:'play'});h.panel.enableListening();
   const r=h.recognitions.at(-1);recognitionResult(r,'關鍵',false);assert.equal(h.state.playing,false);assert.equal(h.spoken.length,0);
   recognitionResult(r,'關鍵要領');h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
  }finally{h.close();}
@@ -134,7 +134,7 @@ test('AI writes automatic coaching cues; a live question cancels cue generation 
  const ai={phase:'ready',diagnostics:{},get ready(){return this.phase==='ready';},get pending(){return pending;},guide(cue){this.phase='thinking';return new Promise(resolve=>{pending={kind:'guidance',resolve};requests.push({kind:'guidance',cue,resolve});});},ask(text){this.phase='thinking';return new Promise(resolve=>{pending={kind:'reply',resolve};requests.push({kind:'reply',text,resolve});});},cancelGuidance(){if(pending?.kind==='guidance'){pending.resolve(null);pending=null;this.phase='ready';}},disable(){pending?.resolve(null);pending=null;this.phase='off';}};
  const h=harness(()=>ai);
  try{
-  h.element('local-ai-toggle').checked=true;h.dispatch({type:'play'});assert.equal(requests[0].kind,'guidance');assert.equal(h.spoken.length,0);
+  h.dispatch({type:'play'});assert.equal(requests[0].kind,'guidance');assert.equal(h.spoken.length,0);
   ai.phase='ready';pending=null;requests[0].resolve('雙手輕輕舉高，肩膀放鬆。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'雙手輕輕舉高，肩膀放鬆。');assert.equal(h.panel.diagnostics.guidanceSource,'AI');
   h.spoken.at(-1).onend();h.panel.update(100);assert.equal(requests.at(-1).cue.key,'reach:6');const stale=requests.at(-1);
   ask(h,'關鍵要領');assert.equal(h.state.playing,false);assert.equal(requests.at(-1).kind,'reply');
@@ -168,5 +168,50 @@ test('speech while AI thinks cancels generation before accepting a new question 
   recognitionResult(r,'再問一個',false);assert.equal(cancelled,1);assert.equal(h.panel.mediaStatus.active,true);
   recognitionResult(r,'手臂能放低嗎');const second=resolve;first('舊答案');await new Promise(r=>setImmediate(r));assert.ok(h.spoken.every(u=>u.text!=='舊答案'));assert.equal(h.state.playing,false);
   ai.phase='ready';second('新答案');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'新答案');h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
+ }finally{h.close();}
+});
+
+test('arrival welcome speaks before practice without waiting for AI; no repeated greeting after delivery',()=>{
+ const h=harness();try{
+  h.panel.enableListening();assert.equal(h.state.playing,false);h.panel.welcome();const greeting=h.spoken.at(-1);
+  assert.match(greeting.text,/我是 Luna/);assert.match(greeting.text,/先聊聊/);assert.equal(h.panel.diagnostics.kind,'welcome');assert.equal(h.microphones,1);
+  h.panel.welcome();assert.equal(h.spoken.length,1);greeting.onstart();assert.equal(h.panel.diagnostics.welcomeDelivered,true);greeting.onend();
+  h.panel.primeAudio();h.panel.welcome();assert.equal(h.spoken.length,1);assert.equal(h.state.playing,false);
+ }finally{h.close();}
+});
+test('blocked arrival speech retries audibly on a gesture without requiring course start',()=>{
+ const h=harness();try{
+  h.panel.enableListening();h.panel.welcome();h.spoken.at(-1).onerror({error:'not-allowed'});assert.equal(h.panel.mediaStatus.outputBlocked,true);
+  h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.primers.length,0);const greeting=h.spoken.at(-1);greeting.onstart();greeting.onend();
+  assert.equal(h.panel.mediaStatus.outputBlocked,false);assert.equal(h.state.playing,false);assert.equal(h.microphones,1);
+ }finally{h.close();}
+});
+test('a person can interrupt welcome; a late welcome event cannot start practice or greet again',()=>{
+ const h=harness();try{
+  h.panel.enableListening();h.panel.welcome();const greeting=h.spoken.at(-1),late=greeting.onend;greeting.onstart();const r=h.recognitions[0];
+  recognitionResult(r,'你好',false);assert.equal(h.panel.diagnostics.speaking,false);recognitionResult(r,'你好');assert.match(h.spoken.at(-1).text,/嗨，我在這裡/);
+  late();assert.equal(h.state.playing,false);h.spoken.at(-1).onend();h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.state.playing,false);
+  recognitionResult(r,'準備好了');assert.equal(h.state.playing,false);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
+ }finally{h.close();}
+});
+test('welcome respects mute, background, ongoing practice, and an already active conversation',()=>{
+ for(const reason of ['mute','background','practice','conversation']){
+  const h=harness();try{
+   if(reason==='mute')h.element('voice-output').checked=false;
+   if(reason==='background')globalThis.document.hidden=true;
+   if(reason==='practice')h.state.playing=true;
+   if(reason==='conversation')ask(h,'你好');
+   const count=h.spoken.length;h.panel.welcome();h.panel.primeAudio();assert.equal(h.spoken.length,count,reason);
+  }finally{h.close();}
+ }
+});
+test('AI is standard in the page; failures have retry and returning to foreground prepares it without reopening microphone',async()=>{
+ const {readFile}=await import('node:fs/promises');const html=await readFile(new URL('../src/index.html',import.meta.url),'utf8');
+ assert.doesNotMatch(html,/id="local-ai-toggle"/);assert.match(html,/id="local-ai-retry"/);
+ let options,enabled=0;const ai={phase:'off',enable(){enabled++;this.phase='error';options.onState({phase:'error',message:'specific failure'});},disable(){this.phase='off';},cancelReply(){}};
+ const h=harness(o=>{options=o;return ai;});try{
+  h.panel.enableAI();assert.equal(enabled,1);assert.equal(h.element('local-ai-retry').hidden,false);assert.match(h.element('local-ai-status').textContent,/specific failure/);
+  h.element('local-ai-retry').listeners.click();assert.equal(enabled,2);
+  globalThis.document.hidden=true;h.events.visibilitychange();globalThis.document.hidden=false;h.events.visibilitychange();assert.equal(enabled,3);assert.equal(h.microphones,0);
  }finally{h.close();}
 });

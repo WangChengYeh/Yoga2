@@ -48,3 +48,9 @@ test('pose questions use only fresh limited observations, never guess correctnes
   assert.match(respond('我的姿勢如何',state(),{pose}).reply,/不代表整個動作正確/);
   assert.match(respond('我的姿勢如何',state(),{pose:{...pose,updatedAt:-2000}}).reply,/沒有穩定/);
 });
+
+test('natural arrival phrases greet without starting; ready is explicit consent to start and waiting stays paused',()=>{
+ const paused=state({playing:false,time:0});assert.equal(respond('你好',paused).action,null);assert.match(respond('你好',paused).reply,/嗨/);
+ assert.equal(respond('準備好了',paused).action.type,'play');assert.equal(respond('等一下',paused).action,null);
+ assert.equal(respond('我還沒準備好了',paused).action,null);assert.equal(respond('不要開始',paused).action,null);
+});

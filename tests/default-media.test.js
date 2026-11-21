@@ -31,11 +31,19 @@ test('initial hidden page waits until first foreground; later background returns
 });
 
 
-test('AI defaults on once; gesture prepares output without restarting active inputs or a manually disabled AI',()=>{
+test('AI defaults on once; gesture prepares output without restarting active inputs or duplicating model preparation',()=>{
  let aiStarts=0,primes=0;const h=harness({voiceHooks:{enableAI(){aiStarts++;},primeAudio(){primes++;}}});
  assert.equal(aiStarts,1);assert.equal(primes,0,'no automatic silent speech before a click');
  h.setCamera({phase:'active',open:true});h.setVoice({phase:'listening',active:true,outputBlocked:true});h.controller.refresh();assert.equal(h.node('media-startup').hidden,false);assert.match(h.node('media-start-status').textContent,/語音輸出待啟用/);
  h.click();assert.equal(primes,1);assert.equal(aiStarts,1);assert.equal(h.calls.length,2);
  h.setVoice({phase:'listening',active:true,outputBlocked:false});h.controller.refresh();assert.equal(h.node('media-startup').hidden,true);
  h.events.click();assert.equal(primes,2);h.document.hidden=true;h.events.click();assert.equal(primes,2);h.controller.dispose();
+});
+
+test('arrival welcome is requested before AI download and only once on automatic entry',()=>{
+ const calls=[];const h=harness({voiceHooks:{welcome(){calls.push('welcome');},enableAI(){calls.push('AI');}}});assert.deepEqual(calls,['welcome','AI']);
+ h.click();assert.deepEqual(calls,['welcome','AI']);h.controller.dispose();
+});
+test('welcome failure does not prevent standard AI initialization',()=>{
+ let ai=0;const h=harness({voiceHooks:{welcome(){throw new Error('speech blocked');},enableAI(){ai++;}}});assert.equal(ai,1);assert.equal(h.errors.length,1);h.controller.dispose();
 });

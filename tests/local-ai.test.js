@@ -45,7 +45,7 @@ test('inference, error and timeout all release resources and settle pending ques
 test('AI receives bounded text and no invented visual observation or executable action',()=>{
  const messages=localAIMessages('a'.repeat(1000),{time:0});assert.equal(messages.length,2);
  assert.match(messages[0].content,/沒有影像或骨架/);assert.match(messages[0].content,/不輸出程式/);
- assert.equal(messages[1].content.split('使用者問題：')[1].length,300);
+ assert.equal(messages[1].content.split('使用者問題：')[1].length,160);
 });
 
 test('production worker initializes supported SDK/model then returns bounded text replies and errors',async()=>{
@@ -66,7 +66,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.7');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.8');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -143,4 +143,17 @@ test('barge-in cancels pending AI reply without unloading; stale reply/error can
  const next=h.ai.ask('第二個問題',{time:0}),second=w.messages.at(-1);
  w.onmessage({data:{type:'reply',id:first.id,text:'過時'}});w.onmessage({data:{type:'error',id:first.id,stage:'inference',error:{message:'cancelled'}}});assert.equal(h.ai.phase,'thinking');
  w.onmessage({data:{type:'reply',id:second.id,text:'新答案'}});assert.equal(await next,'新答案');h.ai.disable();
+});
+
+test('AI retains only bounded previous exchange in memory, reports playback context, and clears it on disable',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0];
+ const first=h.ai.ask('今天想放鬆肩膀',{time:0,playing:false}),a=w.messages.at(-1);assert.match(a.messages.at(-1).content,/尚未開始/);
+ w.onmessage({data:{type:'reply',id:a.id,text:'先放鬆肩膀，我陪你慢慢練。'}});await first;
+ const second=h.ai.ask('那第一個動作呢',{time:0,playing:false}),b=w.messages.at(-1);assert.equal(b.messages.length,4);assert.equal(b.messages[1].content,'今天想放鬆肩膀');assert.match(b.messages[2].content,/我陪你/);
+ w.onmessage({data:{type:'reply',id:b.id,text:'雙手慢慢上舉。'}});await second;assert.equal(h.ai.history.length,2);
+ assert.doesNotMatch(JSON.stringify(h.ai.diagnostics),/今天想放鬆肩膀|第一個動作呢/);h.ai.disable();assert.deepEqual(h.ai.history,[]);
+});
+test('cancelled AI answers never enter short-term conversation memory',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0],pending=h.ai.ask('舊問題',{time:0});const id=w.messages.at(-1).id;
+ h.ai.cancelReply();assert.equal(await pending,null);w.onmessage({data:{type:'reply',id,text:'取消的回答'}});assert.deepEqual(h.ai.history,[]);h.ai.disable();
 });

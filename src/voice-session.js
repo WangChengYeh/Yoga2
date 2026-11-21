@@ -154,8 +154,9 @@ export class VoiceSession {
     try{this.synthesis?.cancel();}catch{/* Already stopped by the browser. */}
     this.speaking=false;this.onSpeaking(false);this.scheduleListen();return true;
   }
-  speak(text,{kind='reply',rate=.95}={}) {
+  speak(text,{kind='reply',rate=.95,retry=false}={}) {
     this.cancelPrimer();
+    if(retry)this.audioBlocked=false;
     if(kind==='guidance'&&this.utterance&&this.speechKind==='reply')return false;
     if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
     if(this.utterance){this.utterance.onend=null;this.utterance.onerror=null;this.utterance.onstart=null;this.utterance=null;this.synthesis?.cancel();}
@@ -186,6 +187,7 @@ export class VoiceSession {
     };
     utterance.onerror=event=>fail(event?.error||'synthesis-error');
     this.listen();this.emit('replying','正在準備教練回覆，仍可說話打斷。');
+    if(!current())return;
     try{this.synthesis.resume?.();this.synthesis.speak(utterance);}catch(error){fail(error.name||'speak-error');}
   }
 }

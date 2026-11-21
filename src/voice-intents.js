@@ -1,11 +1,12 @@
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.7';
-import { LESSONS, COURSE_DURATION, courseFrame } from './course.js?v=0.9.7';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.8';
+import { LESSONS, COURSE_DURATION, courseFrame } from './course.js?v=0.9.8';
 
 const phrases = {
   slow: ['慢一點','慢一点','放慢','放慢一點','放慢一点','慢點','慢点','速度慢一點','速度慢一点'],
   repeat: ['再一次','再來一次','再来一次','重播','重做一次'],
-  pause: ['暫停','暂停','先暫停','先暂停','停一下'],
-  resume: ['繼續','继续','繼續播放','继续播放','開始','开始','開始帶練','开始带练'],
+  pause: ['暫停','暂停','先暫停','先暂停','停一下','等一下','先等等'],
+  resume: ['繼續','继续','繼續播放','继续播放','開始','开始','開始帶練','开始带练','準備好了','准备好了','我準備好了','我准备好了'],
+  hello: ['你好','嗨','哈囉','哈啰','hello','hi'],
   current: ['現在做什麼','现在做什么','現在是什麼動作','现在是什么动作','這個動作叫什麼','这个动作叫什么'],
   next: ['下一個動作','下一个动作','接下來做什麼','接下来做什么'],
   remaining: ['還有多久','还有多久','剩多久','剩多少時間','剩多少时间'],
@@ -27,11 +28,12 @@ export function respondToUtterance(text, { state, pose = null, now = 0 }) {
   const intent = classifyUtterance(text), frame = courseFrame(state.time);
   const reply = (message, action = null) => ({ intent, reply: message, action });
   if (['slow','repeat','pause','resume'].includes(intent) && !state.ready) return reply('教練還沒載入完成，請稍候；也可以重新整理頁面。');
+  if (intent === 'hello') return reply('嗨，我在這裡。今天想輕鬆伸展，還是先聊聊怎麼練？準備好可以說開始。');
   if (intent === 'slow') {
     const speed = state.speed > 1 ? 1 : .5;
     return state.speed <= .5 ? reply('目前已是最慢的零點五倍速。') : reply(`好，已調整為${speed === 1 ? '一' : '零點五'}倍速。`, { type:'speed', speed });
   }
-  if (intent === 'pause') return state.playing ? reply('好，先暫停，準備好再說繼續。', { type:'pause' }) : reply('目前已經暫停了，準備好可以說繼續。');
+  if (intent === 'pause') return state.playing ? reply('好，我等你。準備好再叫我繼續。', { type:'pause' }) : reply('好，不急，我等你。準備好再叫我繼續。');
   if (intent === 'resume') {
     if (frame.complete) return reply('這段課程已完成。想重新練習，可以說再一次。');
     return state.playing ? reply('已經在帶練中，跟著教練慢慢來。') : reply('好，繼續帶練。', { type:'play' });

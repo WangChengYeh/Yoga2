@@ -1,29 +1,30 @@
-import { guidanceMessages } from './ai-guidance.js?v=0.9.7';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.7';
-import { courseFrame } from './course.js?v=0.9.7';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.7';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.8';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.8';
+import { courseFrame } from './course.js?v=0.9.8';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.8';
 
-export function localAIMessages(text,state) {
+export function localAIMessages(text,state,history=[]) {
   const frame=courseFrame(state.time);
   return [
-    {role:'system',content:'你是瑜伽教練 Luna。用繁體中文，兩句內簡短回答課程問題。只提供溫和動作提示；不診斷、不承諾姿勢正確、不宣稱看見使用者。你沒有影像或骨架資料。使用者不舒服時請停止動作。不輸出程式、指令或工具呼叫。'},
-    {role:'user',content:`目前課程：${frame.lesson.name}；階段：${frame.complete?'已完成':frame.label}；要領：${GUIDANCE_TIPS[frame.lesson.id]}。\n使用者問題：${String(text).slice(0,300)}`},
+    {role:'system',content:'你是瑜伽教練 Luna。用繁體中文，兩句內自然對話，像面對面陪練；先回應對方，再視需要問一個簡短問題。未開始時先聊天或確認準備，不催促、不自行開始；不要每次重複介紹自己。只提供溫和動作提示；不診斷、不承諾姿勢正確、不宣稱看見使用者。你沒有影像或骨架資料。使用者不舒服時請停止動作。不輸出程式、指令或工具呼叫。'},
+    ...history.slice(-2).filter(m=>['user','assistant'].includes(m.role)).map(m=>({role:m.role,content:String(m.content).slice(0,96)})),
+    {role:'user',content:`狀態：${frame.complete?'已完成':state.playing?'帶練中':state.time===0?'尚未開始':'暫停中'}。目前課程：${frame.lesson.name}；階段：${frame.complete?'已完成':frame.label}；要領：${GUIDANCE_TIPS[frame.lesson.id]}。\n使用者問題：${String(text).slice(0,160)}`},
   ];
 }
 
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.7',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.8',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
-    this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;
+    this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];
   }
   get ready(){return this.phase==='ready';}
   get enabled(){return this.phase!=='off'&&this.phase!=='error';}
   emit(phase,message){this.phase=phase;this.onState({phase,message});}
   clearPending(){if(this.timer)this.clearTimer(this.timer);this.timer=null;}
   disable(message='AI 對話已關閉；基本指令仍可使用。'){
-    ++this.generation;this.cancelGPU?.();this.cancelGPU=null;this.clearPending();this.pending?.resolve(null);this.pending=null;
+    ++this.generation;this.history=[];this.cancelGPU?.();this.cancelGPU=null;this.clearPending();this.pending?.resolve(null);this.pending=null;
     if(this.worker){this.worker.onmessage=this.worker.onerror=this.worker.onmessageerror=null;this.worker.terminate();this.worker=null;}
     this.emit('off',message);
   }
@@ -91,7 +92,11 @@ export class LocalCoachAI {
     this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');
   }
   ask(text,state){
-    this.cancelGuidance();return this.request(localAIMessages(text,state),'reply');
+    this.cancelGuidance();const generation=this.generation;
+    return this.request(localAIMessages(text,state,this.history),'reply').then(reply=>{
+      if(reply&&generation===this.generation)this.history=[{role:'user',content:String(text).slice(0,96)},{role:'assistant',content:reply.slice(0,96)}];
+      return reply;
+    });
   }
   guide(cue,state){return this.request(guidanceMessages(cue,state),'guidance');}
   request(messages,kind){
