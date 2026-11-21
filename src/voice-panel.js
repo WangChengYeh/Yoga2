@@ -1,9 +1,9 @@
-import { AIGuidance } from './ai-guidance.js?v=0.9.8';
-import { LocalCoachAI } from './local-ai.js?v=0.9.8';
-import { CourseNarrator } from './guidance.js?v=0.9.8';
-import { VoiceSession } from './voice-session.js?v=0.9.8';
-import { respondToUtterance } from './voice-intents.js?v=0.9.8';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.8';
+import { AIGuidance } from './ai-guidance.js?v=0.9.9';
+import { LocalCoachAI } from './local-ai.js?v=0.9.9';
+import { CourseNarrator } from './guidance.js?v=0.9.9';
+import { VoiceSession } from './voice-session.js?v=0.9.9';
+import { respondToUtterance } from './voice-intents.js?v=0.9.9';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.9';
 
 export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{} }) {
   const $=(id)=>document.getElementById(id);
