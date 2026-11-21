@@ -1,4 +1,4 @@
-# Yoga2 匿名回報：專用 GitHub App（v0.8.2）
+# Yoga2 匿名回報：專用 GitHub App（v0.8.3）
 
 一般訪客不用 GitHub／ChatGPT 帳號或 repo 權限。Pages 的「回報問題」會擷取、打包，再由這個 Worker 用專用 App 上傳附件和建立 Issue。固定 repo：`WangChengYeh/Yoga2`。
 
@@ -37,3 +37,11 @@ R2 儲存 report ID、附件 digest 與處理狀態。相同 ID 不能替換內�
 `npm run check` 包含真實 RSA 簽章驗證、PKCS#1／PKCS#8、AES-GCM、防篡改、manifest state／身分、防 CSRF、完整匿名 HTTP 流程（模擬 GitHub）、範圍縮減、並行／lease、防重複、限流與原有場景擷取測試。
 
 實際 GitHub App 註冊／安裝必須由擁有者在 GitHub 核准。測試不冒充實際安裝；正式驗收要在啟用後，用未登入的手機按回報，核對 App bot 所建 Issue 的兩張圖、JSON 和 ZIP。
+
+## 設定交換失敗的復原
+
+GitHub manifest 的 code 在後端加密保存，並以 CAS 防並行交換。失敗後管理者設定頁提供「重試設定交換」，沿用原註冊；成功後重新整理 callback 只返回已建立的設定，不再次交換。舊 v0.8.2 若停在 callback 錯誤頁，重新整理該原頁可接續同一註冊；不要優先建立新 App。一次性 code 仍受 GitHub 有效期／單次使用限制，若回應遺失且 code 已消耗，需要擁有者到 GitHub 檢查 App，不能聲稱自動還原私鑰。
+
+`/api/health/github` 僅供已驗證的管理者檢查，對固定公開 Yoga2 repo 進行不帶權杖的連線檢查，快取一分鐘；不接受目標 URL、憑證或任意代理。
+
+正式健康檢查確認兩個問題：Worker 不支援 redirect:error，現改為 manual 並拒絕外站轉址；GitHub 共用未登入 API 額度也已耗盡。後者會依 GitHub reset 時間封鎖提前重試，管理頁顯示台灣時間，不會嘗試輪換 IP 或略過限制。App 設定仍待擁有者完成，不能將連線修正或模擬測試當成已建立實際 Issue。

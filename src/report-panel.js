@@ -1,5 +1,5 @@
-import { APP_VERSION } from './release.js?v=0.8.2';
-import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.8.2';
+import { APP_VERSION } from './release.js?v=0.8.3';
+import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.8.3';
 
 const toBlob=canvas=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('截圖編碼失敗')),'image/png'));
 export async function captureReport({stage, human, render, diagnostics, screenshot, win=window, doc=document, id=crypto.randomUUID()}) {
@@ -27,15 +27,17 @@ export async function captureReport({stage, human, render, diagnostics, screensh
   return {id,diagnostics:data,files:await reportFiles(data,cameraBlob,sceneBlob)};
 }
 export function setupReportPanel({capture,endpoint,win=window,doc=document}) {
-  const button=doc.getElementById('report-problem'),status=doc.getElementById('report-status');
+  const button=doc.getElementById('report-problem'),status=doc.getElementById('report-status'),notice=status.closest('.report-notice'),dismiss=doc.getElementById('report-dismiss');
+  dismiss?.addEventListener('click',()=>{if(notice)notice.dataset.active='false';dismiss.hidden=true;});
+  const showNotice=()=>{if(notice)notice.dataset.active='true';if(dismiss)dismiss.hidden=false;};
   let report,popup,timer,started=0,busy=false,retryAt=0;
-  const message=text=>{status.textContent=text;};
+  const message=text=>{status.textContent=text;showNotice();};
   const finish=()=>{busy=false;button.disabled=false;button.textContent=report?'重試回報':'回報問題';clearInterval(timer);};
   const receive=async event=>{
     if(!report||!trustedMessage(event,popup,new URL(endpoint).origin,report.id))return;
     if(event.data.type==='yoga-report-ready') {popup.postMessage({type:'yoga-report-package',...report},new URL(endpoint).origin);message('正在傳送這份回報…');}
     if(event.data.type==='yoga-report-success'&&/^https:\/\/github\.com\/WangChengYeh\/Yoga2\/issues\/\d+$/.test(event.data.url)){
-      status.textContent='回報成功 ';const a=doc.createElement('a');a.href=event.data.url;a.textContent='開啟 GitHub Issue';a.target='_blank';a.rel='noopener';status.append(a);report=null;finish();
+      showNotice();status.textContent='回報成功 ';const a=doc.createElement('a');a.href=event.data.url;a.textContent='開啟 GitHub Issue';a.target='_blank';a.rel='noopener';status.append(a);report=null;finish();
     }
     if(event.data.type==='yoga-report-error'){retryAt=Date.now()+Math.min(3600000,Math.max(0,Number(event.data.retryAfterMs)||0));message(`尚未確認完成：${String(event.data.message).slice(0,240)}。可按重試回報。`);finish();}
   };

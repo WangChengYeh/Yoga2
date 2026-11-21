@@ -38,16 +38,23 @@ export async function appJwt(config,now=Date.now()){
   const seconds=Math.floor(now/1000),part=`${b64url(utf8.encode(JSON.stringify({alg:'RS256',typ:'JWT'})))}.${b64url(utf8.encode(JSON.stringify({iat:seconds-60,exp:seconds+540,iss:String(config.clientId||config.appId)})))}`;
   return `${part}.${b64url(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,utf8.encode(part))))}`;
 }
-export async function githubApi(path,{token,method='GET',body,fetcher=fetch}={}){
+export async function githubApi(path,{token,method='GET',body,fetcher=(...args)=>globalThis.fetch(...args)}={}){
   if(!path.startsWith('/')||path.startsWith('//'))throw Error('Invalid GitHub path');
-  let response;try{response=await fetcher(`https://api.github.com${path}`,{method,redirect:'error',signal:AbortSignal.timeout(15000),headers:{Accept:'application/vnd.github+json',...(body?{'Content-Type':'application/json'}:{}),'X-GitHub-Api-Version':'2026-03-10','User-Agent':'Yoga2-Diagnostic-App',...(token?{Authorization:`Bearer ${token}`}:{})},...(body?{body:JSON.stringify(body)}:{})});}catch{throw new ReportError(502,'GitHub 回應未確認，請重試同一份回報。');}
-  if(!response.ok){const retry=Math.max(0,Number(response.headers.get('retry-after'))||0)*1000;
+  let response;try{response=await fetcher(`https://api.github.com${path}`,{method,redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Accept:'application/vnd.github+json',...(body?{'Content-Type':'application/json'}:{}),'X-GitHub-Api-Version':'2026-03-10','User-Agent':'Yoga2-Diagnostic-App',...(token?{Authorization:`Bearer ${token}`}:{})},...(body?{body:JSON.stringify(body)}:{})});}catch(error){
+    const kind=/illegal invocation|incorrect this/i.test(error?.message||'')?'fetch_binding':error?.name==='TimeoutError'?'timeout':'network';
+    console.error('GitHub transport failure',{kind,name:error?.name||'Error'});
+    const setupExchange=path.startsWith('/app-manifests/');
+    throw new ReportError(502,setupExchange?'GitHub 設定憑證交換暫未完成，請返回設定頁重試設定交換。':'GitHub 回應未確認，請重試同一份回報。');
+  }
+  if(!response.ok){const retryHeader=Math.max(0,Number(response.headers.get('retry-after'))||0)*1000;
+    const resetDelay=response.headers.get('x-ratelimit-remaining')==='0'?Math.max(0,(Number(response.headers.get('x-ratelimit-reset'))||0)*1000-Date.now()+2000):0;
+    const retry=Math.max(retryHeader,resetDelay);
     if(response.status===429||(response.status===403&&(retry||response.headers.get('x-ratelimit-remaining')==='0')))throw new ReportError(429,'GitHub 要求稍後再試。',retry||60000);
     throw new ReportError(response.status===422?422:502,`GitHub 操作未完成（${response.status}），請保留這份回報重試。`);
   }
   return response.status===204?null:response.json();
 }
-export async function installationToken(config,fetcher=fetch){
+export async function installationToken(config,fetcher=(...args)=>globalThis.fetch(...args)){
   if(!config?.installationId)throw new ReportError(503,'管理者尚未完成專用 GitHub App 安裝，請稍後重試。');
   const result=await githubApi(`/app/installations/${config.installationId}/access_tokens`,{token:await appJwt(config),method:'POST',body:{repositories:['Yoga2'],permissions:{contents:'write',issues:'write'}},fetcher});
   if(typeof result.token!=='string')throw new ReportError(502,'無法取得 GitHub App 暫時授權。');return result.token;
@@ -85,7 +92,7 @@ export async function checkProof(env,token,counter,id,digest,visitor){
   if(!(await sha(utf8.encode(`${value.nonce}:${counter}`))).startsWith('0000'))throw new ReportError(400,'回報驗證無效。');
 }
 async function findIssue(token,marker,fetcher){const issues=await githubApi(`/repos/${REPO}/issues?state=all&per_page=100&sort=created&direction=desc`,{token,fetcher});return issues.find?.(i=>i.body?.includes(`<!-- ${marker} -->`));}
-export async function uploadReport(report,env,{fetcher=fetch,config}={}){
+export async function uploadReport(report,env,{fetcher=(...args)=>globalThis.fetch(...args),config}={}){
   config ||= await appConfig(env);
   if(!config?.installationId)throw new ReportError(503,'管理者尚未完成專用 GitHub App 安裝，請稍後重試。');
   const digest=await payloadDigest(report.files),key=`reports/${report.id}`,marker=`yoga-debug-${report.id}`;
@@ -134,6 +141,14 @@ export async function uploadReport(report,env,{fetcher=fetch,config}={}){
 }
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function html(content,{cookie,githubForm=false,status=200}={}){return new Response(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yoga2 除錯回報</title><style>body{font:16px/1.7 system-ui;background:#f3f7f2;color:#163e35;margin:0;padding:5vw}main{max-width:680px;margin:auto}button,input,a{font:inherit}button{padding:.7rem 1rem;border-radius:1rem;background:#174f43;color:white;border:0}a{color:#075a49;text-decoration:underline}button[hidden],a[hidden]{display:none}</style><main>${content}</main></html>`,{status,headers:{...HEADERS,'Referrer-Policy':'same-origin','Content-Type':'text/html; charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'${githubForm?' https://github.com':''}; frame-ancestors 'none'`,...(cookie?{'Set-Cookie':cookie}:{})}});}
+let githubHealth;
+async function publicGithubHealth(){
+  if(githubHealth&&Date.now()-githubHealth.at<60000)return githubHealth.value;
+  const target='https://api.github.com/repos/WangChengYeh/Yoga2';
+  const options={headers:{Accept:'application/vnd.github+json','User-Agent':'Yoga2-Diagnostic-App'},signal:AbortSignal.timeout(8000),redirect:'manual'};
+  const probe=async(bound)=>{try{const call=bound?(...args)=>globalThis.fetch(...args):fetch;const response=await call(target,options);let message;if(!response.ok){try{const data=await response.json();message=String(data.message||'').replace(/https?:[^\s]+/g,'[url]').replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g,'[upstream]').slice(0,220);}catch{message='Non-JSON upstream response';}}else await response.body?.cancel();return {ok:response.ok,status:response.status,remaining:response.headers.get('x-ratelimit-remaining'),reset:response.headers.get('x-ratelimit-reset'),requestId:response.headers.get('x-github-request-id'),...(message?{message}:{})};}catch(e){return {ok:false,name:e?.name||'Error',kind:/illegal invocation|incorrect this/i.test(e?.message||'')?'fetch_binding':e?.name==='TimeoutError'?'timeout':'network',message:String(e?.message||'').replace(/https?:[^\s]+/g,'[url]').replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').slice(0,180)};}};
+  const value={bound:await probe(true),unbound:await probe(false)};githubHealth={at:Date.now(),value};return value;
+}
 const cookieValue=(request,name)=>request.headers.get('Cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(`${name}=`))?.slice(name.length+1);
 function admin(request,env){return Boolean(env.REPORT_ADMIN_EMAIL&&request.headers.get('oai-authenticated-user-id')&&request.headers.get('oai-authenticated-user-email')?.toLowerCase()===env.REPORT_ADMIN_EMAIL.toLowerCase());}
 function sameOrigin(request){return request.headers.get('Origin')===new URL(request.url).origin;}
@@ -154,19 +169,45 @@ async function verifySetupForm(request,env,url){
     return Boolean(value&&value.user===request.headers.get('oai-authenticated-user-id')&&value.path===url.pathname);
   }catch{return false;}
 }
+async function pendingSetup(env){
+  const object=await env.BUCKET.get('private/pending-setup.enc');return object?unseal(env.REPORT_ENCRYPTION_KEY,await object.text()):null;
+}
+async function exchangeSetup(request,env,pending,record){
+  if(pending.user!==request.headers.get('oai-authenticated-user-id')||pending.expiresAt<Date.now())throw new ReportError(409,'設定交換連結已過期，請返回設定頁檢查。');
+  if(record.value.retryAt>Date.now())throw new ReportError(429,'GitHub 暫時限制請求，請等候設定頁顯示的時間後再重試。',record.value.retryAt-Date.now());
+  if(record.value.phase==='exchanging')throw new ReportError(409,'設定憑證正在交換，請稍後返回設定頁檢查。');
+  const claimed=await env.BUCKET.put(`setup/${pending.state}`,JSON.stringify({...record.value,used:true,phase:'exchanging'}),{onlyIf:{etagMatches:record.etag}});
+  if(!claimed)throw new ReportError(409,'設定正在處理中。');
+  let exchangeEtag=claimed.etag;
+  try{
+    // Save the one-time code encrypted before using it, so the owner can retry
+    // the same registration instead of inadvertently creating another App.
+    await env.BUCKET.put('private/pending-setup.enc',await seal(env.REPORT_ENCRYPTION_KEY,pending));
+    const created=await githubApi(`/app-manifests/${encodeURIComponent(pending.code)}/conversions`,{method:'POST'});
+    if(created.owner?.login!==OWNER||!Number.isSafeInteger(created.id)||typeof created.pem!=='string'||!/^[-a-z0-9]+$/.test(created.slug||'')||created.permissions?.contents!=='write'||created.permissions?.issues!=='write')throw new ReportError(400,'請以 WangChengYeh 建立 App 並保留所需權限。');
+    await saveConfig(env,{appId:created.id,clientId:created.client_id,slug:created.slug,pem:created.pem});
+    await env.BUCKET.put(`setup/${pending.state}`,JSON.stringify({...record.value,used:true,phase:'complete'}),{onlyIf:{etagMatches:exchangeEtag}});
+  }catch(error){
+    await env.BUCKET.put(`setup/${pending.state}`,JSON.stringify({...record.value,used:true,phase:'retryable',...(error.status===429?{retryAt:Date.now()+(error.retryAfterMs||60000)}:{})}),{onlyIf:{etagMatches:exchangeEtag}});
+    if(error.status===429)throw new ReportError(429,'GitHub 的未登入 API 暫時達到流量上限。原設定已保留，請返回設定頁查看可重試時間。',error.retryAfterMs||60000);
+    if(error.status===502)throw new ReportError(502,'GitHub 設定憑證交換暫未完成。請返回設定頁，按「重試設定交換」，不必重新建立 App。');
+    throw error;
+  }
+}
 async function setup(request,env,url){
   if(!admin(request,env)){
     if(!request.headers.get('oai-authenticated-user-id'))return html(`<h1>管理者設定</h1><p>只有專案擁有者需要這個一次性設定；一般訪客回報不用登入。</p><a target="_top" href="/signin-with-chatgpt?return_to=%2Fsetup">管理者登入 ChatGPT</a>`);
     return html('<h1>無法開啟管理者設定</h1><p>只有專案擁有者可設定 GitHub App。請使用擁有此專案的帳號登入。</p><a href="/setup">返回設定頁</a>',{status:403});
   }
-  const config=await appConfig(env);
+  const config=await appConfig(env),pending=await pendingSetup(env);
   if(request.method==='GET'&&url.pathname==='/setup'){
     if(config)return html(`<h1>專用 GitHub App ${config.installationId?'已啟用':'已建立'}</h1><p>${config.installationId?'匿名回報已準備就緒，訪客不需要 GitHub 或 ChatGPT 帳號。':'下一步在 GitHub 安裝 App，選 Only select repositories → Yoga2。'}</p><a href="https://github.com/apps/${esc(config.slug)}/installations/new">在 GitHub 安裝至 Yoga2</a>${await setupForm(request,env,'/setup/check','檢查安裝結果')}<p>App 僅請求 Contents 與 Issues 寫入。私鑰只在後端加密保存。</p>`);
+    if(pending&&pending.user===request.headers.get('oai-authenticated-user-id')){const saved=await storeJson(env.BUCKET,`setup/${pending.state}`),retryAt=saved?.value.retryAt||0;const limited=retryAt>Date.now();const resume=limited?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(retryAt)):null;return html(`<h1>繼續 GitHub App 設定</h1><p>已保留先前的設定交換，尚未重新建立 App。${pending.expiresAt>Date.now()?'請按下方按鈕重試同一次設定交換。':'GitHub 的一次性設定交換已超過有效時間，請先到 GitHub 檢查既有 App，再重新設定。'}</p>${limited?`<p>GitHub 暫時達到流量上限，預計台灣時間 ${resume} 後可重試。請屆時重新整理這頁；不必重新建立 App。</p><a href="/setup">重新檢查</a>`:pending.expiresAt>Date.now()?await setupForm(request,env,'/setup/retry','重試設定交換'):'<a href="https://github.com/settings/apps">查看已建立的 GitHub Apps</a>'}`);}
     return html(`<h1>啟用匿名除錯回報</h1><p>你只需一次在 GitHub 建立並安裝專用 App，授權 Yoga2 的 Contents 和 Issues 寫入。訪客不需要登入，按回報才會公開上傳照片。</p>${await setupForm(request,env,'/setup/start','準備專用 GitHub App')}`);
   }
   if(request.method==='POST'&&!await verifySetupForm(request,env,url))return html('<h1>請重新開啟設定頁</h1><p>表單驗證已過期或不符。請返回設定頁後再按一次按鈕。</p><a href="/setup">返回設定頁</a>',{status:403});
   if(request.method==='POST'&&url.pathname==='/setup/start'){
-    if(config)return json({message:'App 已存在，請返回設定頁檢查安裝，避免重複建立。'},409);
+    if(config||pending)throw new ReportError(409,'已有 App 或待完成的設定，請返回設定頁繼續，避免重複建立。');
     const nonce=crypto.randomUUID(),key=`setup/${nonce}`;
     await env.BUCKET.put(key,JSON.stringify({user:request.headers.get('oai-authenticated-user-id'),expiresAt:Date.now()+3600000}),{onlyIf:{etagDoesNotMatch:'*'}});
     const manifest=appManifest(url.origin,nonce.slice(0,8));
@@ -176,11 +217,20 @@ async function setup(request,env,url){
     const state=url.searchParams.get('state'),code=url.searchParams.get('code');
     if(!/^[a-f0-9-]{36}$/.test(state||'')||state!==cookieValue(request,'__Host-yoga-setup')||!/^\w{10,200}$/.test(code||''))throw new ReportError(400,'GitHub 設定驗證不符，請重新開始。');
     const record=await storeJson(env.BUCKET,`setup/${state}`);
-    if(!record||record.value.user!==request.headers.get('oai-authenticated-user-id')||record.value.expiresAt<Date.now()||record.value.used||config)throw new ReportError(409,'設定連結已使用或過期。請回設定頁檢查現況。');
-    if(!await env.BUCKET.put(`setup/${state}`,JSON.stringify({...record.value,used:true}),{onlyIf:{etagMatches:record.etag}}))throw new ReportError(409,'設定正在處理中。');
-    const created=await githubApi(`/app-manifests/${encodeURIComponent(code)}/conversions`,{method:'POST'});
-    if(created.owner?.login!==OWNER||!Number.isSafeInteger(created.id)||typeof created.pem!=='string'||!/^[-a-z0-9]+$/.test(created.slug||'')||created.permissions?.contents!=='write'||created.permissions?.issues!=='write')throw new ReportError(400,'請以 WangChengYeh 建立 App 並保留所需權限。');
-    await saveConfig(env,{appId:created.id,clientId:created.client_id,slug:created.slug,pem:created.pem});
+    if(config)return new Response(null,{status:303,headers:{...HEADERS,Location:`${url.origin}/setup`}});
+    if(!record||record.value.user!==request.headers.get('oai-authenticated-user-id')||record.value.expiresAt<Date.now())throw new ReportError(409,'設定連結已使用或過期。請回設定頁檢查現況。');
+    if(record.value.phase)throw new ReportError(409,'這份設定已在處理。請返回設定頁重試設定交換。');
+    // Legacy v0.8.2 marked used before a transport failure. A matching owner,
+    // nonce cookie and original callback can recover that same registration.
+    await exchangeSetup(request,env,{state,code,user:record.value.user,expiresAt:record.value.expiresAt},record);
+    return new Response(null,{status:303,headers:{...HEADERS,Location:`${url.origin}/setup`}});
+  }
+  if(request.method==='POST'&&url.pathname==='/setup/retry'){
+    if(config)return new Response(null,{status:303,headers:{...HEADERS,Location:`${url.origin}/setup`}});
+    if(!pending)throw new ReportError(409,'沒有可重試的設定交換。');
+    const record=await storeJson(env.BUCKET,`setup/${pending.state}`);
+    if(!record||record.value.phase!=='retryable')throw new ReportError(409,'設定正在處理或已完成，請返回設定頁檢查。');
+    await exchangeSetup(request,env,pending,record);
     return new Response(null,{status:303,headers:{...HEADERS,Location:`${url.origin}/setup`}});
   }
   if((request.method==='GET'&&url.pathname==='/setup/installed')||(request.method==='POST'&&url.pathname==='/setup/check')){
@@ -208,6 +258,7 @@ export default {async fetch(request,env){
   const url=new URL(request.url);
   try{
     if(!env.BUCKET||!env.REPORT_ENCRYPTION_KEY)return json({message:'回報服務設定尚未完成。'},503);
+    if(request.method==='GET'&&url.pathname==='/api/health/github'){if(!admin(request,env))return json({message:'只有管理者可檢查外部連線。'},403);return json(await publicGithubHealth());}
     if(url.pathname.startsWith('/setup'))return await setup(request,env,url);
     if(request.method==='GET'&&url.pathname==='/')return html(reportPage);
     if(request.method==='GET'&&url.pathname==='/api/status'){const config=await appConfig(env);return json({ready:Boolean(config?.installationId),mode:'github-app',requiresVisitorLogin:false});}

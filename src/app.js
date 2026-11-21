@@ -1,16 +1,17 @@
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.8.3';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.8.2';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.8.2';
-import { practiceLayout } from './practice-layout.js?v=0.8.2';
-import { setupFullscreen } from './fullscreen.js?v=0.8.2';
-import { setupHumanPanel } from './human-panel.js?v=0.8.2';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.8.3';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.8.3';
+import { practiceLayout } from './practice-layout.js?v=0.8.3';
+import { setupFullscreen } from './fullscreen.js?v=0.8.3';
+import { setupHumanPanel } from './human-panel.js?v=0.8.3';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.8.2';
-import { prepareStandingCoach } from './rig.js?v=0.8.2';
-import { setupPosePanel } from './pose-panel.js?v=0.8.2';
-import { setupVoicePanel } from './voice-panel.js?v=0.8.2';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.8.3';
+import { prepareStandingCoach } from './rig.js?v=0.8.3';
+import { setupPosePanel } from './pose-panel.js?v=0.8.3';
+import { setupVoicePanel } from './voice-panel.js?v=0.8.3';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -257,7 +258,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
 $('coach-skeleton-toggle').addEventListener('change',()=>{if(!$('coach-skeleton-toggle').checked){coachSkeleton?.dispose();coachSkeleton=null;}});
-setupFullscreen({document,window,onChange:()=>resize(true)});
+const fullscreenTools=setupFullscreenTools({document});
+setupFullscreen({document,window,onChange:active=>{fullscreenTools.setActive(active);resize(true);}});
 humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;framingMode=null;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));

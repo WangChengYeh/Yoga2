@@ -51,7 +51,7 @@ test('persistent quota CAS never exceeds cap under concurrent anonymous submissi
  const b=bucket(),results=await Promise.allSettled(Array.from({length:10},()=>consumeQuota(b,'quota/day',3,Date.now()+10000)));assert.equal(results.filter(x=>x.status==='fulfilled').length,3);assert.equal(JSON.parse(b.data.get('quota/day').text).count,3);
 });
 test('installation token is narrowed to Yoga2 and only Contents/Issues write',async()=>{
- const gh=github();assert.equal(await installationToken(config,gh.fetcher),'TEST_SERVER_ONLY_TOKEN');assert.deepEqual(gh.calls[0].body,{repositories:['Yoga2'],permissions:{contents:'write',issues:'write'}});assert.ok(gh.calls[0].headers.Authorization.startsWith('Bearer ey'));assert.equal(gh.calls[0].redirect,'error');
+ const gh=github();assert.equal(await installationToken(config,gh.fetcher),'TEST_SERVER_ONLY_TOKEN');assert.deepEqual(gh.calls[0].body,{repositories:['Yoga2'],permissions:{contents:'write',issues:'write'}});assert.ok(gh.calls[0].headers.Authorization.startsWith('Bearer ey'));assert.equal(gh.calls[0].redirect,'manual');
 });
 test('anonymous uploader uses server App, immutable attachment links and existing Issue recovery',async()=>{
  const b=bucket(),gh=github(),report=fixture();const result=await uploadReport(report,{BUCKET:b},{fetcher:gh.fetcher,config});assert.equal(result.url,gh.issues[0].html_url);assert.match(gh.issues[0].body,/camera.png/);assert.match(gh.issues[0].body,/scene.png/);assert.match(gh.issues[0].body,/report.zip/);assert.match(gh.issues[0].body,/844 × 390/);
@@ -111,7 +111,7 @@ test('manifest callback binds admin session and stores only encrypted App creden
  const original=globalThis.fetch;let calls=0;globalThis.fetch=async(url)=>{calls++;assert.equal(url,'https://api.github.com/app-manifests/testcode123456/conversions');return Response.json({id:1,client_id:'Iv1.test',slug:'yoga-test-app',pem,owner:{login:'WangChengYeh'},permissions:{contents:'write',issues:'write'},client_secret:'NEVER_STORE'});};
  try{
   const r=await worker.fetch(new Request('https://reports.example/setup/callback?state='+nonce+'&code=testcode123456',{headers:{...headers,Cookie:cookie}}),env);assert.equal(r.status,303);const encrypted=b.data.get('private/github-app.enc').text;assert.ok(!encrypted.includes('PRIVATE KEY'));assert.ok(!encrypted.includes('NEVER_STORE'));const saved=await unseal(key,encrypted);assert.equal(saved.appId,1);assert.equal(saved.pem,pem);assert.equal(saved.client_secret,undefined);
-  const again=await worker.fetch(new Request('https://reports.example/setup/callback?state='+nonce+'&code=testcode123456',{headers:{...headers,Cookie:cookie}}),env);assert.equal(again.status,409);assert.equal(calls,1);
+  const again=await worker.fetch(new Request('https://reports.example/setup/callback?state='+nonce+'&code=testcode123456',{headers:{...headers,Cookie:cookie}}),env);assert.equal(again.status,303);assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
 test('iPhone null/missing Origin form requires signed admin CSRF; wrong origin, user, path and expiry fail',async()=>{
@@ -137,4 +137,44 @@ test('setup/check uses its own signed form token and blocks replay of setup/star
  const start=await setupBody(env,headers);await env.BUCKET.put('private/github-app.enc',await seal(key,config));
  const wrong=await worker.fetch(new Request('https://reports.example/setup/check',{method:'POST',headers,body:start}),env);assert.equal(wrong.status,403);
  const body=await setupBody(env,headers,'/setup/check');assert.ok(body.get('_csrf'));const page=await worker.fetch(new Request('https://reports.example/setup',{headers}),env);assert.equal(page.headers.get('referrer-policy'),'same-origin');
+});
+test('default GitHub transport preserves the runtime global fetch receiver',async()=>{
+ const original=globalThis.fetch;let calls=0;
+ globalThis.fetch=function(url,options){if(this!==globalThis)throw new TypeError('Illegal invocation: function called with incorrect this reference.');calls++;return Promise.resolve(Response.json(url.includes('/access_tokens')?{token:'TEST_TOKEN'}:{ok:true}));};
+ try{assert.deepEqual(await githubApi('/repos/WangChengYeh/Yoga2'),{ok:true});assert.equal(await installationToken(config),'TEST_TOKEN');assert.equal(calls,2);}finally{globalThis.fetch=original;}
+});
+test('failed manifest exchange persists encrypted pending state and retries same registration by explicit POST',async()=>{
+ const b=bucket(),env={BUCKET:b,REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},headers={'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test',Origin:'null'};
+ const start=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers,body:await setupBody(env,headers)}),env),cookie=start.headers.get('set-cookie').split(';')[0],state=cookie.split('=')[1];
+ const callback='https://reports.example/setup/callback?state='+state+'&code=samecode123456',original=globalThis.fetch;let fail=true,calls=0;
+ globalThis.fetch=async url=>{calls++;assert.equal(url,'https://api.github.com/app-manifests/samecode123456/conversions');if(fail)throw new TypeError('Network failed');return Response.json({id:1,client_id:'Iv1.test',slug:'yoga-test-app',pem,owner:{login:'WangChengYeh'},permissions:{contents:'write',issues:'write'}});};
+ try{
+  const failed=await worker.fetch(new Request(callback,{headers:{...headers,Cookie:cookie}}),env);assert.equal(failed.status,502);const text=await failed.text();assert.match(text,/重試設定交換/);assert.ok(!text.includes('同一份回報'));
+  const encrypted=b.data.get('private/pending-setup.enc').text;assert.ok(!encrypted.includes('samecode'));assert.ok(!encrypted.includes('owner'));
+  assert.equal(JSON.parse(b.data.get('setup/'+state).text).phase,'retryable');
+  const page=await worker.fetch(new Request('https://reports.example/setup',{headers}),env);assert.match(await page.text(),/繼續 GitHub App 設定/);
+  const body=await setupBody(env,headers,'/setup/retry');fail=false;
+  const retried=await worker.fetch(new Request('https://reports.example/setup/retry',{method:'POST',headers,body}),env);assert.equal(retried.status,303);assert.equal(calls,2);assert.equal((await unseal(key,b.data.get('private/github-app.enc').text)).appId,1);
+ }finally{globalThis.fetch=original;}
+});
+test('legacy used-only setup record can recover once from original authenticated callback',async()=>{
+ const b=bucket(),env={BUCKET:b,REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},state='11111111-1111-1111-1111-111111111111';
+ await b.put('setup/'+state,JSON.stringify({user:'owner',expiresAt:Date.now()+60000,used:true}));const original=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({id:1,client_id:'Iv1.test',slug:'yoga-test-app',pem,owner:{login:'WangChengYeh'},permissions:{contents:'write',issues:'write'}});};
+ try{const r=await worker.fetch(new Request('https://reports.example/setup/callback?state='+state+'&code=legacycode123456',{headers:{'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test',Cookie:'__Host-yoga-setup='+state}}),env);assert.equal(r.status,303);assert.equal(calls,1);assert.equal(JSON.parse(b.data.get('setup/'+state).text).phase,'complete');}finally{globalThis.fetch=original;}
+});
+
+test('edge transport uses manual redirects and never follows a redirect with App credentials',async()=>{
+ let calls=0;await assert.rejects(githubApi('/repos/WangChengYeh/Yoga2/issues',{token:'SECRET',fetcher:async(url,options)=>{calls++;assert.equal(options.redirect,'manual');return new Response(null,{status:302,headers:{Location:'https://evil.example/'}});}}),e=>e.status===502);assert.equal(calls,1);
+});
+test('GitHub exhausted primary limit honors actual reset timestamp, not a blind one-minute retry',async()=>{
+ const reset=Math.floor(Date.now()/1000)+900;
+ await assert.rejects(githubApi('/repos/WangChengYeh/Yoga2/issues',{fetcher:async()=>new Response('limited',{status:403,headers:{'x-ratelimit-remaining':'0','x-ratelimit-reset':String(reset)}})}),e=>e.status===429&&e.retryAfterMs>895000&&e.retryAfterMs<905000);
+});
+test('pending setup rate-limit cooldown prevents another exchange and displays retry time',async()=>{
+ const b=bucket(),env={BUCKET:b,REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},headers={'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test',Origin:'null'},state='22222222-2222-2222-2222-222222222222';
+ const pending={state,code:'samecode123456',user:'owner',expiresAt:Date.now()+3600000};await b.put('private/pending-setup.enc',await seal(key,pending));await b.put('setup/'+state,JSON.stringify({user:'owner',expiresAt:pending.expiresAt,used:true,phase:'retryable',retryAt:Date.now()+60000}));
+ const page=await worker.fetch(new Request('https://reports.example/setup',{headers}),env);assert.match(await page.text(),/預計台灣時間/);
+ const token=await signed(key,{user:'owner',path:'/setup/retry',exp:Date.now()+600000},'setup-csrf'),original=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;throw Error('must not call');};
+ try{const r=await worker.fetch(new Request('https://reports.example/setup/retry',{method:'POST',headers,body:new URLSearchParams({_csrf:token})}),env);assert.equal(r.status,429);assert.equal(calls,0);}finally{globalThis.fetch=original;}
 });

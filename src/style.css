@@ -53,3 +53,15 @@ body.practice-fullscreen .gesture-hint{display:none}body.practice-fullscreen .co
 .report-notice a {color:#075a49;text-decoration:underline;}
 .studio-actions {flex-wrap:wrap;}
 @media(max-width:650px){.report-notice{bottom:6rem;left:.75rem;max-width:16rem;font-size:.875rem;} .studio-actions{gap:.3rem;max-width:70%;}.studio-actions button{padding:.45rem .6rem;font-size:.8rem;}}
+
+/* Fullscreen is for the two people; secondary controls live in one menu. */
+.practice-settings{display:none;position:relative}.practice-settings summary{display:grid;place-items:center;width:44px;height:40px;border-radius:20px;border:1px solid #c8d4c5;background:#ffffffd9;font-size:25px;line-height:1;cursor:pointer;list-style:none}.practice-settings summary::-webkit-details-marker{display:none}
+.practice-settings-content{position:absolute;right:0;top:calc(100% + 10px);width:min(310px,calc(100vw - 28px));max-height:calc(100dvh - 130px);overflow:auto;display:flex;flex-wrap:wrap;gap:12px;padding:16px;background:#fffffff5;border:1px solid #d2dfcd;border-radius:16px;box-shadow:0 12px 35px #183d3526;color:#244f40;font-size:14px}
+.practice-settings:not([open]) .practice-settings-content{display:none}.menu-report-consent{order:-1;flex-basis:100%;margin:0;font-size:14px;line-height:1.6;color:#526d61}
+body.practice-fullscreen .practice-settings{display:block}body.practice-fullscreen .studio-top .pill,body.practice-fullscreen .studio .coach-tag,body.practice-fullscreen .studio-watermark{display:none}
+body.practice-fullscreen .studio-top{justify-content:flex-end}body.practice-fullscreen .studio-actions{max-width:none;flex-wrap:nowrap}
+body.practice-fullscreen #practice-settings .skeleton-controls{position:static;max-width:none;padding:8px 0;flex-basis:100%;margin:0;background:transparent;order:2}body.practice-fullscreen #practice-settings .view-tools{position:static;flex-basis:100%;margin:0;order:3;background:#edf3ed;justify-content:space-between}body.practice-fullscreen #practice-settings .skeleton-controls span{font-size:13px}
+body.practice-fullscreen .report-notice{display:none;left:max(12px,env(safe-area-inset-left));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 64px);max-width:min(380px,calc(100vw - 24px));z-index:7;padding-right:36px}body.practice-fullscreen .report-notice[data-active=true]{display:block}
+#report-dismiss{position:absolute;top:4px;right:4px;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#e1ece4;font-size:21px}#report-dismiss[hidden]{display:none}
+body.practice-fullscreen .stage-playback{max-width:calc(100% - 24px);font-size:14px}body.practice-fullscreen .stage-playback span{max-width:none}
+body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #practice-settings #report-problem{font-size:14px;padding:9px 12px}
