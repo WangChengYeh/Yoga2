@@ -1,4 +1,6 @@
-# Yoga2 匿名回報：專用 GitHub App（v0.8.3）
+# Yoga2 匿名回報：專用 GitHub App
+
+後端功能基線 v0.8.3；前端版號獨立演進。**專用 App 安裝與匿名真實 Issue 尚未確認完成。** 全專案文件見 [索引](../docs/README.md)，調查摘要見 [問題日誌](../docs/logs/ISSUES.md)。
 
 一般訪客不用 GitHub／ChatGPT 帳號或 repo 權限。Pages 的「回報問題」會擷取、打包，再由這個 Worker 用專用 App 上傳附件和建立 Issue。固定 repo：`WangChengYeh/Yoga2`。
 

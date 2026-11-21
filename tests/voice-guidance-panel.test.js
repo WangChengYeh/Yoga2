@@ -3,14 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setupVoicePanel} from '../src/voice-panel.js';
 function harness(createAI,getPose=()=>null){
- const oldDocument=globalThis.document,oldWindow=globalThis.window,elements=new Map(),spoken=[],events={};let microphones=0,cancelled=0;const recognitions=[];
+ const oldDocument=globalThis.document,oldWindow=globalThis.window,elements=new Map(),spoken=[],primers=[],events={};let microphones=0,cancelled=0;const recognitions=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{id,checked:['guidance-toggle','voice-output'].includes(id),dataset:{},value:'',listeners:{},textContent:'',addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  globalThis.document={hidden:false,getElementById:element,querySelectorAll:()=>[],addEventListener:(type,fn)=>events[type]=fn};
- globalThis.window={SpeechRecognition:class{constructor(){microphones++;recognitions.push(this);}start(){this.onstart?.();}abort(){}},SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},speechSynthesis:{getVoices:()=>[{lang:'zh-TW',localService:true}],speak:u=>spoken.push(u),cancel:()=>cancelled++},addEventListener:(type,fn)=>events[type]=fn};
+ globalThis.window={SpeechRecognition:class{constructor(){microphones++;recognitions.push(this);}start(){this.onstart?.();}abort(){}},SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},speechSynthesis:{getVoices:()=>[{lang:'zh-TW',localService:true}],speak:u=>(u.volume===0?primers:spoken).push(u),cancel:()=>cancelled++},addEventListener:(type,fn)=>events[type]=fn};
  const state={ready:true,time:0,playing:false,speed:1};let panel;
  const dispatch=action=>{Object.assign(state,reducePlayback(state,action));panel.playbackChanged(action);};
  panel=setupVoicePanel({getState:()=>state,dispatch,getPose,...(createAI?{createAI}:{})});
- return {state,panel,spoken,element,events,dispatch,recognitions,get microphones(){return microphones;},get cancelled(){return cancelled;},close(){panel.silence();globalThis.document=oldDocument;globalThis.window=oldWindow;}};
+ return {state,panel,spoken,primers,element,events,dispatch,recognitions,get microphones(){return microphones;},get cancelled(){return cancelled;},close(){panel.silence();globalThis.document=oldDocument;globalThis.window=oldWindow;}};
 }
 test('playback wiring speaks movement names without microphone, pauses immediately and resumes current cue',()=>{
  const h=harness();try{
@@ -32,7 +32,7 @@ test('question freezes the course and resumes from the same time only after the 
 test('mute, background and output failure stop guidance and never start microphone',()=>{
  const h=harness();try{
   h.state.playing=true;h.panel.playbackChanged({type:'play'});h.element('guidance-toggle').checked=false;h.element('guidance-toggle').listeners.change();h.state.time=6;h.panel.playbackChanged({type:'tick'});assert.equal(h.spoken.length,1);
-  h.element('guidance-toggle').checked=true;h.element('guidance-toggle').listeners.change();h.spoken.at(-1).onerror();assert.equal(h.element('guidance-toggle').checked,false);h.state.time=10;h.panel.playbackChanged({type:'tick'});assert.equal(h.spoken.length,2);
+  h.element('guidance-toggle').checked=true;h.element('guidance-toggle').listeners.change();h.spoken.at(-1).onerror();assert.equal(h.element('guidance-toggle').checked,true);assert.equal(h.panel.mediaStatus.outputBlocked,true);h.state.time=10;h.panel.playbackChanged({type:'tick'});assert.equal(h.spoken.length,2);
   h.element('guidance-toggle').checked=true;h.element('guidance-toggle').listeners.change();globalThis.document.hidden=true;h.events.visibilitychange();assert.equal(h.panel.diagnostics.kind,null);assert.equal(h.microphones,0);
  }finally{h.close();}
 });
@@ -140,5 +140,14 @@ test('AI writes automatic coaching cues; a live question cancels cue generation 
   ask(h,'關鍵要領');assert.equal(h.state.playing,false);assert.equal(requests.at(-1).kind,'reply');
   stale.resolve('肩膀放鬆，保持自然呼吸。');const answer=requests.at(-1);ai.phase='ready';pending=null;answer.resolve('手臂放鬆，不必勉強。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'手臂放鬆，不必勉強。');assert.equal(h.state.playing,false);
   h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
+ }finally{h.close();}
+});
+
+test('default media entry starts listening idempotently while voice output remains checked',()=>{
+ const h=harness();try{
+  assert.equal(h.element('voice-output').checked,true);assert.equal(h.element('guidance-toggle').checked,true);
+  h.panel.enableListening();assert.equal(h.microphones,1);assert.equal(h.panel.mediaStatus.active,true);h.panel.enableListening();assert.equal(h.microphones,1);
+  h.recognitions[0].onerror({error:'not-allowed'});assert.equal(h.panel.mediaStatus.active,false);assert.equal(h.panel.mediaStatus.phase,'error');assert.equal(h.microphones,1,'permission errors never auto-retry');
+  h.panel.enableListening();assert.equal(h.microphones,2);
  }finally{h.close();}
 });

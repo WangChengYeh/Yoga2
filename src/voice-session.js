@@ -3,10 +3,34 @@ export function recognitionMessage(code) {
 }
 
 export class VoiceSession {
-  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
-    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, setTimer, clearTimer, audioEnabled });
+  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
+    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, setTimer, clearTimer, audioEnabled });
     this.wanted = false; this.epoch = 0; this.recognition = null; this.utterance = null; this.speaking = false; this.emptyTurns = 0;
     this.timers = new Set();
+  }
+  cancelPrimer(){
+    if(this.primerTimer){this.cancelTimer(this.primerTimer);this.primerTimer=null;}
+    const primer=this.primer;this.primer=null;
+    if(primer){primer.onstart=primer.onend=primer.onerror=null;if(!this.utterance)try{this.synthesis?.cancel();}catch{/* already stopped */}}
+  }
+  primeAudio(){
+    if((!this.audioEnabled('reply')&&!this.audioEnabled('guidance'))||!this.synthesis||!this.Utterance)return;
+    try{this.synthesis.resume?.();}catch{/* retry speak still reports its own error */}
+    if(this.utterance||this.primer||this.audioPrimed&&!this.audioBlocked)return;
+    try{
+      this.audioBlocked=false;const primer=new this.Utterance('準備好了');primer.lang='zh-TW';primer.volume=0;this.primer=primer;
+      primer.onstart=()=>{if(this.primer===primer){if(this.primerTimer)this.cancelTimer(this.primerTimer);this.primerTimer=null;this.audioPrimed=true;this.audioBlocked=false;this.onAudioState({blocked:false,message:'語音播放已準備好。'});}};
+      primer.onend=()=>{if(this.primer===primer){if(this.primerTimer)this.cancelTimer(this.primerTimer);this.primerTimer=null;this.primer=null;this.audioPrimed=true;this.audioBlocked=false;this.onAudioState({blocked:false,message:'語音播放已準備好。'});}};
+      primer.onerror=event=>{if(this.primer===primer){if(this.primerTimer)this.cancelTimer(this.primerTimer);this.primerTimer=null;this.primer=null;this.audioFailure(event?.error||'prime-failed');}};
+      this.primerTimer=this.timer(()=>{if(this.primer===primer){this.cancelPrimer();this.audioFailure('prime-timeout');}},10000);
+      this.synthesis.speak(primer);
+    }catch(error){this.cancelPrimer();this.audioFailure(error.name||'prime-failed');}
+  }
+  audioFailure(code){
+    this.audioBlocked=true;this.audioPrimed=false;this.lastAudioError=code;
+    const reason=code==='not-allowed'?'瀏覽器尚未允許發聲':code==='start-timeout'?'語音在 10 秒內沒有開始':code==='playback-timeout'?'語音播放超過 60 秒仍未結束':`瀏覽器回報 ${code}`;
+    const message=`語音播放未完成 [${code}]：${reason}。文字已保留；請點「啟用相機與語音」後重試。`;
+    this.onAudioState({blocked:true,code,message});return message;
   }
   beginInput(){if(!this.inputActive){this.inputActive=true;this.onInputStart();}}
   finishInput(reason){if(this.inputActive){this.inputActive=false;this.onReplyEnd({reason});}}
@@ -25,7 +49,7 @@ export class VoiceSession {
     this.wanted=true;this.emptyTurns=0;this.listen();
   }
   stop(announce=true) {
-    ++this.epoch;this.wanted=false;this.cancelInput();
+    ++this.epoch;this.wanted=false;this.cancelInput();this.cancelPrimer();
     for(const id of this.timers)this.clearTimer(id);this.timers.clear();
     this.speechTimer=null;
     this.detachRecognition();
@@ -107,23 +131,29 @@ export class VoiceSession {
     this.speaking=false;this.onSpeaking(false);this.scheduleListen();return true;
   }
   speak(text,{kind='reply',rate=.95}={}) {
+    this.cancelPrimer();
     if(kind==='guidance'&&this.utterance&&this.speechKind==='reply')return false;
     this.detachRecognition();
     if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
     if(this.utterance){this.utterance.onend=null;this.utterance.onerror=null;this.utterance.onstart=null;this.utterance=null;this.synthesis?.cancel();}
     this.speaking=false;this.onSpeaking(false);
     this.speechKind=kind;this.onReply(text,kind);
-    if(!this.audioEnabled(kind)||!this.synthesis||!this.Utterance){this.speechKind=null;this.emit('text','已顯示文字回覆。');if(kind==='reply')this.finishInput('text');this.scheduleListen();return;}
+    if(this.audioBlocked||!this.audioEnabled(kind)||!this.synthesis||!this.Utterance){this.speechKind=null;this.emit('text','已顯示文字回覆。');if(kind==='reply')this.finishInput('text');this.scheduleListen();return;}
     const token=this.epoch,utterance=new this.Utterance(String(text));this.utterance=utterance;
     utterance.lang='zh-TW';utterance.rate=Math.max(.8,Math.min(1.25,rate));
     const voices=this.synthesis.getVoices?.()||[];
-    utterance.voice=voices.find((voice)=>voice.lang==='zh-TW'&&voice.localService)||voices.find((voice)=>voice.lang==='zh-TW')||voices.find((voice)=>voice.lang?.startsWith('zh'))||null;
+    utterance.voice=voices.find((voice)=>voice.lang==='zh-TW'&&voice.localService)||voices.find((voice)=>voice.lang?.startsWith('zh')&&voice.localService)||voices.find((voice)=>voice.lang==='zh-TW')||voices.find((voice)=>voice.lang?.startsWith('zh'))||null;
     const current=()=>token===this.epoch&&this.utterance===utterance;
-    const fail=()=>{if(!current())return;const failedKind=this.speechKind;this.stop(false);this.onSpeechError(failedKind);this.emit('error','語音播放失敗，已保留文字回覆；觸控操作仍可使用。');};
-    let watchdog=this.timer(fail,10000);this.speechTimer=watchdog;
+    const fail=code=>{
+      if(!current())return;const failedKind=this.speechKind;
+      this.cancelSpeech(failedKind);const message=this.audioFailure(code);
+      this.onSpeechError(failedKind,{code,message});this.emit('error',message);
+    };
+    let watchdog=this.timer(()=>fail('start-timeout'),10000);this.speechTimer=watchdog;
     utterance.onstart=()=>{
       if(!current())return;
-      this.cancelTimer(watchdog);watchdog=this.timer(fail,60000);this.speechTimer=watchdog;
+      this.cancelTimer(watchdog);watchdog=this.timer(()=>fail('playback-timeout'),60000);this.speechTimer=watchdog;
+      this.audioBlocked=false;this.audioPrimed=true;this.onAudioState({blocked:false,message:'語音播放已準備好。'});
       this.speaking=true;this.onSpeaking(true);this.emit('speaking','教練回話中，暫停聆聽。');
     };
     utterance.onend=()=>{
@@ -131,8 +161,8 @@ export class VoiceSession {
       this.cancelTimer(watchdog);this.speechTimer=null;this.utterance=null;this.speechKind=null;this.speaking=false;this.onSpeaking(false);
       this.emit('waiting','教練回覆完畢。');if(kind==='reply')this.finishInput('ended');this.scheduleListen();
     };
-    utterance.onerror=fail;
+    utterance.onerror=event=>fail(event?.error||'synthesis-error');
     this.emit('replying','正在準備教練回覆，暫停聆聽。');
-    try{this.synthesis.speak(utterance);}catch{fail();}
+    try{this.synthesis.resume?.();this.synthesis.speak(utterance);}catch(error){fail(error.name||'speak-error');}
   }
 }

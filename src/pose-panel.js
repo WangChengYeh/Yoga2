@@ -1,8 +1,8 @@
-import { CameraSession } from './camera-session.js?v=0.9.5';
-import { createPoseEngine } from './pose-engine.js?v=0.9.5';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.5';
+import { CameraSession } from './camera-session.js?v=0.9.6';
+import { createPoseEngine } from './pose-engine.js?v=0.9.6';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.6';
 
-export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
+export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
   const ctx = overlay.getContext('2d');
@@ -45,6 +45,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
       preview.hidden = !showPreview;
       if (phase !== 'active') { clear(); filter.reset(); key = null; }
       feedback(message, phase === 'error' ? 'setup' : 'info');
+      onMediaState();
       document.querySelector('.studio').classList.toggle('camera-on', showPreview);
     },
     onStale: () => { human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
@@ -77,6 +78,8 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   document.addEventListener('visibilitychange', () => { if (document.hidden && ['requesting', 'loading', 'active'].includes(session.phase)) session.stop('切到背景已關閉相機，回來後可重新開啟。'); });
   window.addEventListener('pagehide', () => session.stop());
   return {
+    start:()=>session.start(),
+    get mediaStatus(){return {phase:session.phase,open:Boolean(session.stream)};},
     get active() { return session.phase === 'active'; },
     get diagnostics(){return {phase:session.phase,mode:session.engine?.mode||null,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
     get summary() { return { ...summary, active: session.phase === 'active' }; },
