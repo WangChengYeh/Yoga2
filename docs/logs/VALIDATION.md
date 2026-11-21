@@ -9,10 +9,12 @@
 | `npm run check` | 通過：242 項、0 失敗、0 跳過；包含語法檢查 | 相機、語音、GPU 部分使用替身 |
 | `npm run build` | 通過；Luna、Pose Lite 與人像模型雜湊驗證，產生 dist | 建置不驗證手機播放 |
 | 文件整理 | 現行說明、規劃、版本日誌、問題／驗證日誌分開，舊筆記封存 | 相對 Markdown 連結已檢查可解析；不代表外部服務已啟用 |
-| GitHub CI／Pages | 尚待本次提交後確認 | 不沿用 v0.9.5 結果 |
+| GitHub CI／Pages | 通過：[Check Yoga2](https://github.com/WangChengYeh/Yoga2/actions/runs/44900600583)、[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44900599566) | 對應下列實作提交；不代表手機驗收 |
 | iPhone 語音與自動啟用 | 待實機驗收 | 尚無手機錯誤碼與聲音成功證據 |
 
-## v0.9.5 · 上一個已確認發布版本
+已驗證實作提交：[95e9c70](https://github.com/WangChengYeh/Yoga2/commit/95e9c704e4266a005c09f9551297ad66d802df36)。CI 包含獨立真實人像 CPU 整合測試；本次後續文件補記不修改執行程式。
+
+## v0.9.5 · 前一個發布版本
 
 - main commit：`31b4bda8abd3e7f61519e1af91079a44a28f2288`。
 - GitHub 的 Check Yoga2 與 Pages 工作均成功；本段不代表 v0.9.6 已發布。
