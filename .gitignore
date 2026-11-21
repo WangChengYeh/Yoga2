@@ -7,3 +7,5 @@ public/models/*.glb
 public/models/*.task
 .openai/
 public/models/*.tflite
+test-results/
+.venv/

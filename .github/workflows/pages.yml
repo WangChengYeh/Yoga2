@@ -26,3 +26,15 @@ jobs:
       - run: npm run build
       - name: Verify Pages entry stays in sync
         run: git diff --exit-code -- index.html
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tests/requirements-portrait.txt
+      - name: Install CPU portrait test runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgles2
+          python -m pip install -r tests/requirements-portrait.txt
+      - name: Real portrait segmentation and AI skeleton regression
+        run: npm run test:portrait

@@ -1,0 +1,4 @@
+# Native CPU QA uses the same pinned model files as the web app.
+# This runtime is separate from the browser SDK; it does not validate Safari.
+mediapipe==0.10.21
+numpy==1.26.4
