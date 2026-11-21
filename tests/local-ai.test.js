@@ -157,3 +157,52 @@ test('cancelled AI answers never enter short-term conversation memory',async()=>
  const h=harness();await h.ai.enable();h.ready();const w=h.workers[0],pending=h.ai.ask('舊問題',{time:0});const id=w.messages.at(-1).id;
  h.ai.cancelReply();assert.equal(await pending,null);w.onmessage({data:{type:'reply',id,text:'取消的回答'}});assert.deepEqual(h.ai.history,[]);h.ai.disable();
 });
+
+test('worker serializes overlapping inference and ignores cancelled replies',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const {runInNewContext}=await import('node:vm');
+ const source=(await readFile(new URL('../src/local-ai-worker.js',import.meta.url),'utf8'))
+   .replace(/^import .*;\n/gm,'')
+   .replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()');
+ const sent=[],requests=[];let resolveFirst,active=0,peak=0,interrupts=0;
+ class Engine{
+  constructor(){this.chat={completions:{create:()=>{active++;peak=Math.max(peak,active);const index=requests.length;requests.push(index);if(index===0)return new Promise(resolve=>{resolveFirst=()=>{active--;resolve({choices:[{message:{content:'old'}}]});};});active--;return Promise.resolve({choices:[{message:{content:'new'}}]});}}};}
+  async reload(){}
+  interruptGenerate(){interrupts++;}
+ }
+ const self={postMessage:m=>sent.push(m)};
+ runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>({MLCEngine:Engine})});
+ await self.onmessage({data:{type:'load'}});
+ const first=self.onmessage({data:{type:'ask',id:1,kind:'guidance',messages:[]}});
+ await Promise.resolve();await Promise.resolve();
+ await self.onmessage({data:{type:'cancel-guidance',id:1}});
+ const second=self.onmessage({data:{type:'ask',id:2,kind:'reply',messages:[]}});
+ assert.equal(interrupts,1);
+ assert.equal(requests.length,1,'second request waits until first completes');
+ resolveFirst();await Promise.all([first,second]);
+ assert.equal(peak,1,'WebLLM never generates concurrently');
+ assert.deepEqual(sent.filter(m=>m.type==='reply').map(m=>m.id),[2]);
+});
+test('worker skips a queued request cancelled before it starts',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const {runInNewContext}=await import('node:vm');
+ const source=(await readFile(new URL('../src/local-ai-worker.js',import.meta.url),'utf8'))
+   .replace(/^import .*;\n/gm,'')
+   .replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()');
+ const sent=[];let release,calls=0;
+ class Engine{
+  constructor(){this.chat={completions:{create:()=>{calls++;return calls===1?new Promise(resolve=>{release=()=>resolve({choices:[{message:{content:'first'}}]});}):Promise.resolve({choices:[{message:{content:'unexpected'}}]});}}};}
+  async reload(){}
+  interruptGenerate(){}
+ }
+ const self={postMessage:m=>sent.push(m)};
+ runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>({MLCEngine:Engine})});
+ await self.onmessage({data:{type:'load'}});
+ const first=self.onmessage({data:{type:'ask',id:1,messages:[]}});
+ await Promise.resolve();await Promise.resolve();
+ const queued=self.onmessage({data:{type:'ask',id:2,messages:[]}});
+ await self.onmessage({data:{type:'cancel-reply',id:2}});
+ release();await Promise.all([first,queued]);
+ assert.equal(calls,1);
+ assert.deepEqual(sent.filter(m=>m.type==='reply').map(m=>m.id),[1]);
+});
