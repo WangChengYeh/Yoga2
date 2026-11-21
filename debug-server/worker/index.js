@@ -3,7 +3,7 @@ const REPO='WangChengYeh/Yoga2', OWNER='WangChengYeh', PAGES='https://wangchengy
 const LIMIT=8*1024*1024, DAILY_LIMIT=20, HOURLY_LIMIT=10;
 const HEADERS={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
 const utf8=new TextEncoder();
-const json=(data,status=200,extra={})=>Response.json(data,{status,headers:{...HEADERS,...extra}});
+const json=(data,status=200,extra={})=>Response.json(data,{status,headers:{...HEADERS,'Content-Type':'application/json; charset=utf-8',...extra}});
 export class ReportError extends Error {constructor(status,message,retryAfterMs=0){super(message);this.status=status;this.retryAfterMs=retryAfterMs;}}
 const b64=bytes=>{let s='';for(let i=0;i<bytes.length;i+=16384)s+=String.fromCharCode(...bytes.subarray(i,i+16384));return btoa(s);};
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
@@ -133,23 +133,38 @@ export async function uploadReport(report,env,{fetcher=fetch,config}={}){
   }
 }
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function html(content,{cookie,githubForm=false}={}){return new Response(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yoga2 除錯回報</title><style>body{font:16px/1.7 system-ui;background:#f3f7f2;color:#163e35;margin:0;padding:5vw}main{max-width:680px;margin:auto}button,input,a{font:inherit}button{padding:.7rem 1rem;border-radius:1rem;background:#174f43;color:white;border:0}a{color:#075a49;text-decoration:underline}button[hidden],a[hidden]{display:none}</style><main>${content}</main></html>`,{headers:{...HEADERS,'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'${githubForm?' https://github.com':''}; frame-ancestors 'none'`,...(cookie?{'Set-Cookie':cookie}:{})}});}
+function html(content,{cookie,githubForm=false,status=200}={}){return new Response(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yoga2 除錯回報</title><style>body{font:16px/1.7 system-ui;background:#f3f7f2;color:#163e35;margin:0;padding:5vw}main{max-width:680px;margin:auto}button,input,a{font:inherit}button{padding:.7rem 1rem;border-radius:1rem;background:#174f43;color:white;border:0}a{color:#075a49;text-decoration:underline}button[hidden],a[hidden]{display:none}</style><main>${content}</main></html>`,{status,headers:{...HEADERS,'Referrer-Policy':'same-origin','Content-Type':'text/html; charset=utf-8','Content-Security-Policy':`default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'${githubForm?' https://github.com':''}; frame-ancestors 'none'`,...(cookie?{'Set-Cookie':cookie}:{})}});}
 const cookieValue=(request,name)=>request.headers.get('Cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(`${name}=`))?.slice(name.length+1);
 function admin(request,env){return Boolean(env.REPORT_ADMIN_EMAIL&&request.headers.get('oai-authenticated-user-id')&&request.headers.get('oai-authenticated-user-email')?.toLowerCase()===env.REPORT_ADMIN_EMAIL.toLowerCase());}
 function sameOrigin(request){return request.headers.get('Origin')===new URL(request.url).origin;}
 async function bounded(request,max){const reader=request.body?.getReader();if(!reader)throw new ReportError(400,'缺少內容。');const chunks=[];let size=0;for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw new ReportError(413,'回報超過大小限制。');}chunks.push(value);}return new Blob(chunks);}
 export function appManifest(origin,suffix){return {name:`Yoga2 Debug Reports ${suffix}`,url:`${PAGES}/Yoga2/`,description:'Yoga2 anonymous diagnostic reports to WangChengYeh/Yoga2 only',redirect_url:`${origin}/setup/callback`,setup_url:`${origin}/setup/installed`,public:false,hook_attributes:{url:`${origin}/github/events`,active:false},default_permissions:{contents:'write',issues:'write'},default_events:[],request_oauth_on_install:false};}
+async function setupForm(request,env,path,label){
+  const token=await signed(env.REPORT_ENCRYPTION_KEY,{user:request.headers.get('oai-authenticated-user-id'),path,exp:Date.now()+600000},'setup-csrf');
+  return `<form action="${path}" method="post" accept-charset="UTF-8"><input type="hidden" name="_csrf" value="${esc(token)}"><button>${label}</button></form>`;
+}
+async function verifySetupForm(request,env,url){
+  const origin=request.headers.get('Origin');
+  // Safari/WKWebView may send Origin:null for a form navigation. A signed,
+  // expiring, user-and-route-bound CSRF token is required for every setup POST.
+  if(origin&&origin!=='null'&&origin!==url.origin)return false;
+  try{
+    const form=await new Response(await bounded(request,4096),{headers:{'Content-Type':request.headers.get('Content-Type')||''}}).formData();
+    const value=await verified(env.REPORT_ENCRYPTION_KEY,form.get('_csrf'),'setup-csrf');
+    return Boolean(value&&value.user===request.headers.get('oai-authenticated-user-id')&&value.path===url.pathname);
+  }catch{return false;}
+}
 async function setup(request,env,url){
   if(!admin(request,env)){
     if(!request.headers.get('oai-authenticated-user-id'))return html(`<h1>管理者設定</h1><p>只有專案擁有者需要這個一次性設定；一般訪客回報不用登入。</p><a target="_top" href="/signin-with-chatgpt?return_to=%2Fsetup">管理者登入 ChatGPT</a>`);
-    return json({message:'只有專案擁有者可設定 GitHub App。'},403);
+    return html('<h1>無法開啟管理者設定</h1><p>只有專案擁有者可設定 GitHub App。請使用擁有此專案的帳號登入。</p><a href="/setup">返回設定頁</a>',{status:403});
   }
   const config=await appConfig(env);
   if(request.method==='GET'&&url.pathname==='/setup'){
-    if(config)return html(`<h1>專用 GitHub App ${config.installationId?'已啟用':'已建立'}</h1><p>${config.installationId?'匿名回報已準備就緒，訪客不需要 GitHub 或 ChatGPT 帳號。':'下一步在 GitHub 安裝 App，選 Only select repositories → Yoga2。'}</p><a href="https://github.com/apps/${esc(config.slug)}/installations/new">在 GitHub 安裝至 Yoga2</a><form action="/setup/check" method="post"><button>檢查安裝結果</button></form><p>App 僅請求 Contents 與 Issues 寫入。私鑰只在後端加密保存。</p>`);
-    return html('<h1>啟用匿名除錯回報</h1><p>你只需一次在 GitHub 建立並安裝專用 App，授權 Yoga2 的 Contents 和 Issues 寫入。訪客不需要登入，按回報才會公開上傳照片。</p><form action="/setup/start" method="post"><button>準備專用 GitHub App</button></form>');
+    if(config)return html(`<h1>專用 GitHub App ${config.installationId?'已啟用':'已建立'}</h1><p>${config.installationId?'匿名回報已準備就緒，訪客不需要 GitHub 或 ChatGPT 帳號。':'下一步在 GitHub 安裝 App，選 Only select repositories → Yoga2。'}</p><a href="https://github.com/apps/${esc(config.slug)}/installations/new">在 GitHub 安裝至 Yoga2</a>${await setupForm(request,env,'/setup/check','檢查安裝結果')}<p>App 僅請求 Contents 與 Issues 寫入。私鑰只在後端加密保存。</p>`);
+    return html(`<h1>啟用匿名除錯回報</h1><p>你只需一次在 GitHub 建立並安裝專用 App，授權 Yoga2 的 Contents 和 Issues 寫入。訪客不需要登入，按回報才會公開上傳照片。</p>${await setupForm(request,env,'/setup/start','準備專用 GitHub App')}`);
   }
-  if(request.method==='POST'&&!sameOrigin(request))return json({message:'來源不符。'},403);
+  if(request.method==='POST'&&!await verifySetupForm(request,env,url))return html('<h1>請重新開啟設定頁</h1><p>表單驗證已過期或不符。請返回設定頁後再按一次按鈕。</p><a href="/setup">返回設定頁</a>',{status:403});
   if(request.method==='POST'&&url.pathname==='/setup/start'){
     if(config)return json({message:'App 已存在，請返回設定頁檢查安裝，避免重複建立。'},409);
     const nonce=crypto.randomUUID(),key=`setup/${nonce}`;
@@ -166,14 +181,14 @@ async function setup(request,env,url){
     const created=await githubApi(`/app-manifests/${encodeURIComponent(code)}/conversions`,{method:'POST'});
     if(created.owner?.login!==OWNER||!Number.isSafeInteger(created.id)||typeof created.pem!=='string'||!/^[-a-z0-9]+$/.test(created.slug||'')||created.permissions?.contents!=='write'||created.permissions?.issues!=='write')throw new ReportError(400,'請以 WangChengYeh 建立 App 並保留所需權限。');
     await saveConfig(env,{appId:created.id,clientId:created.client_id,slug:created.slug,pem:created.pem});
-    return Response.redirect(`${url.origin}/setup`,303);
+    return new Response(null,{status:303,headers:{...HEADERS,Location:`${url.origin}/setup`}});
   }
   if((request.method==='GET'&&url.pathname==='/setup/installed')||(request.method==='POST'&&url.pathname==='/setup/check')){
     if(!config)throw new ReportError(409,'尚未建立 App。');
     const jwt=await appJwt(config),installation=await githubApi(`/repos/${REPO}/installation`,{token:jwt});
     if(installation.account?.login!==OWNER||installation.app_id!==config.appId||installation.repository_selection!=='selected')throw new ReportError(400,'請在 GitHub 安裝 App，選 Only select repositories 並只勾 Yoga2。');
     const candidate={...config,installationId:installation.id};await installationToken(candidate);
-    await saveConfig(env,candidate);return Response.redirect(`${url.origin}/setup`,303);
+    await saveConfig(env,candidate);return new Response(null,{status:303,headers:{...HEADERS,Location:`${url.origin}/setup`}});
   }
   return json({message:'Not found'},404);
 }
@@ -216,6 +231,7 @@ export default {async fetch(request,env){
   }catch(error){
     // Do not log OAuth codes, private keys, JWTs, file content or provider bodies.
     console.error('Yoga report failure',{status:error.status||500,path:url.pathname});
+    if(url.pathname.startsWith('/setup'))return html(`<h1>設定暫未完成</h1><p>${esc(error instanceof ReportError?error.message:'服務暫時無法完成設定，請返回設定頁檢查現況後重試。')}</p><a href="/setup">返回設定頁</a>`,{status:error.status||500});
     return json({message:error instanceof ReportError?error.message:'回報尚未確認完成，請保留這份回報重試。',retryAfterMs:error.retryAfterMs||0},error.status||500);
   }
 }};

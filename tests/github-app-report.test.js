@@ -13,6 +13,11 @@ function bucket(){const data=new Map();let counter=0;return {data,async get(k){c
  if(condition?.etagMatches&&old?.etag!==condition.etagMatches)return null;
  const etag=String(++counter);data.set(k,{text,etag});return {etag};}};}
 function fixture(){return {id,diagnostics:{schema:1,id,version:'0.8.1',viewport:{window:{width:844,height:390},dpr:3}},files:[{name:'diagnostics.json',bytes:new TextEncoder().encode('{}')},{name:'report.zip',bytes:new Uint8Array([80,75,3,4])},{name:'camera.png',bytes:new Uint8Array([137,80])},{name:'scene.png',bytes:new Uint8Array([137,80])}]};}
+async function setupBody(env,headers,path='/setup/start'){
+ const page=await worker.fetch(new Request('https://reports.example/setup',{headers}),env),text=await page.text();
+ const form=text.match(new RegExp('<form action="'+path+'"[\\s\\S]*?</form>'))?.[0];
+ const token=form?.match(/name="_csrf" value="([^"]+)"/)?.[1];assert.ok(token);return new URLSearchParams({_csrf:token});
+}
 function github(){const calls=[],issues=[],refs=new Map();let disconnect=false,failBlobs=false;const fetcher=async(url,options={})=>{
  const path=new URL(url).pathname,body=options.body?JSON.parse(options.body):null;calls.push({url,path,...options,body});const reply=value=>Response.json(value);
  if(path==='/app/installations/2/access_tokens')return reply({token:'TEST_SERVER_ONLY_TOKEN'});
@@ -81,7 +86,7 @@ test('not configured fails closed and public clients cannot access owner setup o
 test('admin manifest has minimal write permissions and no user OAuth or webhooks',async()=>{
  const m=appManifest('https://reports.example','abcd');assert.equal(m.public,false);assert.equal(m.request_oauth_on_install,false);assert.equal(m.hook_attributes.active,false);assert.deepEqual(m.default_permissions,{contents:'write',issues:'write'});
  const env={BUCKET:bucket(),REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},headers={'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test',Origin:'https://reports.example'};
- const r=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers}),env);const text=await r.text();assert.equal(r.status,200);assert.ok(r.headers.get('set-cookie').includes('HttpOnly'));assert.ok(text.includes('https://github.com/settings/apps/new?state='));assert.equal(env.BUCKET.data.size,1);
+ const r=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers,body:await setupBody(env,headers)}),env);const text=await r.text();assert.equal(r.status,200);assert.ok(r.headers.get('set-cookie').includes('HttpOnly'));assert.ok(text.includes('https://github.com/settings/apps/new?state='));assert.equal(env.BUCKET.data.size,1);
  const csrf=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers:{...headers,Origin:'https://evil.example'}}),env);assert.equal(csrf.status,403);
 });
 test('full anonymous HTTP flow verifies proof, uploads as App and returns Issue with no visitor identity',async()=>{
@@ -101,11 +106,35 @@ test('full anonymous HTTP flow verifies proof, uploads as App and returns Issue 
 });
 test('manifest callback binds admin session and stores only encrypted App credentials',async()=>{
  const b=bucket(),env={BUCKET:b,REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},headers={'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test',Origin:'https://reports.example'};
- const start=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers}),env);const cookie=start.headers.get('set-cookie').split(';')[0],nonce=cookie.split('=')[1];
+ const start=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers,body:await setupBody(env,headers)}),env);const cookie=start.headers.get('set-cookie').split(';')[0],nonce=cookie.split('=')[1];
  const noCookie=await worker.fetch(new Request('https://reports.example/setup/callback?state='+nonce+'&code=testcode123456',{headers}),env);assert.equal(noCookie.status,400);
  const original=globalThis.fetch;let calls=0;globalThis.fetch=async(url)=>{calls++;assert.equal(url,'https://api.github.com/app-manifests/testcode123456/conversions');return Response.json({id:1,client_id:'Iv1.test',slug:'yoga-test-app',pem,owner:{login:'WangChengYeh'},permissions:{contents:'write',issues:'write'},client_secret:'NEVER_STORE'});};
  try{
   const r=await worker.fetch(new Request('https://reports.example/setup/callback?state='+nonce+'&code=testcode123456',{headers:{...headers,Cookie:cookie}}),env);assert.equal(r.status,303);const encrypted=b.data.get('private/github-app.enc').text;assert.ok(!encrypted.includes('PRIVATE KEY'));assert.ok(!encrypted.includes('NEVER_STORE'));const saved=await unseal(key,encrypted);assert.equal(saved.appId,1);assert.equal(saved.pem,pem);assert.equal(saved.client_secret,undefined);
   const again=await worker.fetch(new Request('https://reports.example/setup/callback?state='+nonce+'&code=testcode123456',{headers:{...headers,Cookie:cookie}}),env);assert.equal(again.status,409);assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
+});
+test('iPhone null/missing Origin form requires signed admin CSRF; wrong origin, user, path and expiry fail',async()=>{
+ const env={BUCKET:bucket(),REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},identity={'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test'};
+ const good=await setupBody(env,identity);
+ for(const origin of ['null',null,'https://reports.example']){
+  const headers={...identity,...(origin?{Origin:origin}:{})};const r=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers,body:good.toString()?new URLSearchParams(good):null}),env);assert.equal(r.status,200);assert.match(await r.text(),/到 GitHub 核准 App/);
+ }
+ const cases=[
+  {headers:{...identity,Origin:'null'},body:new URLSearchParams()},
+  {headers:{...identity,Origin:'https://evil.example'},body:good},
+  {headers:{...identity,Origin:'null'},body:new URLSearchParams({_csrf:await signed(key,{user:'other',path:'/setup/start',exp:Date.now()+60000},'setup-csrf')})},
+  {headers:{...identity,Origin:'null'},body:new URLSearchParams({_csrf:await signed(key,{user:'owner',path:'/setup/check',exp:Date.now()+60000},'setup-csrf')})},
+  {headers:{...identity,Origin:'null'},body:new URLSearchParams({_csrf:await signed(key,{user:'owner',path:'/setup/start',exp:0},'setup-csrf')})},
+  {headers:{Origin:'null'},body:good},
+ ];
+ for(const sample of cases){const r=await worker.fetch(new Request('https://reports.example/setup/start',{method:'POST',headers:sample.headers,body:new URLSearchParams(sample.body)}),env);if(!sample.headers['oai-authenticated-user-id']){assert.match(await r.text(),/管理者登入/);continue;}assert.equal(r.status,403);assert.match(r.headers.get('content-type'),/text\/html; charset=utf-8/);assert.match(await r.text(),/設定頁/);}
+ const crossApi=await worker.fetch(new Request('https://reports.example/api/report',{method:'POST',headers:{Origin:'null','X-Yoga-Report':'1'},body:'x'}),env);assert.equal(crossApi.status,403);
+ assert.equal(crossApi.headers.get('content-type'),'application/json; charset=utf-8');assert.match(await crossApi.text(),/回報來源不符/);
+});
+test('setup/check uses its own signed form token and blocks replay of setup/start token',async()=>{
+ const env={BUCKET:bucket(),REPORT_ENCRYPTION_KEY:key,REPORT_ADMIN_EMAIL:'owner@example.test'},headers={'oai-authenticated-user-id':'owner','oai-authenticated-user-email':'owner@example.test',Origin:'null'};
+ const start=await setupBody(env,headers);await env.BUCKET.put('private/github-app.enc',await seal(key,config));
+ const wrong=await worker.fetch(new Request('https://reports.example/setup/check',{method:'POST',headers,body:start}),env);assert.equal(wrong.status,403);
+ const body=await setupBody(env,headers,'/setup/check');assert.ok(body.get('_csrf'));const page=await worker.fetch(new Request('https://reports.example/setup',{headers}),env);assert.equal(page.headers.get('referrer-policy'),'same-origin');
 });

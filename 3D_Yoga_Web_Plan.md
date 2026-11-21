@@ -233,3 +233,8 @@
 - 管理者 `/setup` 提供 GitHub manifest 建立／安裝流程，GitHub 交換出的私鑰由後端加密保存。訪客不接觸憑證。
 - 公開 API 增加 HMAC 短效驗證、附件摘要綁定、自動計算、持久限額與 R2 CAS 防重複狀態機；未知的 Issue 寫入不自動重播。
 - 新增 RSA、AES、防 CSRF、設定 callback、匿名 HTTP、並行與 lease 競爭測試。**實際 App 仍需擁有者在 GitHub 核准；完成前上傳停用，不能宣稱匿名實際 Issue 驗收通過。**
+
+### v0.8.2：iPhone 設定頁修正
+
+- 實際紀錄確認內建瀏覽器的設定表單送出 Origin:null，舊版因此誤擋。改用管理者／路徑／期限綁定的 HMAC 表單驗證，允許帶有效驗證碼的 null／缺省 Origin，仍拒絕外站、無驗證碼、過期或錯誤身分。匿名回報 API 的來源限制維持嚴格。
+- HTML 設定頁與錯誤頁使用明確 UTF-8，JSON 亦宣告 UTF-8；錯誤提供返回設定入口。新增手機 Origin 與 CSRF 回歸測試。

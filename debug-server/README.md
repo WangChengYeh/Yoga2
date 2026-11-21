@@ -1,4 +1,4 @@
-# Yoga2 匿名回報：專用 GitHub App（v0.8.1）
+# Yoga2 匿名回報：專用 GitHub App（v0.8.2）
 
 一般訪客不用 GitHub／ChatGPT 帳號或 repo 權限。Pages 的「回報問題」會擷取、打包，再由這個 Worker 用專用 App 上傳附件和建立 Issue。固定 repo：`WangChengYeh/Yoga2`。
 
@@ -19,7 +19,7 @@
 
 - Secrets：`REPORT_ENCRYPTION_KEY`（base64 32 bytes）、`REPORT_ADMIN_EMAIL`（專案擁有者）。透過 Sites 環境密鑰設定，禁止放 source／manifest／前端。既有 App 設定存在時不可任意旋轉加密金鑰，否則無法解密；需要另外安排受控遷移。
 - `.openai/hosting.json` 使用 `r2: "BUCKET"`，移除 `plugins`／`connectors`。本版本不再使用訪客的 GitHub 連線，也不會借用作者的 ChatGPT token。
-- Sites audience 為 public，回報頁與 API 不要求身分。只有 `/setup*` 需要平台驗證的管理者身分與指定 email；POST 必須同源。GitHub callback 綁定 HttpOnly nonce cookie、同一管理者及一次性 R2 設定記錄。
+- Sites audience 為 public，回報頁與 API 不要求身分。只有 `/setup*` 需要平台驗證的管理者身分與指定 email；POST 必須有綁定管理者、路徑與期限的簽章表單驗證碼；相容 iPhone Origin:null，明確外站 Origin 仍拒絕。HTML 採 same-origin referrer policy，設定失敗顯示 UTF-8 中文頁。GitHub callback 綁定 HttpOnly nonce cookie、同一管理者及一次性 R2 設定記錄。
 - App 以 RS256 JWT 換短效 installation token，每次明確限制 `repositories: ["Yoga2"]` 與 Contents／Issues write。權杖只存在該次後端請求，不傳回前端、不寫 log。
 - 回報 API 只收同源 POST、固定附件名稱、明確公開上傳同意，最多 8 MB、PNG 最大邊 2048 px。主站與回報視窗的 postMessage 核對 origin、opener、隨機 report ID。
 - 匿名請求要先通過綁定 cookie、回報 ID、附件摘要的五分鐘 HMAC challenge 和 16-bit SHA-256 計算。這是自動驗證，不是 CAPTCHA 或真人身分保證。每個瀏覽器 cookie 每小時最多 3 次送出；全服務每天最多 20 次新上傳嘗試。限額以 R2 CAS 跨請求原子執行；清 cookie 不能繞過全域日限額。時段使用 UTC，前端依 retryAfterMs 等待。
