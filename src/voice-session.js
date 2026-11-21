@@ -37,7 +37,7 @@ export class VoiceSession {
     else this.emit('off','可以再開啟語音，或使用下方按鈕。');
   }
   listen() {
-    if(!this.wanted||this.utterance||this.recognition)return;
+    if(!this.wanted||this.utterance||this.recognition||this.speechKind==='reply')return;
     const token=this.epoch;let recognition;
     try{recognition=new this.Recognition();}catch{this.stop(false);this.emit('error','瀏覽器無法建立語音辨識，請使用按鈕或文字問答。');return;}
     this.recognition=recognition;
@@ -76,13 +76,21 @@ export class VoiceSession {
   }
   acceptText(text) {
     this.detachRecognition();
+    this.cancelSpeech();
+    const turn=this.turn=(this.turn||0)+1,epoch=this.epoch;
     let reply;
     try{reply=this.onText(String(text).slice(0,300));}
     catch{reply='暫時無法處理這句話，請使用觸控操作。';}
-    this.speak(reply);
+    if(reply&&typeof reply.then==='function'){
+      this.speechKind='reply';this.emit('thinking','正在準備 AI 回覆，暫停聆聽。');
+      Promise.resolve(reply).then(text=>{
+        if(this.epoch===epoch&&this.turn===turn)this.speak(text||'AI 暫時無法回覆，請使用基本指令。');
+      },()=>{if(this.epoch===epoch&&this.turn===turn)this.speak('AI 暫時無法回覆，請使用基本指令。');});
+    }else this.speak(reply);
   }
   cancelSpeech(kind) {
-    if(!this.utterance||(kind&&this.speechKind!==kind))return false;
+    if(!this.utterance){if(this.speechKind==='reply'&&(!kind||kind==='reply')){++this.turn;this.speechKind=null;this.scheduleListen();return true;}return false;}
+    if(kind&&this.speechKind!==kind)return false;
     if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
     const utterance=this.utterance;this.utterance=null;this.speechKind=null;
     utterance.onstart=utterance.onend=utterance.onerror=null;

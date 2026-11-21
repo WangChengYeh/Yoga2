@@ -38,3 +38,8 @@
 
 - html2canvas 1.4.1, MIT license, pinned npm dependency. [Source](https://github.com/niklasvh/html2canvas).
 - Used locally in the browser to rasterize the practice stage and controls; no images are sent to this library's provider. Pages loads the pinned JavaScript from jsDelivr; the build bundles it. Only an explicit diagnostic report uploads captured images to GitHub.
+
+## Optional local dialogue AI (v0.9.0)
+
+- WebLLM 0.2.89 (Apache-2.0), loaded on explicit opt-in from https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm ; source/license: https://github.com/mlc-ai/web-llm .
+- Qwen2.5-0.5B-Instruct 4-bit MLC weights, from https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC (or q4f32_1 fallback). Model license: Apache-2.0; upstream: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct . Model libraries and weights are downloaded by WebLLM after opt-in.

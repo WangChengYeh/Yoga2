@@ -81,3 +81,17 @@ test('guidance-only cancellation preserves enabled listening, while muted replie
 test('synthesis failure reports the failed channel so guidance can stop retrying automatically',()=>{
  const failed=[],h=harness({onSpeechError:kind=>failed.push(kind)});h.session.speak('自然呼吸。',{kind:'guidance'});h.utterances[0].onerror();assert.deepEqual(failed,['guidance']);assert.equal(h.session.utterance,null);assert.equal(h.session.speechKind,null);h.session.stop();
 });
+
+test('async AI reply is cancelled by stop, newer command and seek-style cancellation',async()=>{
+ for(const action of ['stop','newer','cancel']){
+  const spoken=[];let resolve;const session=new VoiceSession({onText:text=>text==='AI'?new Promise(r=>resolve=r):'已暫停',Utterance:class{constructor(text){this.text=text;}},synthesis:{cancel(){},speak:u=>spoken.push(u),getVoices:()=>[]}});
+  session.acceptText('AI');assert.equal(session.speechKind,'reply');assert.equal(session.listenTimer,undefined);
+  if(action==='stop')session.stop();else if(action==='cancel')session.cancelSpeech();else session.acceptText('暫停');
+  resolve('過時回覆');await Promise.resolve();await Promise.resolve();assert.ok(spoken.every(u=>u.text!=='過時回覆'));session.stop();
+ }
+});
+test('async AI answer speaks normally and blocks microphone while thinking',async()=>{
+ const spoken=[];let resolve,microphones=0;const session=new VoiceSession({Recognition:class{constructor(){microphones++;}},onText:()=>new Promise(r=>resolve=r),Utterance:class{constructor(text){this.text=text;}},synthesis:{cancel(){},speak:u=>spoken.push(u),getVoices:()=>[]}});
+ session.acceptText('AI');session.wanted=true;session.listen();assert.equal(microphones,0);
+ resolve('肩膀放鬆');await Promise.resolve();await Promise.resolve();assert.equal(spoken[0].text,'肩膀放鬆');session.stop();
+});

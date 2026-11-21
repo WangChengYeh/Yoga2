@@ -1,6 +1,6 @@
-import { CameraSession } from './camera-session.js?v=0.8.6';
-import { createPoseEngine } from './pose-engine.js?v=0.8.6';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.8.6';
+import { CameraSession } from './camera-session.js?v=0.9.0';
+import { createPoseEngine } from './pose-engine.js?v=0.9.0';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.0';
 
 export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const $ = (id) => document.getElementById(id);
