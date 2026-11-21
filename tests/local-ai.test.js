@@ -65,7 +65,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.1');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.2');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -104,4 +104,15 @@ test('worker separately diagnoses GPU availability, SDK import failure and model
   assert.equal(error.type,'error');assert.equal(error.code,({'no-api':'WORKER_GPU_UNAVAILABLE','null-adapter':'WORKER_GPU_ADAPTER_NULL',sdk:'SDK_LOAD_ERROR',memory:'GPU_MEMORY_ERROR',download:'RESOURCE_LOAD_ERROR'})[scenario]);
   if(scenario==='download'){assert.equal(error.resource.status,403);assert.equal(error.resource.url,'https://models.test/weights.bin');assert.doesNotMatch(JSON.stringify(error),/token=secret/);}
  }
+});
+
+
+test('default timers preserve browser host receiver instead of invoking Window functions as AI methods',async()=>{
+ const timer=globalThis.setTimeout,clear=globalThis.clearTimeout;let installed=0,cancelled=0;
+ globalThis.setTimeout=function(fn,ms){assert.equal(this,globalThis,'Window.setTimeout requires its own receiver');installed++;return 73;};
+ globalThis.clearTimeout=function(id){assert.equal(this,globalThis,'Window.clearTimeout requires its own receiver');assert.equal(id,73);cancelled++;};
+ try{
+  const ai=new LocalCoachAI({gpu:{requestAdapter:async()=>null}});await ai.enable();
+  assert.equal(ai.diagnostics.failure.code,'GPU_ADAPTER_NULL');assert.equal(installed,1);assert.equal(cancelled,1);
+ }finally{globalThis.setTimeout=timer;globalThis.clearTimeout=clear;}
 });

@@ -1,4 +1,4 @@
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.1';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.2';
 let engine,stage='worker',resource=null,redactions=[];
 const enter=value=>{stage=value;self.postMessage({type:'stage',stage});};
 // Record only failed resource locations/status, never request bodies or URL queries.

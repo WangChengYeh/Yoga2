@@ -281,3 +281,7 @@
 不再吞掉啟動失敗原因。區分安全環境／WebGPU API、requestAdapter 回傳 null 或例外、Worker 建立／執行／訊息錯誤、Worker GPU、SDK 程式下載、模型下載／載入、推論、載入／回答逾時。原始錯誤保留名稱與訊息；SDK 資源請求失敗記錄網址路徑與 HTTP 狀態。GPU 回傳 null 時明說瀏覽器沒有提供底層原因，不推論為 RAM 不足；只有明確配置失敗才標示記憶體錯誤。
 
 失敗時可展開／複製診斷，包含版號、瀏覽器、WebGPU 能力與限制、階段紀錄和錯誤；不含問答、影像或骨架。網址去除 query／fragment，問答字串從錯誤中刪除。Clipboard 不支援時提供可選取文字。不自動上傳；原有回報問題功能會附帶相同診斷。主頁與 Worker 各自檢查 GPU，避免把 Worker 的相容性當作模型失敗。
+
+### v0.9.2 修正瀏覽器計時器呼叫
+
+正式瀏覽器驗證發現 LocalCoachAI 把 Window.setTimeout／clearTimeout 直接存成實例方法，部分瀏覽器因接收者不是 Window 而拋出 TypeError: Illegal invocation。改用包裝函式保留瀏覽器的正常呼叫方式；新增會嚴格檢查接收者的測試，避免 Node 寬鬆行為漏掉此錯誤。保留 v0.9.1 完整失敗診斷。此程式錯誤不代表手機記憶體不足；實際裝置仍可能有其他 GPU 或載入問題，應依新版診斷判讀。

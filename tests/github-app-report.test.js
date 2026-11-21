@@ -38,7 +38,7 @@ test('JWT handles GitHub PKCS#1 PEM and signs RS256 with limited lifetime',async
 });
 test('App credentials are encrypted and authenticated, never stored as plaintext',async()=>{
  const encrypted=await seal(key,config);assert.ok(!encrypted.includes('PRIVATE KEY'));assert.ok(!encrypted.includes('Iv1.test'));assert.deepEqual(await unseal(key,encrypted),config);
- const bad=JSON.parse(encrypted);bad.data='A'+bad.data.slice(1);await assert.rejects(unseal(key,JSON.stringify(bad)));
+ const bad=JSON.parse(encrypted);bad.data=(bad.data[0]==='A'?'B':'A')+bad.data.slice(1);await assert.rejects(unseal(key,JSON.stringify(bad)));
  await assert.rejects(unseal(Buffer.alloc(32,1).toString('base64'),encrypted));
 });
 test('short-lived signed challenge binds purpose, visitor, report ID, digest and real proof',async()=>{

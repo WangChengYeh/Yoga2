@@ -1,6 +1,6 @@
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage } from './ai-diagnostics.js?v=0.9.1';
-import { courseFrame } from './course.js?v=0.9.1';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.1';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage } from './ai-diagnostics.js?v=0.9.2';
+import { courseFrame } from './course.js?v=0.9.2';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.2';
 
 export function localAIMessages(text,state) {
   const frame=courseFrame(state.time);
@@ -13,7 +13,7 @@ export function localAIMessages(text,state) {
 // No worker, library, weights, GPU request or storage access before opt-in.
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.1',import.meta.url),{type:'module'});},onState=()=>{},setTimer=setTimeout,clearTimer=clearTimeout}={}) {
+  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.2',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;
   }
