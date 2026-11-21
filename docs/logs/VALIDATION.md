@@ -6,7 +6,7 @@
 
 - `npm run check`：276 項通過，0 失敗／跳過；含 start-timeout 系統 voice 重試、孤兒佇列、無靜音 primer、mic 保留、內容更新／取消及診斷複製。
 - 以語音引擎替身模擬 pending／paused 與不發事件，不代表已重現使用者 iPhone 的底層原因。
-- `npm run build` 通過、素材雜湊驗證完成；CI／Pages 待提交後確認。手機實際發聲與同時收播待驗收。
+- `npm run build` 通過、素材雜湊驗證完成；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44946624142)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44946623762) 均成功，對應實作提交 [f555b01](https://github.com/WangChengYeh/Yoga2/commit/f555b0182e0a5b52297ce8a7f656bbefac9b789c)。CI 含獨立真實人像 CPU 回歸。手機實際發聲與同時收播待驗收。
 
 ## 2026-11-22 · v0.9.10
 
