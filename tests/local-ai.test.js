@@ -66,7 +66,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.9');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.10');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -205,4 +205,10 @@ test('worker skips a queued request cancelled before it starts',async()=>{
  release();await Promise.all([first,queued]);
  assert.equal(calls,1);
  assert.deepEqual(sent.filter(m=>m.type==='reply').map(m=>m.id),[1]);
+});
+
+test('activated AI generates welcome through its model without recording synthetic prompts as user dialogue',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0];const greeting=h.ai.greet({time:0,playing:false}),request=w.messages.at(-1);
+ assert.equal(request.kind,'reply');assert.match(request.messages.at(-1).content,/主動.*打招呼/);assert.match(request.messages.at(-1).content,/等待回答/);
+ w.onmessage({data:{type:'reply',id:request.id,text:'嗨，我是 Luna，想先聊聊嗎？'}});assert.equal(await greeting,'嗨，我是 Luna，想先聊聊嗎？');assert.deepEqual(h.ai.history,[]);h.ai.disable();
 });

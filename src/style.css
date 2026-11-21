@@ -83,3 +83,5 @@ body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #p
 .media-startup[hidden] {display:none;}.media-startup button {background:#1d5145;color:white;border:0;border-radius:20px;padding:10px 14px;white-space:nowrap;cursor:pointer;}
 .practice-settings-content .media-startup {flex-wrap:wrap;margin:0;max-width:300px;}
 @media(max-width:600px){.media-startup {flex-wrap:wrap;gap:8px;}}
+
+.coach-hello{position:absolute;z-index:12;left:50%;bottom:108px;transform:translateX(-50%);padding:14px 22px;border:1px solid #c2d3c5;border-radius:28px;background:#1d5145;color:#fff;font-size:16px;box-shadow:0 5px 22px #1d514526;white-space:nowrap;cursor:pointer}.coach-hello[hidden]{display:none}.coach-hello:disabled{opacity:.85;cursor:default}

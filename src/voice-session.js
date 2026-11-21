@@ -3,8 +3,8 @@ export function recognitionMessage(code) {
 }
 
 export class VoiceSession {
-  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
-    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onInterrupt, setTimer, clearTimer, audioEnabled });
+  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
+    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onInterrupt, setTimer, clearTimer, audioEnabled });
     this.wanted = false; this.epoch = 0; this.recognition = null; this.utterance = null; this.speaking = false; this.emptyTurns = 0;
     this.timers = new Set();
   }
@@ -183,7 +183,7 @@ export class VoiceSession {
     utterance.onend=()=>{
       if(!current())return;
       this.cancelTimer(watchdog);this.speechTimer=null;this.utterance=null;this.speechKind=null;this.speaking=false;this.onSpeaking(false);
-      this.expireEcho();this.emit('waiting','教練回覆完畢，仍在聆聽。');if(kind==='reply')this.finishInput('ended');this.scheduleListen();
+      this.expireEcho();this.onSpeechEnd(kind);this.emit('waiting','教練回覆完畢，仍在聆聽。');if(kind==='reply')this.finishInput('ended');this.scheduleListen();
     };
     utterance.onerror=event=>fail(event?.error||'synthesis-error');
     this.listen();this.emit('replying','正在準備教練回覆，仍可說話打斷。');

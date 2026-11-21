@@ -40,10 +40,18 @@ test('AI defaults on once; gesture prepares output without restarting active inp
  h.events.click();assert.equal(primes,2);h.document.hidden=true;h.events.click();assert.equal(primes,2);h.controller.dispose();
 });
 
-test('arrival greeting waits for AI ready; startup only enables AI',()=>{
+test('entry starts AI without requesting a greeting before model activation',()=>{
  const calls=[];const h=harness({voiceHooks:{welcome(){calls.push('welcome');},enableAI(){calls.push('AI');}}});assert.deepEqual(calls,['AI']);
  h.click();assert.deepEqual(calls,['AI']);h.controller.dispose();
 });
-test('startup never attempts speech before AI initialization',()=>{
+test('no premature welcome attempt can block standard AI initialization',()=>{
  let ai=0;const h=harness({voiceHooks:{welcome(){throw new Error('speech blocked');},enableAI(){ai++;}}});assert.equal(ai,1);assert.equal(h.errors.length,0);h.controller.dispose();
+});
+
+test('explicit greeting button stays visible after permissions until welcome completes and avoids capture/bubble double activation',()=>{
+ let primes=0;const h=harness({voiceHooks:{primeAudio(){primes++;}}});
+ h.setCamera({phase:'active',open:true});h.setVoice({phase:'listening',active:true,welcomePending:true});h.controller.refresh();assert.equal(h.node('media-startup').hidden,true);assert.equal(h.node('coach-hello').hidden,false);
+ h.events.click({target:{closest:()=>true}});assert.equal(primes,0);h.node('coach-hello').listeners.click({type:'click'});assert.equal(primes,1);assert.equal(h.calls.length,2);
+ h.setVoice({phase:'speaking',active:true,welcomePending:true,welcoming:true});h.controller.refresh();assert.equal(h.node('coach-hello').disabled,true);
+ h.setVoice({phase:'listening',active:true,welcomePending:false});h.controller.refresh();assert.equal(h.node('coach-hello').hidden,true);h.controller.dispose();
 });

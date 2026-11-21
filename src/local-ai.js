@@ -1,7 +1,7 @@
-import { guidanceMessages } from './ai-guidance.js?v=0.9.8';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.8';
-import { courseFrame } from './course.js?v=0.9.8';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.8';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.10';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.10';
+import { courseFrame } from './course.js?v=0.9.10';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.10';
 
 export function localAIMessages(text,state,history=[]) {
   const frame=courseFrame(state.time);
@@ -15,7 +15,7 @@ export function localAIMessages(text,state,history=[]) {
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.8',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.10',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];
   }
@@ -90,6 +90,10 @@ export class LocalCoachAI {
     const pending=this.pending;this.pending=null;this.clearPending();pending.resolve(null);
     try{this.worker?.postMessage({type:'cancel-guidance',id:pending.id});}catch{/* stale worker */}
     this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');
+  }
+  greet(state){
+    this.cancelGuidance();
+    return this.request(localAIMessages('請主動向剛進來的使用者打招呼：簡短自我介紹是 Luna，問想先聊聊還是伸展，等待回答，不要指示開始動作。',state),'reply');
   }
   ask(text,state){
     this.cancelGuidance();const generation=this.generation;
