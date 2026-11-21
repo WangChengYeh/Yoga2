@@ -6,7 +6,7 @@
 
 - `npm run check`：260 項通過，0 失敗／跳過；含語法檢查。
 - 涵蓋進場招呼、未開始即有聲、點擊重試、靜音／背景／對話保護、插話、標準 AI／重試及短暫記憶清除。
-- `npm run build` 通過，模型雜湊驗證完成；CI／Pages 待本次提交後確認。手機初次發聲與 AI 對話品質待驗收。
+- `npm run build` 通過，模型雜湊驗證完成；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44902682319)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44902682135) 均成功，對應實作提交 [061702c](https://github.com/WangChengYeh/Yoga2/commit/061702c326ea2034846c031e5e27fcc2cb4c7b19)。手機初次發聲與 AI 對話品質待驗收。
 
 ## 2026-11-21 · v0.9.7
 
