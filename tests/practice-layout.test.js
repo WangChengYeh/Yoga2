@@ -52,3 +52,22 @@ test('camera input cannot introduce a clipping plane on the coach or coach skele
   const app=await readFile(new URL('../src/app.js',import.meta.url),'utf8');
   assert.doesNotMatch(app,/clippingPlanes|coachClip|cropMinY/);
 });
+
+
+test('raised hands to feet occupy 80% of landscape viewport height, with fixed framing',async()=>{
+  const THREE=await import('three');
+  const {loadCharacter}=await import('./helpers/character.js');
+  const {prepareStandingCoach}=await import('../src/rig.js');
+  const model=await loadCharacter(),pose=prepareStandingCoach(model);pose(8,'reach');
+  const box=new THREE.Box3().setFromObject(model,true);
+  for(const aspect of [1536/710,844/390,16/9])for(const paired of [false,true]){
+    const fit=practiceLayout({aspect,paired});
+    const camera=new THREE.PerspectiveCamera(35,aspect,.1,100);
+    camera.position.set(0,fit.targetY,fit.distance);camera.lookAt(0,fit.targetY,0);camera.updateMatrixWorld();
+    const foot=new THREE.Vector3(fit.coachX,box.min.y,box.max.z).project(camera);
+    const hand=new THREE.Vector3(fit.coachX,box.max.y,box.max.z).project(camera);
+    const fraction=(hand.y-foot.y)/2;
+    assert.ok(Math.abs(fraction-.8)<.005,`${aspect}, pair=${paired}: got ${fraction}`);
+    assert.ok(foot.y>-.82&&hand.y<.82,'retain top and bottom breathing room');
+  }
+});
