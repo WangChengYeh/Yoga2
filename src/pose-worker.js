@@ -1,15 +1,17 @@
 // Classic worker: the SDK's WASM loader may use importScripts. Only local
 // ImageBitmaps cross this boundary; frames never leave the browser.
-let detector;
+let processor;
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === 'init') {
-      const { createDetector } = await import('./pose-core.js?v=0.5.0');
-      detector = await createDetector(data.config);
+      const { createDetector } = await import('./pose-core.js?v=0.6.0');
+      const { createFrameProcessor } = await import('./pose-frame.js?v=0.6.0');
+      processor = createFrameProcessor({detector:await createDetector(data.config),createCanvas:()=>new OffscreenCanvas(1,1)});
       self.postMessage({ id: data.id, ready: true });
     } else if (data.type === 'frame') {
-      const result = detector.detectForVideo(data.bitmap, data.timestamp);
-      self.postMessage({ id: data.id, landmarks: result.landmarks });
+      const result = await processor.detect(data.bitmap, data.timestamp, data.options);
+      const transfer=result.segmentation?[result.segmentation.confidence.buffer,result.segmentation.frame.rgba.buffer]:[];
+      self.postMessage({ id: data.id, ...result }, transfer);
     }
   } catch (error) { self.postMessage({ id: data.id, error: String(error?.message || error) }); }
   finally { data.bitmap?.close(); }

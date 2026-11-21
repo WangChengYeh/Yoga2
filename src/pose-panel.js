@@ -1,8 +1,8 @@
-import { CameraSession } from './camera-session.js?v=0.5.0';
-import { createPoseEngine } from './pose-engine.js?v=0.5.0';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.5.0';
+import { CameraSession } from './camera-session.js?v=0.6.0';
+import { createPoseEngine } from './pose-engine.js?v=0.6.0';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.6.0';
 
-export function setupPosePanel({ getFrame, isPlaying, isPowerSaving }) {
+export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const $ = (id) => document.getElementById(id);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
   const ctx = overlay.getContext('2d');
@@ -25,7 +25,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving }) {
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
     createEngine: () => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl }),
     minInterval: () => isPowerSaving() ? 350 : 180,
-    getContext: () => ({ key: getKey(), frame: getFrame(), playing: isPlaying() }),
+    getContext: () => ({ key: getKey(), frame: getFrame(), playing: isPlaying(), ...human?.context }),
     measureLight: () => {
       if (!lightContext) return null;
       try {
@@ -37,6 +37,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving }) {
     },
     onState: ({ phase, message, preview: showPreview }) => {
       const running = ['requesting', 'loading', 'active'].includes(phase);
+      human?.cameraState(phase === 'active');
       $('camera-toggle').textContent = running ? '關閉相機' : phase === 'error' ? '重試開啟相機' : '開啟相機';
       $('camera-toggle').setAttribute('aria-pressed', running);
       $('camera-status').textContent = phase === 'active' ? '本機觀察中' : phase === 'requesting' ? '等待相機權限' : phase === 'loading' ? '準備辨識中' : phase === 'error' ? '暫時無法啟用' : '相機未開啟';
@@ -45,8 +46,9 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving }) {
       feedback(message, phase === 'error' ? 'setup' : 'info');
       document.querySelector('.studio').classList.toggle('camera-on', showPreview);
     },
-    onStale: () => { clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
+    onStale: () => { human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
     onResult: (data, now) => {
+      human?.accept(data,now);
       if (!isFreshResult(data, getKey(), now)) { clear(); filter.reset(); return; }
       if (video.videoWidth && video.videoHeight) {
         preview.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;

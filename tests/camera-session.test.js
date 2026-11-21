@@ -86,3 +86,11 @@ test('inference failure stops camera and detector instead of keeping stale feedb
   const h = harness(); h.engine.detect = async () => {throw new Error('inference failed');};
   await h.session.start(); await h.frame(); assert.equal(h.session.phase,'error'); assert.equal(h.stopped,1); assert.equal(h.closed,1); assert.equal(h.results.length,0);
 });
+test('human segmentation is opt-in per captured context and follows the same single-frame scheduler', async () => {
+  let segment=false;const options=[];
+  const h=harness({getContext:()=>({key:'reach',segment,humanToken:segment?2:1})});
+  h.engine.detect=async (video,stamp,option)=>{options.push(option);return {landmarks:[]};};
+  await h.session.start();await h.frame();assert.equal(options[0].segment,false);
+  segment=true;await h.frame();assert.equal(options[1].segment,true);assert.equal(h.results[1].context.humanToken,2);
+  segment=false;await h.frame();assert.equal(options[2].segment,false);h.session.stop();
+});

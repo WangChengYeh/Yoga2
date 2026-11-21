@@ -53,7 +53,7 @@ export class CameraSession {
     this.watchdog = watchdog;
     try {
       const brightness = this.measureLight();
-      const result = await this.engine.detect(this.video, stamp);
+      const result = await this.engine.detect(this.video, stamp, { segment:Boolean(context.segment) });
       if (token !== this.epoch || this.phase !== 'active') return;
       const finished = this.now();
       this.nextAt = finished + Math.max(this.minInterval(), (finished - stamp) * .5);

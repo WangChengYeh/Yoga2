@@ -1,10 +1,11 @@
+import { setupHumanPanel } from './human-panel.js?v=0.6.0';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.5.0';
-import { prepareStandingCoach } from './rig.js?v=0.5.0';
-import { setupPosePanel } from './pose-panel.js?v=0.5.0';
-import { setupVoicePanel } from './voice-panel.js?v=0.5.0';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.6.0';
+import { prepareStandingCoach } from './rig.js?v=0.6.0';
+import { setupPosePanel } from './pose-panel.js?v=0.6.0';
+import { setupVoicePanel } from './voice-panel.js?v=0.6.0';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -12,6 +13,7 @@ const state = { ...createPlayback(), ready: false, powerSaving: false };
 let activeLesson = -1;
 let posePanel;
 let voicePanel;
+let humanPanel, coachStage, dualView=false;
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
@@ -32,6 +34,7 @@ let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0;
 let framePending = false;
 
 function showError(title, detail) {
+  humanPanel?.unavailable();
   state.playing = false;
   state.ready = false;
   $('loading').hidden = false;
@@ -114,7 +117,7 @@ function resize(resetCamera = false) {
   // Frame raised hands as well as the full body, including on narrow phones.
   if (resetCamera || !state.ready) {
     const verticalDistance = 2.85 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    const horizontalDistance = 2.3 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
+    const horizontalDistance = (dualView ? 3.8 : 2.3) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
     const distance = Math.max(verticalDistance, horizontalDistance);
     camera.position.set(0, 1.25, distance);
     controls.target.set(0, 1.17, 0);
@@ -138,6 +141,7 @@ async function init() {
     showError('3D 畫面已暫停', '裝置暫時無法繼續顯示 3D。請重新載入後再試。');
   });
   scene = new THREE.Scene();
+  coachStage=new THREE.Group();scene.add(coachStage);
   camera = new THREE.PerspectiveCamera(35, 1, 0.1, 40);
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = 0.09;
@@ -153,9 +157,9 @@ async function init() {
   key.shadow.normalBias = .035; scene.add(key);
   const fill = new THREE.DirectionalLight(0xe2f2ff, 1.6); fill.position.set(3, 3, -2); scene.add(fill);
   const platform = new THREE.Mesh(new THREE.CylinderGeometry(1.12, 1.15, .035, 80), new THREE.MeshStandardMaterial({ color: 0xd9e5d6, roughness: .93 }));
-  platform.position.y = -.025; platform.receiveShadow = true; scene.add(platform);
+  platform.position.y = -.025; platform.receiveShadow = true; coachStage.add(platform);
   const mat = new THREE.Mesh(new THREE.BoxGeometry(.72, .018, 1.65), new THREE.MeshStandardMaterial({ color: 0x557667, roughness: .95 }));
-  mat.position.y = .002; mat.receiveShadow = true; scene.add(mat);
+  mat.position.y = .002; mat.receiveShadow = true; coachStage.add(mat);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.ShadowMaterial({ opacity: .13 }));
   floor.rotation.x = -Math.PI / 2; floor.position.y = -.045; floor.receiveShadow = true; scene.add(floor);
   resize(true);
@@ -177,8 +181,9 @@ async function init() {
     model.traverse((o) => {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
     });
-    scene.add(model);
+    coachStage.add(model);
     pose = prepareStandingCoach(model);
+    humanPanel.attach(scene);
     voicePanel?.attachModel(model);
     state.time = 0; state.playing = false;
     setView('front');
@@ -210,13 +215,17 @@ function animate(now) {
   }
   controls.update();
   voicePanel?.update(now);
+  humanPanel?.update(camera);
   renderer.render(scene, camera);
 }
 document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
-posePanel = setupPosePanel({ getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
+humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-.65:0;resize(true);}});
+// Keep the empty layer reusable when Safari restores this page from bfcache.
+window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
+posePanel = setupPosePanel({ human:humanPanel, getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
 voicePanel = setupVoicePanel({ getState: () => state, dispatch, getPose: () => posePanel?.summary });
 init().catch((error) => {
   console.error('Yoga2 initialization failed:', error);

@@ -24,3 +24,5 @@
 - Model: Google Pose Landmarker Lite, float16, version 1, downloaded from `storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`.
 - SHA-256: `59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a`.
 - The model is excluded from Git and verified when building. GitHub Pages downloads fixed-version SDK/WASM and model resources only when the user enables observation; the self-contained build includes them locally. Camera images are not uploaded to these providers.
+
+- M6 enables the existing Pose Landmarker model's segmentation output only when the user enters the scene. Mask confidence and downsampled RGB stay in browser memory, with results closed after copying. No additional segmentation model is distributed.

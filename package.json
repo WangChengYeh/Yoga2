@@ -1,6 +1,6 @@
 {
   "name": "yoga2-studio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,5 +9,8 @@
     "test": "node scripts/prepare-model.mjs && node --test tests/*.test.js",
     "check": "node scripts/check-syntax.mjs && npm test"
   },
-  "dependencies": { "three": "0.180.0", "@mediapipe/tasks-vision": "0.10.32" }
+  "dependencies": {
+    "three": "0.180.0",
+    "@mediapipe/tasks-vision": "0.10.32"
+  }
 }
