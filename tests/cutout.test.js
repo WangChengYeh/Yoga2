@@ -68,10 +68,10 @@ test('camera stop/background and lost 3D hide the cutout and require explicit re
     h.s.setReady(true);h.s.setCamera(true);assert.equal(h.s.enabled,false);
   }
 });
-test('missing/multiple people, low confidence, invalid masks and stale frames clear the human',()=>{
-  const mutations=[d=>d.landmarks=[],d=>d.landmarks.push(points()),d=>d.landmarks[0][0].visibility=.1,d=>d.segmentation=null,d=>d.capturedAt=-1500,d=>d.capturedAt=500];
+test('multiple detected people, invalid masks and stale frames clear the human',()=>{
+  const mutations=[d=>d.landmarks.push(points()),d=>d.segmentation=null,d=>d.capturedAt=-1500,d=>d.capturedAt=500];
   for(const mutate of mutations){const h=sessionHarness();h.start();const d=h.data();mutate(d);const n=h.clears;assert.equal(h.s.accept(d,200),false);assert.ok(h.clears>n);}
-  for(const confidence of [0,1]) {const h=sessionHarness();h.start();const d=h.data();d.segmentation.confidence.fill(confidence);assert.equal(h.s.accept(d,200),false);}
+  for(const confidence of [0]) {const h=sessionHarness();h.start();const d=h.data();d.segmentation.confidence.fill(confidence);assert.equal(h.s.accept(d,200),false);}
 });
 test('watchdog hides stale images immediately and a fresh frame can restore them',()=>{
   const h=sessionHarness();h.start();h.s.accept(h.data(),200);const n=h.clears;
@@ -90,43 +90,53 @@ test('unsupported segmentation exits human mode while retaining the camera',()=>
   assert.match(h.states.at(-1).message,/保留相機/);
 });
 function processorHarness() {
-  const events=[],options=[],maskData=new Float32Array([0,1,0,1]);let resultsClosed=0,detectorsClosed=0;
+  const events=[],poseInputs=[],portraitInputs=[];let resultsClosed=0,portraitResultsClosed=0,detectorsClosed=0,portraitsClosed=0,loads=0;
   const rgba=segmentation().frame.rgba;
   const ctx={drawImage:()=>events.push('snapshot'),getImageData:()=>({data:rgba})};
   const canvas={width:1,height:1,getContext:()=>ctx};
-  const detector={setOptions:async o=>options.push(o),detectForVideo:input=>{events.push('detect');return {landmarks:[points()],segmentationMasks:[{width:2,height:2,getAsFloat32Array:()=>maskData}],close:()=>{resultsClosed++;maskData.fill(0);}};},close:()=>detectorsClosed++};
-  const processor=createFrameProcessor({detector,createCanvas:()=>canvas});
-  return {processor,detector,canvas,events,options,source:{width:2,height:2},get resultsClosed(){return resultsClosed;},get detectorsClosed(){return detectorsClosed;}};
+  const detector={detectForVideo:input=>{events.push('detect');poseInputs.push(input);return {landmarks:[points()],close:()=>resultsClosed++};},close:()=>detectorsClosed++};
+  const portrait={foregroundIndex:0,segmentForVideo:input=>{events.push('portrait');portraitInputs.push(input);const values=new Float32Array([0,1,0,1]);return {confidenceMasks:[{width:2,height:2,getAsFloat32Array:()=>values}],close:()=>{portraitResultsClosed++;values.fill(0);}};},close:()=>portraitsClosed++};
+  const processor=createFrameProcessor({detector,createCanvas:()=>canvas,createSegmenter:async()=>{loads++;return portrait;}});
+  return {processor,detector,portrait,canvas,events,poseInputs,portraitInputs,source:{width:2,height:2},get loads(){return loads;},get resultsClosed(){return resultsClosed;},get portraitResultsClosed(){return portraitResultsClosed;},get detectorsClosed(){return detectorsClosed;},get portraitsClosed(){return portraitsClosed;}};
 }
-test('worker/main shared processor captures matching RGB before inference and copies masks before closing',async()=>{
+test('shared processor captures matching RGB for pose and portrait and copies masks before closing',async()=>{
   const h=processorHarness(),r=await h.processor.detect(h.source,100,{segment:true});
-  assert.deepEqual(h.events,['snapshot','detect']);assert.deepEqual(h.options,[{outputSegmentationMasks:true}]);
-  assert.deepEqual([...r.segmentation.confidence],[0,1,0,1]);assert.equal(h.resultsClosed,1);
+  assert.deepEqual(h.events,['snapshot','detect','portrait']);assert.equal(h.loads,1);
+  assert.equal(h.poseInputs[0],h.portraitInputs[0]);assert.equal(h.poseInputs[0],h.canvas);
+  assert.deepEqual([...r.segmentation.confidence],[0,1,0,1]);assert.equal(h.resultsClosed,1);assert.equal(h.portraitResultsClosed,1);
   assert.deepEqual(r.segmentation.frame.rgba,segmentation().frame.rgba);
-  h.processor.close();assert.equal(h.detectorsClosed,1);assert.equal(h.canvas.width,1);
+  h.processor.close();assert.equal(h.detectorsClosed,1);assert.equal(h.portraitsClosed,1);assert.equal(h.canvas.width,1);
 });
-test('no segmentation capture or allocation when off; options toggle only when needed',async()=>{
+test('portrait task is lazy, reused while on, released when off and reloadable on re-entry',async()=>{
   const h=processorHarness();let r=await h.processor.detect(h.source,100);
-  assert.equal(r.segmentation,null);assert.deepEqual(h.events,['detect']);assert.equal(h.options.length,0);
-  await h.processor.detect(h.source,200,{segment:true});await h.processor.detect(h.source,300,{segment:true});
-  await h.processor.detect(h.source,400);assert.deepEqual(h.options,[{outputSegmentationMasks:true},{outputSegmentationMasks:false}]);
-  assert.equal(h.resultsClosed,4);h.processor.close();h.processor.close();assert.equal(h.detectorsClosed,1);
-  await assert.rejects(h.processor.detect(h.source,500),/closed/);
+  assert.equal(r.segmentation,null);assert.deepEqual(h.events,['detect']);assert.equal(h.loads,0);
+  await h.processor.detect(h.source,200,{segment:true});await h.processor.detect(h.source,300,{segment:true});assert.equal(h.loads,1);
+  await h.processor.detect(h.source,400);assert.equal(h.portraitsClosed,1);
+  await h.processor.detect(h.source,500,{segment:true});assert.equal(h.loads,2);
+  h.processor.close();h.processor.close();assert.equal(h.detectorsClosed,1);assert.equal(h.portraitsClosed,2);
+  await assert.rejects(h.processor.detect(h.source,600),/closed/);
 });
-test('segmentation option failure downgrades once without losing pose observation',async()=>{
-  const h=processorHarness();let attempts=0;h.detector.setOptions=async o=>{if(o.outputSegmentationMasks){attempts++;throw Error('unsupported');}};
-  for(let i=0;i<2;i++){const r=await h.processor.detect(h.source,i,{segment:true});assert.equal(r.segmentationError,true);assert.equal(r.landmarks.length,1);}
-  assert.equal(attempts,1);assert.equal(h.resultsClosed,2);
+test('portrait download failure preserves pose observations and permits retry after leaving',async()=>{
+  let attempts=0;
+  const processor=createFrameProcessor({detector:{detectForVideo:()=>({landmarks:[points()],close(){}}),close(){}},createCanvas:()=>{throw Error('must not capture');},createSegmenter:async()=>{attempts++;throw Error('download');}});
+  for(let i=0;i<2;i++){const r=await processor.detect({},i,{segment:true});assert.equal(r.segmentationError,true);assert.equal(r.landmarks.length,1);}
+  assert.equal(attempts,1);await processor.detect({},3);await processor.detect({},4,{segment:true});assert.equal(attempts,2);processor.close();
 });
-test('unreadable masks are closed and downgrade without leaking raw frames',async()=>{
-  const h=processorHarness();let closed=0;
-  h.detector.detectForVideo=()=>({landmarks:[points()],segmentationMasks:[{getAsFloat32Array:()=>{throw Error('unreadable');}}],close:()=>closed++});
-  const r=await h.processor.detect(h.source,100,{segment:true});assert.equal(r.segmentation,null);assert.equal(r.segmentationError,true);assert.equal(closed,1);
+test('unreadable portrait masks close their results before closing the task',async()=>{
+  const h=processorHarness(),order=[];
+  h.portrait.segmentForVideo=()=>({confidenceMasks:[{getAsFloat32Array:()=>{throw Error('unreadable');}}],close:()=>order.push('result')});
+  h.portrait.close=()=>order.push('task');
+  const r=await h.processor.detect(h.source,100,{segment:true});assert.equal(r.segmentation,null);assert.equal(r.segmentationError,true);assert.deepEqual(order,['result','task']);assert.equal(h.resultsClosed,1);
 });
-test('closing during pending model options cannot publish a late frame',async()=>{
-  const h=processorHarness();let resolve;h.detector.setOptions=()=>new Promise(r=>resolve=r);
-  const pending=h.processor.detect(h.source,100,{segment:true});h.processor.close();resolve();
-  await assert.rejects(pending,/closed/);assert.equal(h.events.length,0);
+test('closing during pending portrait loading cannot publish a late frame or leak the task',async()=>{
+  let resolve,closed=0;
+  const processor=createFrameProcessor({detector:{close(){}},createCanvas:()=>{},createSegmenter:()=>new Promise(r=>resolve=r)});
+  const pending=processor.detect({},100,{segment:true});processor.close();resolve({close:()=>closed++});
+  await assert.rejects(pending,/closed/);assert.equal(closed,1);
+});
+test('portrait segmentation still runs when the pose detector returns no body landmarks',async()=>{
+  const h=processorHarness();h.detector.detectForVideo=()=>({landmarks:[],close(){}});
+  const r=await h.processor.detect(h.source,100,{segment:true});assert.deepEqual(r.landmarks,[]);assert.ok(r.segmentation);assert.equal(r.segmentationError,false);assert.equal(h.portraitInputs.length,1);h.processor.close();
 });
 test('scene uses a mirrored transparent plane, supports positioning/billboarding and releases GPU resources',()=>{
   const scene=new THREE.Scene(),canvas={width:0,height:0,getContext:()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:()=>{}})};
@@ -140,4 +150,21 @@ test('scene uses a mirrored transparent plane, supports positioning/billboarding
   layer.clear();assert.equal(disposed,3);assert.equal(scene.children.length,0);assert.equal(canvas.width,1);
   layer.apply(frame,alignment);assert.equal(scene.children.length,1);layer.dispose();assert.equal(scene.children.length,0);
   layer.apply(frame,alignment);assert.equal(scene.children.length,0);
+});
+
+test('regression: close-up/no feet can enter with portrait segmentation independently of pose feedback',()=>{
+  for(const landmarks of [[],[points().map(p=>({...p,visibility:0}))]]) {
+    const h=sessionHarness();h.start();const d=h.data();d.landmarks=landmarks;
+    assert.equal(h.s.accept(d,200),true);assert.equal(h.frames[0].c.mode,'portrait');
+    assert.match(h.states.at(-1).message,/半身模式/);assert.equal(h.s.enabled,true);
+  }
+});
+test('portrait switches to full-body floor calibration when visible feet become available',()=>{
+  const h=sessionHarness();h.start();const close=h.data();close.landmarks=[];h.s.accept(close,200);
+  assert.equal(h.frames[0].c.mode,'portrait');h.s.accept(h.data(),300);
+  assert.equal(h.frames[1].c.mode,'full');assert.match(h.states.at(-1).message,/對齊地面/);
+});
+test('close-up can occupy almost the entire frame without being incorrectly rejected',()=>{
+  const h=sessionHarness();h.start();const d=h.data();d.landmarks=[];d.segmentation.confidence.fill(1);
+  assert.equal(h.s.accept(d,200),true);assert.equal(h.frames[0].c.mode,'portrait');
 });

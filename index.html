@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" data-model-url="./public/models/luna-v1.glb" data-vision-root="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/" data-pose-model-url="https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task">
+<html lang="zh-Hant" data-model-url="./public/models/luna-v1.glb" data-vision-root="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/" data-segmentation-model-url="https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite" data-pose-model-url="https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -7,38 +7,38 @@
   <meta name="description" content="Yoga2 3D 瑜伽練習室：從一個伸展開始，旋轉視角，觀察女性教練的動作示範。">
   <title>Yoga2 · 3D 瑜伽練習室</title>
   <link rel="icon" href="./public/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./src/style.css?v=0.6.0">
+  <link rel="stylesheet" href="./src/style.css?v=0.6.1">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head>
 <body>
   <header class="header">
     <a class="brand" href="./" aria-label="Yoga2 首頁"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 31C7 31 5 21 7 15c8 0 13 6 13 16Zm0 0c13 0 15-10 13-16-8 0-13 6-13 16Z" stroke="currentColor" stroke-width="1.7"/><path d="M20 28c-8-7-8-13 0-20 8 7 8 13 0 20Z" stroke="currentColor" stroke-width="1.7"/></svg><span>yoga<span class="brand-number">2</span></span><i>個人練習室</i></a>
-    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.6.0</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
+    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.6.1</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
   </header>
   <main>
     <section class="intro"><div><p class="eyebrow">A LITTLE SPACE FOR YOURSELF</p><h1>慢下來，<em>回到自己。</em></h1></div><p class="intro-note">三個站姿動作，串起一段小練習。<br>跟著教練，用自己的節奏慢慢來。</p></section>
     <div class="workspace">
       <div class="practice-column"><section class="studio" aria-label="3D 教練互動畫面">
-        <div class="studio-top"><span class="pill"><span class="live-dot"></span>3D 練習空間</span><button id="quality" class="text-button" type="button" aria-pressed="false">省電模式</button></div>
+        <div class="studio-top"><span class="pill"><span class="live-dot"></span>3D 練習空間</span><div class="studio-actions"><button id="camera-toggle" type="button" aria-pressed="false">開啟相機</button><button id="quality" class="text-button" type="button" aria-pressed="false">省電模式</button></div></div>
         <div class="arch" aria-hidden="true"></div>
         <div class="studio-watermark" aria-hidden="true">breathe.</div>
-        <div id="camera-preview" class="camera-preview" hidden><video id="camera-video" autoplay muted playsinline aria-label="你的相機鏡像預覽"></video><canvas id="camera-overlay" aria-hidden="true"></canvas><span class="camera-preview-label">我的畫面 · 鏡像</span><button id="camera-expand" type="button" aria-expanded="false">放大畫面</button></div><div id="viewport" role="img" aria-label="女性 3D 教練；在畫面拖曳可旋轉，雙指可縮放"></div>
+        <div id="camera-preview" class="camera-source" aria-hidden="true"><video id="camera-video" autoplay muted playsinline></video><canvas id="camera-overlay"></canvas></div><div id="viewport" role="img" aria-label="女性 3D 教練；在畫面拖曳可旋轉，雙指可縮放"></div>
         <div id="loading" class="loading-panel" role="status" aria-live="polite"><span class="spinner"></span><strong id="loading-title">正在準備你的練習空間</strong><p id="loading-detail">首次載入角色約 2 MB，請稍候。</p><button id="retry" hidden type="button">重新載入</button></div>
         <div class="coach-tag"><span class="coach-avatar">L</span><div><strong>Luna</strong><span>你的瑜伽教練</span></div></div>
         <div class="view-tools" role="group" aria-label="觀看角度"><button type="button" data-view="front" aria-pressed="true">正面</button><button type="button" data-view="side" aria-pressed="false">側面</button><button type="button" data-view="back" aria-pressed="false">背面</button><button type="button" id="reset-view" aria-label="重設視角" title="重設視角">↺</button></div>
         <p class="gesture-hint"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9-3 3 3 3m12-6 3 3-3 3M3 12h18" stroke="currentColor" stroke-width="1.5"/></svg>拖曳旋轉 · 雙指縮放</p>
       </section>
       <section class="camera-card" aria-label="相機與姿勢觀察">
-        <div class="camera-heading"><div><strong>讓教練看見你的動作</strong><span id="camera-status">相機未開啟</span></div><button id="camera-toggle" type="button" aria-pressed="false">開啟相機</button></div>
-        <p id="camera-feedback" class="camera-feedback" role="status" aria-live="polite">把手機架穩，讓頭、雙手與雙腳完整入鏡；也可以不開相機直接帶練。</p>
-        <p class="camera-privacy">影像只在手機分析，不錄影、不上傳。首次需下載辨識模型。</p>
-        <details class="camera-help"><summary>站位與觀察範圍</summary><p>面向前鏡頭，手機保持直立，移到能拍全身的位置。點「放大畫面」查看自己的站位，關節看不清楚時會停止動作判斷。</p><p>只觀察雙手上舉、側傾方向與展臂高度，不代表姿勢正確或安全；單一前鏡頭無法確認開胸深度。切到背景會關閉相機；語音功能需另外主動開啟麥克風。</p></details>
+        <div class="camera-heading"><div><strong>相機與動作觀察</strong><span id="camera-status">相機未開啟</span></div></div>
+        <p id="camera-feedback" class="camera-feedback" role="status" aria-live="polite">開啟相機會自動去背並排顯示；半身也可以。姿勢觀察需要頭、雙手與雙腳完整入鏡。</p>
+        <p class="camera-privacy">影像只在手機分析，不錄影、不上傳。首次需下載姿勢與人像去背模型。</p>
+        <details class="camera-help"><summary>站位與觀察範圍</summary><p>面向前鏡頭，手機保持直立，移到能拍全身的位置。相機原始畫面不顯示；關節看不清楚時會停止動作判斷，半身去背仍可使用。</p><p>只觀察雙手上舉、側傾方向與展臂高度，不代表姿勢正確或安全；單一前鏡頭無法確認開胸深度。切到背景會關閉相機；語音功能需另外主動開啟麥克風。</p></details>
       </section>
       <section class="human-card" aria-label="真人合入場景">
-        <div class="human-heading"><div><span class="eyebrow">PRACTICE TOGETHER</span><h3>和 Luna 一起入鏡。</h3></div><button id="human-toggle" type="button" disabled aria-pressed="false">真人入場</button></div>
-        <p id="human-status" role="status" aria-live="polite">先開啟相機，再讓真人入場。</p>
+        <div class="human-heading"><div><span class="eyebrow">PRACTICE TOGETHER</span><h3>和 Luna 一起入鏡。</h3></div></div>
+        <p id="human-status" role="status" aria-live="polite">開啟相機即自動去背入場，半身或全身皆可。</p>
         <div class="human-controls"><label for="human-x">左右位置<input id="human-x" type="range" min="-1.4" max="1.4" step="0.02" value="0.72" disabled></label><label for="human-scale">人物大小 <output id="human-size" for="human-scale">100%</output><input id="human-scale" type="range" min="0.65" max="1.4" step="0.05" value="1" disabled></label><button id="human-align" type="button" disabled>重新對齊地面</button></div>
-        <p class="human-note">請先直立、讓一人全身入鏡。這是鏡像即時去背影像，會隨視角面向你；轉動視角不會產生身體的其他角度。影像只在手機處理，關閉相機或切到背景即隱藏。</p>
+        <p class="human-note">半身或全身皆可入場；全身入鏡時會對齊地面。這是鏡像即時去背影像，會隨視角面向你；轉動視角不會產生身體的其他角度。影像只在手機處理，關閉相機或切到背景即隱藏。</p>
       </section>
       <section id="voice-card" class="voice-card" aria-label="教練語音互動">
         <div class="voice-heading"><div><span class="eyebrow">TALK TO YOUR COACH</span><h3>說一句，教練陪你練。</h3></div><button id="voice-toggle" type="button" aria-pressed="false">開啟語音</button></div>
@@ -65,8 +65,8 @@
     <section class="journey" aria-label="開發里程碑"><div><span class="eyebrow">ONE STEP AT A TIME</span><h3>我們的練習，慢慢長大。</h3></div><ol><li class="finished"><span class="step-marker">✓</span><div><strong>認識教練</strong><span>已完成</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>完整帶練</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>姿勢觀察</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>語音互動</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>版號更新</strong><span>點版號更新</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>角色升級</strong><span>Luna 教練</span></div></li><li class="current"><span class="step-marker">06</span><div><strong>真人入場</strong><span>目前版本</span></div></li><li><span class="step-marker">07</span><div><strong>骨架顯示</strong><span>規劃中</span></div></li></ol></section>
   </main>
   <footer><span>yoga2 <i>留一點時間，給自己。</i></span><a href="https://github.com/WangChengYeh/Yoga2" target="_blank" rel="noopener">專案與製作資訊</a></footer>
-  <script type="module" src="./src/update-entry.js?v=0.6.0"></script>
-  <script type="module" src="./src/app.js?v=0.6.0"></script>
+  <script type="module" src="./src/update-entry.js?v=0.6.1"></script>
+  <script type="module" src="./src/app.js?v=0.6.1"></script>
   <script>window.setTimeout(function(){if(!window.yogaAppStarted){document.getElementById('loading-title').textContent='練習空間未能啟動';document.getElementById('loading-detail').textContent='請確認網路連線並重新整理頁面。';document.querySelector('.spinner').hidden=true;var r=document.getElementById('retry');r.hidden=false;r.onclick=function(){location.reload()};}},20000);</script>
 </body>
 </html>

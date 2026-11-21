@@ -1,9 +1,9 @@
-import { createFrameProcessor } from './pose-frame.js?v=0.6.0';
-import { createDetector } from './pose-core.js?v=0.6.0';
+import { createFrameProcessor } from './pose-frame.js?v=0.6.1';
+import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.6.1';
 
 async function workerEngine(config) {
-  const worker = new Worker(new URL('./pose-worker.js?v=0.6.0', import.meta.url));
-  let nextId = 0, closed = false;
+  const worker = new Worker(new URL('./pose-worker.js?v=0.6.1', import.meta.url));
+  let nextId = 0, closed = false, portraitRequested=false;
   const pending = new Map();
   const fail = () => {
     for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(new Error('Pose worker unavailable')); }
@@ -33,7 +33,11 @@ async function workerEngine(config) {
     async detect(video, timestamp, options) {
       const bitmap = await createImageBitmap(video);
       if (closed) { bitmap.close(); throw new Error('Engine closed'); }
-      try { return await send({ type: 'frame', bitmap, timestamp, options }, [bitmap]); }
+      try {
+        const timeout=options?.segment&&!portraitRequested?45000:10000;
+        portraitRequested=Boolean(options?.segment);
+        return await send({ type: 'frame', bitmap, timestamp, options }, [bitmap],timeout);
+      }
       finally { bitmap.close(); }
     },
   };
@@ -45,5 +49,5 @@ export async function createPoseEngine(config) {
     catch { /* Fall back once for browsers without worker/WASM canvas support. */ }
   }
   const detector = await createDetector(config);
-  return { mode:'main', ...createFrameProcessor({detector,createCanvas:()=>document.createElement('canvas')}) };
+  return { mode:'main', ...createFrameProcessor({detector,createCanvas:()=>document.createElement('canvas'),createSegmenter:()=>createPortraitSegmenter(config)}) };
 }

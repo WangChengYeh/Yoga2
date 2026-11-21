@@ -1,10 +1,10 @@
 {
   "name": "yoga2-studio",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/prepare-release.mjs && node scripts/sync-pages.mjs && node scripts/prepare-model.mjs && node scripts/prepare-pose.mjs",
+    "prebuild": "node scripts/prepare-release.mjs && node scripts/sync-pages.mjs && node scripts/prepare-model.mjs && node scripts/prepare-pose.mjs && node scripts/prepare-portrait.mjs",
     "build": "node scripts/build.mjs",
     "test": "node scripts/prepare-model.mjs && node --test tests/*.test.js",
     "check": "node scripts/check-syntax.mjs && npm test"

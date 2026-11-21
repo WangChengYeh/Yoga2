@@ -6,3 +6,4 @@ public/models/*.glb
 !public/models/luna-v1.glb
 public/models/*.task
 .openai/
+public/models/*.tflite

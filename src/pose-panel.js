@@ -1,6 +1,6 @@
-import { CameraSession } from './camera-session.js?v=0.6.0';
-import { createPoseEngine } from './pose-engine.js?v=0.6.0';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.6.0';
+import { CameraSession } from './camera-session.js?v=0.6.1';
+import { createPoseEngine } from './pose-engine.js?v=0.6.1';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.6.1';
 
 export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const $ = (id) => document.getElementById(id);
@@ -21,9 +21,10 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const config = document.documentElement.dataset;
   const sdkRoot = config.visionRoot || new URL('./vendor/mediapipe/', location.href).href;
   const modelUrl = config.poseModelUrl || new URL('./models/pose_landmarker_lite.task', location.href).href;
+  const segmentationModelUrl=config.segmentationModelUrl || new URL('./models/selfie_segmenter.tflite',location.href).href;
   const session = new CameraSession({
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
-    createEngine: () => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl }),
+    createEngine: () => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl }),
     minInterval: () => isPowerSaving() ? 350 : 180,
     getContext: () => ({ key: getKey(), frame: getFrame(), playing: isPlaying(), ...human?.context }),
     measureLight: () => {
@@ -72,11 +73,6 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   $('camera-toggle').addEventListener('click', () => {
     if (['requesting', 'loading', 'active'].includes(session.phase)) session.stop();
     else void session.start();
-  });
-  $('camera-expand').addEventListener('click', () => {
-    const expanded = preview.classList.toggle('expanded');
-    $('camera-expand').textContent = expanded ? '縮小畫面' : '放大畫面';
-    $('camera-expand').setAttribute('aria-expanded', expanded);
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden && ['requesting', 'loading', 'active'].includes(session.phase)) session.stop('切到背景已關閉相機，回來後可重新開啟。'); });
   window.addEventListener('pagehide', () => session.stop());

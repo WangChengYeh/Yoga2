@@ -4,9 +4,9 @@ let processor;
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === 'init') {
-      const { createDetector } = await import('./pose-core.js?v=0.6.0');
-      const { createFrameProcessor } = await import('./pose-frame.js?v=0.6.0');
-      processor = createFrameProcessor({detector:await createDetector(data.config),createCanvas:()=>new OffscreenCanvas(1,1)});
+      const { createDetector, createPortraitSegmenter } = await import('./pose-core.js?v=0.6.1');
+      const { createFrameProcessor } = await import('./pose-frame.js?v=0.6.1');
+      processor = createFrameProcessor({detector:await createDetector(data.config),createCanvas:()=>new OffscreenCanvas(1,1),createSegmenter:()=>createPortraitSegmenter(data.config)});
       self.postMessage({ id: data.id, ready: true });
     } else if (data.type === 'frame') {
       const result = await processor.detect(data.bitmap, data.timestamp, data.options);

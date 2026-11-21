@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { personPlacement } from './cutout-core.js?v=0.6.0';
+import { personPlacement } from './cutout-core.js?v=0.6.1';
 
 export function createHumanLayer({ scene, createCanvas=()=>document.createElement('canvas') }) {
   let mesh, texture, canvas, ctx, calibration, aspect;

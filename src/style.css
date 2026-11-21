@@ -9,3 +9,29 @@
 .version-tools{display:flex;align-items:flex-end;flex-direction:column;gap:6px}.version-button{font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#edf4e9;color:#1d5145;border:1px solid #c3d5ba;border-radius:18px;padding:8px 15px}.version-tools>span{font-size:11px;color:#71836f;max-width:230px;text-align:right;line-height:1.5}.version-button:disabled{cursor:wait}@media(max-width:760px){.version-tools>span{max-width:170px;font-size:11px}.version-button{font-size:13px;padding:7px 13px}}
 
 .human-card{margin-top:16px;border:1px solid var(--line);border-radius:20px;background:#fff;padding:22px}.human-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.human-heading .eyebrow{font-size:10px;letter-spacing:1.5px;margin:0 0 8px}.human-heading h3{font-size:20px;font-weight:400;margin:0;font-family:Georgia,"Songti TC",serif}.human-heading>button{border:1px solid #91ad91;background:#edf5e9;padding:11px 15px;border-radius:10px;font-size:14px;white-space:nowrap}.human-heading>button[aria-pressed=true]{background:#1d5145;color:white}.human-card>p{line-height:1.8;font-size:14px;color:#56705e}.human-controls{display:grid;grid-template-columns:1fr 1fr;gap:16px}.human-controls label{font-size:14px;color:#36523f}.human-controls output{float:right;font-variant-numeric:tabular-nums}.human-controls>button{grid-column:1/-1;justify-self:start;background:#f1f6ed;border:1px solid #cad8c5;border-radius:8px;padding:9px 12px;font-size:14px}.human-card .human-note{font-size:13px;margin-bottom:0;color:#6a7e70}@media(max-width:760px){.human-card{padding:19px}.human-heading h3{font-size:19px}.human-controls{gap:12px}}
+
+/* Landscape practice: both people stay inside one wide, unobstructed scene. */
+.practice-column .studio{height:auto;min-height:0;aspect-ratio:16/10}
+.studio-actions{display:flex;gap:8px;align-items:center;pointer-events:auto}
+#camera-toggle{border:1px solid #91ad91;background:#edf5e9;color:#244f40;padding:9px 13px;border-radius:20px;font-size:13px;white-space:nowrap}
+#camera-toggle[aria-pressed=true]{background:#1d5145;color:white}
+.camera-source{position:fixed;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;clip-path:inset(50%);top:0;left:0}
+.camera-source video,.camera-source canvas{width:1px;height:1px}
+.practice-column .studio .coach-tag{bottom:67px}.practice-column .studio .gesture-hint{bottom:28px}
+@media(max-width:760px){
+  .practice-column .studio{height:auto;min-height:0;aspect-ratio:4/3}
+  .studio-top{top:12px;left:12px;right:12px;gap:6px}.studio-top .pill{font-size:10px;padding:8px 9px}.studio-actions{gap:5px}
+  #quality,#camera-toggle{font-size:11px;padding:8px 9px}.practice-column .studio .coach-tag{left:13px;bottom:60px}
+  .practice-column .studio .coach-avatar{width:26px;height:26px;font-size:18px}.practice-column .studio .coach-tag strong{font-size:13px}.practice-column .studio .coach-tag div>span{font-size:10px}
+  .practice-column .studio .gesture-hint{display:none}.practice-column .studio .view-tools{left:12px;bottom:12px}.view-tools button{padding:7px 11px;font-size:12px}
+}
+@media(orientation:landscape) and (max-height:600px) and (max-width:1200px){
+  .header{height:56px;padding:0 max(18px,env(safe-area-inset-left))}.brand>span{font-size:26px}.brand i,.version-tools>span{display:none}.brand svg{width:28px}
+  main{padding:0 max(14px,env(safe-area-inset-left))}.intro{padding:10px 0}.intro .eyebrow,.intro-note{display:none}.intro h1{font-size:22px}
+  .workspace{grid-template-columns:minmax(0,1fr) minmax(230px,32%);gap:12px;align-items:start}
+  .practice-column .studio{height:calc(100svh - 112px);min-height:240px;aspect-ratio:auto;border-radius:16px}
+  .lesson{max-height:calc(100svh - 112px);overflow:auto;padding:17px;border-radius:16px}.lesson h2{font-size:24px;margin:14px 0 6px}.lesson-description{display:none}.lesson-meta{margin:12px 0}.lesson-heading .eyebrow{display:none}.cue-card{min-height:0;padding:10px}.cue-card p{font-size:12px}.remaining-row{font-size:11px;gap:5px;margin-top:12px}.remaining-row b{margin-left:2px}
+  .studio-top{top:12px;left:12px;right:12px}.studio-top .pill{font-size:10px;padding:8px 9px}.studio-actions{gap:5px}#quality,#camera-toggle{font-size:11px;padding:8px 9px}
+  .practice-column .studio .coach-tag{left:13px;bottom:54px}.practice-column .studio .coach-avatar{width:25px;height:25px;font-size:17px}.practice-column .studio .coach-tag strong{font-size:12px}.practice-column .studio .coach-tag div>span{font-size:10px}
+  .practice-column .studio .view-tools{left:12px;bottom:12px}.view-tools button{padding:6px 10px;font-size:11px}.practice-column .studio .gesture-hint{display:none}.studio-watermark{font-size:70px}
+}
