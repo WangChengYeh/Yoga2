@@ -66,7 +66,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.6');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.7');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -134,4 +134,13 @@ test('user question preempts AI guidance, stale completion/error cannot steal th
  w.onmessage({data:{type:'error',id:first.id,stage:'inference',error:{message:'cancelled'}}});assert.equal(h.ai.phase,'thinking');
  w.onmessage({data:{type:'reply',id:first.id,text:'舊口令'}});assert.equal(h.ai.phase,'thinking');
  w.onmessage({data:{type:'reply',id:second.id,text:'保持自然呼吸。'}});assert.equal(await reply,'保持自然呼吸。');h.ai.disable();
+});
+
+test('barge-in cancels pending AI reply without unloading; stale reply/error cannot affect a new question',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0];
+ const old=h.ai.ask('第一個問題',{time:0}),first=w.messages.at(-1);h.ai.cancelReply();
+ assert.equal(await old,null);assert.equal(h.ai.ready,true);assert.equal(w.messages.at(-1).type,'cancel-reply');
+ const next=h.ai.ask('第二個問題',{time:0}),second=w.messages.at(-1);
+ w.onmessage({data:{type:'reply',id:first.id,text:'過時'}});w.onmessage({data:{type:'error',id:first.id,stage:'inference',error:{message:'cancelled'}}});assert.equal(h.ai.phase,'thinking');
+ w.onmessage({data:{type:'reply',id:second.id,text:'新答案'}});assert.equal(await next,'新答案');h.ai.disable();
 });

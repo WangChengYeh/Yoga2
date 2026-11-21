@@ -1,5 +1,5 @@
-import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.6';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.6';
+import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.7';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.7';
 let engine,stage='worker',resource=null;const shardSizes=new Map();
 const enter=value=>{stage=value;self.postMessage({type:'stage',stage});};
 // Record only failed resource locations/status, never request bodies or URL queries.
@@ -24,7 +24,7 @@ if(globalThis.fetch){
 }
 self.onmessage=async({data})=>{
  let redactions=[];
- if(data.type==='cancel-guidance'){try{engine?.interruptGenerate?.();}catch{/* Already finished */}return;}
+ if(data.type==='cancel-guidance'||data.type==='cancel-reply'){try{engine?.interruptGenerate?.();}catch{/* Already finished */}return;}
  try{
   if(data.type==='load'){
    resource=null;enter('workerGpu');

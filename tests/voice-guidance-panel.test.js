@@ -67,7 +67,7 @@ test('AI error exposes exact diagnostic and copy fallback never needs microphone
 });
 
 const ask=(h,text)=>{h.element('voice-input').value=text;h.element('voice-form').listeners.submit({preventDefault(){}});};
-const recognitionResult=(recognition,text,final=true)=>recognition.onresult({resultIndex:0,results:[Object.assign([{transcript:text,confidence:.9}],{isFinal:final})]});
+const recognitionResult=(recognition,text,final=true)=>{const results=recognition.results||=[],index=results.at(-1)?.isFinal?results.length:Math.max(0,results.length-1);results[index]=Object.assign([{transcript:text,confidence:.9}],{isFinal:final});recognition.results=results;recognition.onresult({resultIndex:index,results});};
 test('speech onset pauses before final recognition; interim words never execute a command',()=>{
  const h=harness();try{
   h.element('guidance-toggle').checked=false;h.element('guidance-toggle').listeners.change();h.state.time=9;h.dispatch({type:'play'});
@@ -149,5 +149,24 @@ test('default media entry starts listening idempotently while voice output remai
   h.panel.enableListening();assert.equal(h.microphones,1);assert.equal(h.panel.mediaStatus.active,true);h.panel.enableListening();assert.equal(h.microphones,1);
   h.recognitions[0].onerror({error:'not-allowed'});assert.equal(h.panel.mediaStatus.active,false);assert.equal(h.panel.mediaStatus.phase,'error');assert.equal(h.microphones,1,'permission errors never auto-retry');
   h.panel.enableListening();assert.equal(h.microphones,2);
+ }finally{h.close();}
+});
+
+test('spoken barge-in interrupts coach reply with microphone retained and resumes only after the latest answer',()=>{
+ const h=harness();try{
+  h.panel.enableListening();h.state.time=7;h.dispatch({type:'play'});const r=h.recognitions[0],cue=h.spoken.at(-1);cue.onstart();
+  recognitionResult(r,'雙手肩膀放鬆',false);assert.equal(h.state.playing,false);recognitionResult(r,'現在做什麼');
+  const first=h.spoken.at(-1),late=first.onend;first.onstart();assert.equal(h.panel.mediaStatus.active,true);assert.equal(h.microphones,1);
+  recognitionResult(r,'等一下',false);late();assert.equal(h.state.playing,false);assert.equal(h.panel.diagnostics.speaking,false);
+  recognitionResult(r,'現在還有多久');const second=h.spoken.at(-1);second.onend();assert.equal(h.state.playing,true);assert.equal(h.state.time,7);assert.equal(h.microphones,1);
+ }finally{h.close();}
+});
+test('speech while AI thinks cancels generation before accepting a new question and ignores its old result',async()=>{
+ let resolve,cancelled=0;const ai={phase:'ready',get ready(){return this.phase==='ready';},disable(){},ask(){this.phase='thinking';return new Promise(r=>resolve=r);},cancelReply(){if(this.phase==='thinking'){cancelled++;this.phase='ready';}}};
+ const h=harness(()=>ai);try{
+  h.panel.enableListening();h.dispatch({type:'play'});ask(h,'手肘能彎嗎');const first=resolve,r=h.recognitions[0];
+  recognitionResult(r,'再問一個',false);assert.equal(cancelled,1);assert.equal(h.panel.mediaStatus.active,true);
+  recognitionResult(r,'手臂能放低嗎');const second=resolve;first('舊答案');await new Promise(r=>setImmediate(r));assert.ok(h.spoken.every(u=>u.text!=='舊答案'));assert.equal(h.state.playing,false);
+  ai.phase='ready';second('新答案');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'新答案');h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
  }finally{h.close();}
 });
