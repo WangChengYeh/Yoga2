@@ -6,7 +6,7 @@
 
 - `npm run check`：289 項通過，0 失敗／跳過；含本機 ZIP 流程、精簡包不渲染、失敗／併發／晚到及 URL 釋放，runtime 跨重開與隱私。
 - 儲存／crash 測試用事件及儲存替身，沒有模擬 OS kill，也不能確認手機已將檔案寫入本機。
-- `npm run build` 通過、素材雜湊驗證完成；CI／Pages 待提交後確認。手機 ZIP 儲存與 crash 根因待實測。
+- `npm run build` 通過、素材雜湊驗證完成；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44948121531)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44948120932) 均成功，對應實作提交 [6527d72](https://github.com/WangChengYeh/Yoga2/commit/6527d72392d5e067941f098ae2a0a61a45af92c4)。CI 含獨立真實人像 CPU 回歸。手機 ZIP 儲存與 crash 根因待實測。
 
 ## 2026-11-22 · v0.9.11
 
