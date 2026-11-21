@@ -158,7 +158,7 @@ test('spoken barge-in interrupts coach reply with microphone retained and resume
   recognitionResult(r,'雙手肩膀放鬆',false);assert.equal(h.state.playing,false);recognitionResult(r,'現在做什麼');
   const first=h.spoken.at(-1),late=first.onend;first.onstart();assert.equal(h.panel.mediaStatus.active,true);assert.equal(h.microphones,1);
   recognitionResult(r,'等一下',false);late();assert.equal(h.state.playing,false);assert.equal(h.panel.diagnostics.speaking,false);
-  recognitionResult(r,'現在還有多久');const second=h.spoken.at(-1);second.onend();assert.equal(h.state.playing,true);assert.equal(h.state.time,7);assert.equal(h.microphones,1);
+  recognitionResult(r,'現在還有多久');const second=h.spoken.at(-1);second.onend();assert.equal(h.state.playing,true);assert.equal(h.state.time,7);assert.equal(h.microphones,2);assert.equal(r.onresult,null);
  }finally{h.close();}
 });
 test('speech while AI thinks cancels generation before accepting a new question and ignores its old result',async()=>{
@@ -183,7 +183,7 @@ test('blocked arrival speech retries audibly on a gesture without requiring cour
  const h=harness(()=>({phase:'ready',ready:true,disable(){}}));try{
   h.panel.enableListening();h.panel.welcome();await new Promise(r=>setImmediate(r));h.spoken.at(-1).onerror({error:'not-allowed'});assert.equal(h.panel.mediaStatus.outputBlocked,true);
   h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.primers.length,0);const greeting=h.spoken.at(-1);greeting.onstart();greeting.onend();
-  assert.equal(h.panel.mediaStatus.outputBlocked,false);assert.equal(h.state.playing,false);assert.equal(h.microphones,1);
+  assert.equal(h.panel.mediaStatus.outputBlocked,false);assert.equal(h.state.playing,false);assert.equal(h.microphones,2);
  }finally{h.close();}
 });
 test('a person can interrupt welcome; a late welcome event cannot start practice or greet again',async()=>{
@@ -191,7 +191,7 @@ test('a person can interrupt welcome; a late welcome event cannot start practice
   h.panel.enableListening();h.panel.welcome();await new Promise(r=>setImmediate(r));const greeting=h.spoken.at(-1),late=greeting.onend;greeting.onstart();const r=h.recognitions[0];
   recognitionResult(r,'你好',false);assert.equal(h.panel.diagnostics.speaking,false);recognitionResult(r,'你好');assert.match(h.spoken.at(-1).text,/嗨，我在這裡/);
   late();assert.equal(h.state.playing,false);h.spoken.at(-1).onend();h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.state.playing,false);
-  recognitionResult(r,'準備好了');assert.equal(h.state.playing,false);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
+  recognitionResult(h.recognitions.at(-1),'準備好了');assert.equal(h.state.playing,false);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
  }finally{h.close();}
 });
 test('welcome respects mute, background, ongoing practice, and an already active conversation',()=>{
@@ -222,7 +222,7 @@ test('download and activation must finish before AI generates its greeting; read
   h.panel.enableListening();h.panel.enableAI();h.panel.welcome();h.panel.primeAudio();await new Promise(r=>setImmediate(r));assert.equal(requests,0);assert.equal(h.spoken.length,0);
   ai.phase='ready';options.onState({phase:'ready',message:'ready'});await new Promise(r=>setImmediate(r));assert.equal(requests,1);assert.equal(h.spoken.length,0);assert.equal(h.panel.mediaStatus.welcomePreparing,true);
   ai.phase='ready';options.onState({phase:'ready',message:'ready'});resolve('你好，我是 Luna，今天想先聊聊嗎？');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'你好，我是 Luna，今天想先聊聊嗎？');assert.equal(h.state.playing,false);
-  h.spoken.at(-1).onstart();assert.equal(h.panel.diagnostics.welcomeCompleted,false);h.spoken.at(-1).onend();assert.equal(h.panel.diagnostics.welcomeCompleted,true);assert.equal(h.panel.mediaStatus.welcomePending,false);assert.equal(h.state.playing,false);assert.equal(h.microphones,1);
+  h.spoken.at(-1).onstart();assert.equal(h.panel.diagnostics.welcomeCompleted,false);h.spoken.at(-1).onend();assert.equal(h.panel.diagnostics.welcomeCompleted,true);assert.equal(h.panel.mediaStatus.welcomePending,false);assert.equal(h.state.playing,false);assert.equal(h.microphones,2);
  }finally{h.close();}
 });
 test('interrupted pending greeting cannot arrive late over a user question or after background',async()=>{
@@ -257,7 +257,7 @@ test('failed conversation audio retry replays actual answer with microphone reta
   assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.audioRetry,true);const count=h.spoken.length;
   h.panel.prepareAudio();assert.equal(h.spoken.length,count);assert.equal(h.primers.length,0);
   h.panel.primeAudio();assert.equal(h.spoken.at(-1).text,answer.text);assert.equal(h.spoken.length,count+1);h.spoken.at(-1).onstart();h.spoken.at(-1).onend();
-  assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.active,true);assert.equal(h.microphones,1);assert.equal(h.panel.mediaStatus.audioRetry,false);
+  assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.active,true);assert.equal(h.microphones,2);assert.equal(h.panel.mediaStatus.audioRetry,false);
  }finally{h.close();}
 });
 
@@ -302,5 +302,16 @@ test('exported package diagnostics include observed microphone lifecycle and cou
  const h=harness();try{
   h.panel.enableListening();const r=h.recognitions[0];r.onaudiostart();r.onsoundstart();r.onspeechstart();recognitionResult(r,'現在做什麼');
   const d=h.panel.diagnostics.microphone;assert.equal(d.wanted,true);assert.equal(d.recognitionAttached,true);assert.equal(d.observed.audioActive,true);assert.equal(d.counts.acceptedFinals,1);assert.doesNotMatch(JSON.stringify(d),/現在做什麼/);
+ }finally{h.close();}
+});
+test('production voice panel reconnects after each answer and accepts three consecutive spoken turns without toggle',()=>{
+ const h=harness();try{
+  h.panel.enableListening();
+  for(let turn=0;turn<3;turn++){
+   const r=h.recognitions.at(-1);recognitionResult(r,'現在做什麼');const answer=h.spoken.at(-1);answer.onstart();
+   assert.equal(h.microphones,turn+1);assert.equal(typeof r.onresult,'function');answer.onend();
+   assert.equal(h.microphones,turn+2);assert.equal(r.onresult,null);assert.equal(h.panel.mediaStatus.active,true);
+  }
+  assert.equal(h.panel.diagnostics.microphone.counts.acceptedFinals,3);assert.equal(h.panel.diagnostics.microphone.counts.reconnects,3);
  }finally{h.close();}
 });

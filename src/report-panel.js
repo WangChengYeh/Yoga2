@@ -1,5 +1,5 @@
-import { APP_VERSION } from './release.js?v=0.9.15';
-import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.9.15';
+import { APP_VERSION } from './release.js?v=0.9.16';
+import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.9.16';
 
 const toBlob=canvas=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('截圖編碼失敗')),'image/png'));
 export async function captureReport({stage, human, render, diagnostics, screenshot, win=window, doc=document, id=crypto.randomUUID(),images=true,fallbackReason=null}) {

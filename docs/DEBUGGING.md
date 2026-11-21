@@ -125,3 +125,9 @@ origin 區分 browser-event、recognition-result（結果衍生判斷）與 cont
 `diagnostics.json.activity` 包含最近 256 筆操作／課程階段／AI、語音、麥克風與相機事件，以及每秒一筆、最多 120 筆的真人骨架樣本。UTC `at`、頁面單調時鐘 `elapsedMs`、`sequence` 與 `courseTime` 可用來對照先後順序。操作保留課程索引、速度、視角及開關值，不保存輸入文字。骨架僅保留可見身體關節的來源影像正規化 x/y 與可信度，排除臉部；不可見、多人、過期或相機關閉不能解讀為正確動作。`observation` 是原始規則結果、`stable` 是穩定化結果，不是任意動作辨識或醫療判斷。
 
 時間線只保留本頁記憶體，重新整理會清空；完整與精簡 ZIP 都包含。沒有連續影片或音訊，無法逐幀重播；原有前一工作階段精簡執行日誌維持獨立。分享 ZIP 也會分享上述動作座標。
+
+### v0.9.16 回答後聆聽恢復
+
+v0.9.15 使用者包顯示：手動關閉／開啟辨識後各有一組有效辨識與正常 TTS start/end；回答後原辨識實例仍附著，但沒有後續 result/end/error，直到下一次手動重啟。這支持回覆後連線失效的工作假設，不能單由無事件證明瀏覽器硬體根因。
+
+正式介面在 welcome/reply 的原生播放結束事件後自動重建仍啟用的 SpeechRecognition，無須手動點開關；輸出期間與被打斷時保留原辨識，guidance 短口令不重建。重建有極短的辨識切換間隔，不能保證瀏覽器硬體全雙工。`microphone.counts.reconnects`、`history` 的 reconnect/output-ended 與 activity 麥克風事件可驗證；新連線啟動失敗仍顯示輸入錯誤且取消自動恢復帶練。這不是 v0.9.14 playback-timeout 的修復。

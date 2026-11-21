@@ -3,16 +3,16 @@ export function recognitionMessage(code) {
 }
 
 export class VoiceSession {
-  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onMicrophoneEvent = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true, getActivation = () => globalThis.navigator?.userActivation }) {
-    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onMicrophoneEvent, onInterrupt, setTimer, clearTimer, audioEnabled, getActivation });
+  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onMicrophoneEvent = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true, getActivation = () => globalThis.navigator?.userActivation, refreshRecognitionAfterSpeech = false }) {
+    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onMicrophoneEvent, onInterrupt, setTimer, clearTimer, audioEnabled, getActivation, refreshRecognitionAfterSpeech });
     this.wanted = false; this.epoch = 0; this.recognition = null; this.utterance = null; this.speaking = false; this.emptyTurns = 0;
-    this.timers = new Set();this.inputHistory=[];this.inputLastEvents={};this.inputPhase='off';this.inputObserved={audioActive:null,soundActive:null,speechActive:null};this.inputCounts={starts:0,audioStarts:0,soundStarts:0,speechStarts:0,resultEvents:0,acceptedFinals:0,echoResults:0,manualInputs:0,noMatches:0,errors:0};
+    this.timers = new Set();this.inputHistory=[];this.inputLastEvents={};this.inputPhase='off';this.inputObserved={audioActive:null,soundActive:null,speechActive:null};this.inputCounts={starts:0,audioStarts:0,soundStarts:0,speechStarts:0,resultEvents:0,acceptedFinals:0,echoResults:0,manualInputs:0,noMatches:0,errors:0,reconnects:0};
   }
   inputEvent(type,{native=false,code,final}={}){
     const derived=['echo-result','accepted-final'].includes(type),at=new Date().toISOString(),entry={at,type,origin:derived?'recognition-result':native?'browser-event':'controller',outputKind:this.speechKind||null,whileSpeaking:this.speaking};
     if(code)entry.code=code;if(typeof final==='boolean')entry.final=final;
     if(native&&!derived)this.lastNativeInputAt=at;this.inputLastEvents[type]=at;
-    const counter={started:'starts','audio-start':'audioStarts','sound-start':'soundStarts','speech-start':'speechStarts',result:'resultEvents','accepted-final':'acceptedFinals','echo-result':'echoResults','manual-input':'manualInputs','no-match':'noMatches',error:'errors'}[type];if(counter)this.inputCounts[counter]++;
+    const counter={started:'starts','audio-start':'audioStarts','sound-start':'soundStarts','speech-start':'speechStarts',result:'resultEvents','accepted-final':'acceptedFinals','echo-result':'echoResults','manual-input':'manualInputs','no-match':'noMatches',error:'errors',reconnect:'reconnects'}[type];if(counter)this.inputCounts[counter]++;
     if(type==='audio-start')this.inputObserved.audioActive=true;
     if(type==='audio-end')this.inputObserved.audioActive=false;
     if(type==='sound-start')this.inputObserved.soundActive=true;
@@ -103,6 +103,14 @@ export class VoiceSession {
     if(utterance){utterance.onstart=null;utterance.onend=null;utterance.onerror=null;this.synthesis?.cancel();}
     this.speaking=false;this.speechKind=null;this.onSpeaking(false);this.inputEvent('stopped');
     if(announce)this.emit('off','語音已關閉。觸控與文字問答仍可使用。');
+  }
+  refreshListeningAfterOutput(kind) {
+    // Some native continuous recognizers stop producing callbacks after TTS,
+    // without firing onend/error. Rotate the input session at turn boundaries.
+    // Never suspend input during speech or reopen input the user switched off.
+    if(!this.refreshRecognitionAfterSpeech||!['welcome','reply'].includes(kind)||!this.wanted||!this.recognition||this.utterance)return;
+    this.inputEvent('reconnect',{code:'output-ended'});
+    this.detachRecognition();this.listen();
   }
   scheduleListen() {
     if(this.recognition)return;
@@ -224,7 +232,7 @@ export class VoiceSession {
     utterance.onend=()=>{
       if(!current())return;
       this.cancelTimer(watchdog);this.speechTimer=null;this.utterance=null;this.speechKind=null;this.speaking=false;this.onSpeaking(false);
-      this.audioSnapshot('ended',utterance);this.expireEcho();this.onSpeechEnd(kind);this.emit('waiting','教練回覆完畢，仍在聆聽。');if(kind==='reply')this.finishInput('ended');this.scheduleListen();
+      this.audioSnapshot('ended',utterance);this.expireEcho();this.onSpeechEnd(kind);this.emit('waiting','教練回覆完畢，仍在聆聽。');this.refreshListeningAfterOutput(kind);if(kind==='reply')this.finishInput('ended');if(this.wanted)this.scheduleListen();
     };
     utterance.onerror=event=>fail(event?.error||'synthesis-error');
     this.listen();this.emit('replying',this.wanted?'正在準備教練回覆，仍可說話打斷。':'正在準備教練回覆；可用文字互動。');

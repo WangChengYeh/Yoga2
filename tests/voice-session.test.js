@@ -223,3 +223,27 @@ test('manual controls cannot be mistaken for speech recognition and aborted erro
  const h=harness();h.session.enable();h.session.acceptText('繼續');const d=h.session.microphoneDiagnostics;assert.equal(d.counts.manualInputs,1);assert.equal(d.counts.resultEvents,0);
  h.instances[0].onerror({error:'aborted'});const after=h.session.microphoneDiagnostics;assert.ok(after.history.some(e=>e.type==='error'&&e.code==='aborted'));assert.equal(after.history.some(e=>e.type==='ended'),false);h.session.stop();
 });
+test('turn-boundary recovery accepts repeated questions across multiple native input sessions',()=>{
+ const h=harness({refreshRecognitionAfterSpeech:true});h.session.enable();
+ for(let i=0;i<3;i++){
+  const r=h.instances.at(-1);r.result('今天怎麼練');const reply=h.utterances.at(-1);reply.onstart();
+  assert.equal(r.aborted,false,'input stays attached throughout native output');const stale=r.onresult;
+  reply.onend();assert.equal(r.aborted,true);assert.notEqual(h.session.recognition,r);assert.equal(h.session.wanted,true);
+  stale({resultIndex:0,results:[Object.assign([{transcript:'舊事件',confidence:.9}],{isFinal:true})]});assert.equal(h.texts.length,i+1);
+ }
+ assert.deepEqual(h.texts,['今天怎麼練','今天怎麼練','今天怎麼練']);assert.equal(h.session.microphoneDiagnostics.counts.reconnects,3);assert.equal(h.session.microphoneDiagnostics.lastEvents.reconnect!=null,true);h.session.stop();
+});
+test('welcome rearms input, guidance does not rotate it, and user-disabled input stays disabled',()=>{
+ const h=harness({refreshRecognitionAfterSpeech:true});h.session.enable();h.session.speak('歡迎',{kind:'welcome'});h.utterances.at(-1).onstart();const first=h.session.recognition;h.utterances.at(-1).onend();assert.equal(first.aborted,true);
+ const second=h.session.recognition;h.session.speak('慢慢伸展',{kind:'guidance'});h.utterances.at(-1).onstart();h.utterances.at(-1).onend();assert.equal(h.session.recognition,second);assert.equal(second.aborted,false);
+ h.session.speak('好的');h.utterances.at(-1).onstart();h.session.disableListening();const count=h.instances.length;h.utterances.at(-1).onend();assert.equal(h.instances.length,count);assert.equal(h.session.recognition,null);h.session.stop();
+});
+test('interruption never rotates the input connection and stopped late output cannot reopen it',()=>{
+ const h=harness({refreshRecognitionAfterSpeech:true});h.session.enable();const r=h.session.recognition;h.session.speak('教練回答中');const output=h.utterances.at(-1);output.onstart();const lateEnd=output.onend;
+ r.result('等一下',.9,false);assert.equal(h.session.recognition,r);assert.equal(r.aborted,false);lateEnd();assert.equal(h.session.microphoneDiagnostics.counts.reconnects,0);
+ h.session.stop();lateEnd();assert.equal(h.session.recognition,null);assert.equal(h.instances.length,1);
+});
+test('reconnect failure stays visible and cancels automatic course resumption',()=>{
+ let completed=0;const h=harness({refreshRecognitionAfterSpeech:true,onReplyEnd:()=>completed++});h.session.enable();h.instances[0].result('你好');h.utterances.at(-1).onstart();h.session.Recognition=class{start(){throw new Error('unavailable');}abort(){}};
+ h.utterances.at(-1).onend();assert.equal(completed,0);assert.equal(h.states.at(-1).phase,'error');assert.equal(h.session.wanted,false);assert.equal(h.session.lastRecognitionError.code,'recognition-start-error');assert.equal(h.session.speaking,false);h.session.stop();
+});
