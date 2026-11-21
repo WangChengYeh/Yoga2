@@ -20,7 +20,6 @@ export function setupDefaultMedia({document,camera,voice,onError=()=>{}}){
   try{if(!voice.mediaStatus.active&&voice.mediaStatus.phase!=='starting')voice.enableListening();}catch(error){onError(error);}
   if(event)prime();
   if(first){
-   try{voice.welcome?.();}catch(error){onError(error);}
    try{voice.enableAI?.();}catch(error){onError(error);}
   }
   refresh();

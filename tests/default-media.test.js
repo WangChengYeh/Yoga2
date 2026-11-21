@@ -40,10 +40,10 @@ test('AI defaults on once; gesture prepares output without restarting active inp
  h.events.click();assert.equal(primes,2);h.document.hidden=true;h.events.click();assert.equal(primes,2);h.controller.dispose();
 });
 
-test('arrival welcome is requested before AI download and only once on automatic entry',()=>{
- const calls=[];const h=harness({voiceHooks:{welcome(){calls.push('welcome');},enableAI(){calls.push('AI');}}});assert.deepEqual(calls,['welcome','AI']);
- h.click();assert.deepEqual(calls,['welcome','AI']);h.controller.dispose();
+test('arrival greeting waits for AI ready; startup only enables AI',()=>{
+ const calls=[];const h=harness({voiceHooks:{welcome(){calls.push('welcome');},enableAI(){calls.push('AI');}}});assert.deepEqual(calls,['AI']);
+ h.click();assert.deepEqual(calls,['AI']);h.controller.dispose();
 });
-test('welcome failure does not prevent standard AI initialization',()=>{
- let ai=0;const h=harness({voiceHooks:{welcome(){throw new Error('speech blocked');},enableAI(){ai++;}}});assert.equal(ai,1);assert.equal(h.errors.length,1);h.controller.dispose();
+test('startup never attempts speech before AI initialization',()=>{
+ let ai=0;const h=harness({voiceHooks:{welcome(){throw new Error('speech blocked');},enableAI(){ai++;}}});assert.equal(ai,1);assert.equal(h.errors.length,0);h.controller.dispose();
 });
