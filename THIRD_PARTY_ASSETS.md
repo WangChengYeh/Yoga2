@@ -1,18 +1,21 @@
 # Third-party assets
 
-## Michelle character
+## Luna character (derived from Grab3D)
 
-- Source: [three.js r180, Michelle.glb](https://github.com/mrdoob/three.js/blob/r180/examples/models/gltf/Michelle.glb)
-- Original character: Adobe Mixamo Michelle.
-- Build-time local copy: `public/models/michelle.glb` (3,276,888 bytes); excluded from Git. `scripts/prepare-model.mjs` downloads the pinned upstream file and verifies its SHA-256 before bundling it into this interactive prototype.
-- Used as a temporary character for this personal prototype. The source project's software license is not a new license grant for the character; consult [Mixamo's terms and FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html) before any further redistribution or commercial asset use.
-- The embedded dance animation is not played. The app applies its own simple arm-raising preview to the existing skeleton. This preview has not been reviewed as professional yoga instruction.
+- Source: [Woman Base Mesh](https://grab3d.com/models/characters/woman-base-character/), Grab3D, CC0-1.0.
+- [Rigged original GLB](https://grab3d.com/dl/woman-base-character-rigged/woman-base-character-rigged.glb); source license and AI-assisted creation disclosure preserved in `public/models/LUNA-LICENSE.txt`.
+- Origin: AI-assisted base and textures, cleaned and rigged by Grab3D; adapted for Yoga2.
+- Bundled derivative: `public/models/luna-v1.glb`, 1,963,528 bytes, 36,000 triangles, base color textures up to 1024px, other textures up to 512px.
+- Modifications: mesh simplification, canonical joint names, consolidated head weights, jawOpen morph, resized textures, reduced metallic glare, removed unused animation.
+- Source/output SHA-256 and reproducible Blender command: `public/models/luna-source.json`; build recipe: `scripts/build-coach.py`.
+- Both GitHub Pages and self-contained builds serve the derivative from this site. The former temporary Michelle asset is no longer loaded or distributed by this version.
+- Yoga2 procedural movements have not been reviewed as professional yoga instruction.
 
 ## Three.js
 
 - Version: 0.180.0, MIT license, copyright Three.js authors.
 - The build includes the upstream license at `dist/vendor/THREE-LICENSE.txt`.
-- The `dist/` build serves browser modules from the same origin. The root GitHub Pages entry uses the same version pinned on jsDelivr, and loads the pinned upstream character directly.
+- The `dist/` build serves browser modules from the same origin. The root GitHub Pages entry uses the same version pinned on jsDelivr, and loads the bundled Luna character from this site.
 
 ## MediaPipe Tasks Vision and Pose Landmarker Lite
 

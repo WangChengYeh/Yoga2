@@ -4,7 +4,7 @@ let detector;
 self.onmessage = async ({ data }) => {
   try {
     if (data.type === 'init') {
-      const { createDetector } = await import('./pose-core.js?v=m3-1');
+      const { createDetector } = await import('./pose-core.js?v=0.5.0');
       detector = await createDetector(data.config);
       self.postMessage({ id: data.id, ready: true });
     } else if (data.type === 'frame') {

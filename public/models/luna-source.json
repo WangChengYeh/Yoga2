@@ -1,0 +1,17 @@
+{
+  "name": "Luna",
+  "source_name": "Woman Base Mesh (rigged)",
+  "author": "Grab3D",
+  "license": "CC0-1.0",
+  "source_page": "https://grab3d.com/models/characters/woman-base-character/",
+  "source_url": "https://grab3d.com/dl/woman-base-character-rigged/woman-base-character-rigged.glb",
+  "source_sha256": "ea49ef6644dfcaa503b2e009f37b43cf6b2069501201552dc10a5b5ab1fc8bfa",
+  "output_sha256": "e3b864d0ec0391bfd180ebdad5309d81b9e0a96de4f7740f9217a53ffe1e3ed7",
+  "output_bytes": 1963528,
+  "triangles": 36000,
+  "base_texture_max_size": 1024,
+  "other_texture_max_size": 512,
+  "modifications": ["mobile mesh simplification", "canonical humanoid joint names", "consolidated head weights", "jawOpen facial target", "resized textures", "lower metallic glare", "unused animation removal"],
+  "build": "blender -b -t 2 --python scripts/build-coach.py -- SOURCE.glb public/models/luna-v1.glb",
+  "origin": "AI-assisted base and textures, cleaned and rigged by Grab3D; adapted for Yoga2."
+}

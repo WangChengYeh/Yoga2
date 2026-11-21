@@ -11,13 +11,13 @@ test('mouth: talking amount is bounded and silence closes the mouth exactly',()=
 test('real model: lip target moves only head-weighted vertices and cannot move feet',async()=>{
   const model=await loadCharacter();prepareStandingCoach(model);
   const feet=['LeftFoot','RightFoot'].map((part)=>skinCenter(model,part));
-  const mouth=createMouthMotion(model);assert.equal(mouth.supported,true);assert.equal(mouth.mode,'preview-morph');
+  const mouth=createMouthMotion(model);assert.equal(mouth.supported,true);assert.equal(mouth.mode,'blendshape');
   let mesh;model.traverse((object)=>{if(object.isSkinnedMesh)mesh=object;});
   const delta=mesh.geometry.morphAttributes.position[0];let changed=0,sample=-1;
   for(let index=0;index<delta.count;index++)if(delta.getY(index)!==0){
     changed++;if(sample===-1&&Math.abs(delta.getY(index))>.0005)sample=index;let headWeight=0;
     for(let slot=0;slot<4;slot++)if(mesh.skeleton.bones[mesh.geometry.attributes.skinIndex.getComponent(index,slot)].name.endsWith('Head'))headWeight+=mesh.geometry.attributes.skinWeight.getComponent(index,slot);
-    assert.ok(headWeight>.8);assert.ok(Math.abs(delta.getY(index))<=.0061);
+    assert.ok(headWeight>.8);assert.ok(Math.abs(delta.getY(index))<=.0071);
   }
   assert.ok(changed>10,'mouth has an actual deformation');
   assert.ok(sample>=0);

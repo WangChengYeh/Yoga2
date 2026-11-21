@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-export async function loadCharacter() {
-  const original = readFileSync('public/models/michelle.glb');
+export async function loadCharacter(path = 'public/models/luna-v1.glb') {
+  const original = readFileSync(path);
   const jsonLength = original.readUInt32LE(12);
   const json = JSON.parse(original.subarray(20, 20 + jsonLength).toString());
   // GPU-free geometry test: retain all geometry/skin buffers; omit texture decoding.

@@ -1,7 +1,7 @@
-import { createDetector } from './pose-core.js?v=m3-1';
+import { createDetector } from './pose-core.js?v=0.5.0';
 
 async function workerEngine(config) {
-  const worker = new Worker(new URL('./pose-worker.js?v=m3-1', import.meta.url));
+  const worker = new Worker(new URL('./pose-worker.js?v=0.5.0', import.meta.url));
   let nextId = 0, closed = false;
   const pending = new Map();
   const fail = () => {

@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=m4-1';
-import { prepareStandingCoach } from './rig.js?v=m2-1';
-import { setupPosePanel } from './pose-panel.js?v=m4-1';
-import { setupVoicePanel } from './voice-panel.js?v=m4-1';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.5.0';
+import { prepareStandingCoach } from './rig.js?v=0.5.0';
+import { setupPosePanel } from './pose-panel.js?v=0.5.0';
+import { setupVoicePanel } from './voice-panel.js?v=0.5.0';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -129,7 +129,7 @@ async function init() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;
+  renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   $('viewport').appendChild(renderer.domElement);
@@ -167,7 +167,7 @@ async function init() {
   const timeout = setTimeout(() => controller.abort(), 45000);
   let response;
   try {
-    const modelURL = document.documentElement.dataset.modelUrl || './models/michelle.glb';
+    const modelURL = document.documentElement.dataset.modelUrl || './models/luna-v1.glb';
     response = await fetch(modelURL, { signal: controller.signal });
     if (!response.ok) throw new Error(`Model HTTP ${response.status}`);
     const data = await response.arrayBuffer();
