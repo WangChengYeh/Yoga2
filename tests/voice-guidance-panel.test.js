@@ -171,24 +171,30 @@ test('speech while AI thinks cancels generation before accepting a new question 
  }finally{h.close();}
 });
 
-test('arrival welcome speaks before practice without waiting for AI; no repeated greeting after delivery',()=>{
- const h=harness();try{
-  h.panel.enableListening();assert.equal(h.state.playing,false);h.panel.welcome();const greeting=h.spoken.at(-1);
+function readyGreetingHarness(){
+ let options;
+ const ai={phase:'off',get ready(){return this.phase==='ready';},enable(){this.phase='ready';options.onState({phase:'ready',message:'ready'});},disable(){this.phase='off';},cancelReply(){}};
+ const h=harness(o=>{options=o;return ai;});
+ h.panel.enableAI();return h;
+}
+test('arrival welcome waits for AI ready, then speaks before practice; no repeated greeting',async()=>{
+ const h=readyGreetingHarness();try{
+  h.panel.enableListening();await Promise.resolve();assert.equal(h.state.playing,false);const greeting=h.spoken.at(-1);
   assert.match(greeting.text,/我是 Luna/);assert.match(greeting.text,/先聊聊/);assert.equal(h.panel.diagnostics.kind,'welcome');assert.equal(h.microphones,1);
   h.panel.welcome();assert.equal(h.spoken.length,1);greeting.onstart();assert.equal(h.panel.diagnostics.welcomeDelivered,true);greeting.onend();
   h.panel.primeAudio();h.panel.welcome();assert.equal(h.spoken.length,1);assert.equal(h.state.playing,false);
  }finally{h.close();}
 });
-test('blocked arrival speech retries audibly on a gesture without requiring course start',()=>{
- const h=harness();try{
-  h.panel.enableListening();h.panel.welcome();h.spoken.at(-1).onerror({error:'not-allowed'});assert.equal(h.panel.mediaStatus.outputBlocked,true);
+test('blocked arrival speech retries audibly on a gesture without requiring course start',async()=>{
+ const h=readyGreetingHarness();try{
+  h.panel.enableListening();await Promise.resolve();h.spoken.at(-1).onerror({error:'not-allowed'});assert.equal(h.panel.mediaStatus.outputBlocked,true);
   h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.primers.length,0);const greeting=h.spoken.at(-1);greeting.onstart();greeting.onend();
   assert.equal(h.panel.mediaStatus.outputBlocked,false);assert.equal(h.state.playing,false);assert.equal(h.microphones,1);
  }finally{h.close();}
 });
-test('a person can interrupt welcome; a late welcome event cannot start practice or greet again',()=>{
- const h=harness();try{
-  h.panel.enableListening();h.panel.welcome();const greeting=h.spoken.at(-1),late=greeting.onend;greeting.onstart();const r=h.recognitions[0];
+test('a person can interrupt welcome; a late welcome event cannot start practice or greet again',async()=>{
+ const h=readyGreetingHarness();try{
+  h.panel.enableListening();await Promise.resolve();const greeting=h.spoken.at(-1),late=greeting.onend;greeting.onstart();const r=h.recognitions[0];
   recognitionResult(r,'你好',false);assert.equal(h.panel.diagnostics.speaking,false);recognitionResult(r,'你好');assert.match(h.spoken.at(-1).text,/嗨，我在這裡/);
   late();assert.equal(h.state.playing,false);h.spoken.at(-1).onend();h.panel.primeAudio();assert.equal(h.spoken.length,2);assert.equal(h.state.playing,false);
   recognitionResult(r,'準備好了');assert.equal(h.state.playing,false);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
