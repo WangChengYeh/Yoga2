@@ -1,19 +1,19 @@
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.12';
-import { setupDefaultMedia } from './default-media.js?v=0.9.12';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.12';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.13';
+import { setupDefaultMedia } from './default-media.js?v=0.9.13';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.13';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.12';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.12';
-import { practiceLayout } from './practice-layout.js?v=0.9.12';
-import { setupFullscreen } from './fullscreen.js?v=0.9.12';
-import { setupHumanPanel } from './human-panel.js?v=0.9.12';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.13';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.13';
+import { practiceLayout } from './practice-layout.js?v=0.9.13';
+import { setupFullscreen } from './fullscreen.js?v=0.9.13';
+import { setupHumanPanel } from './human-panel.js?v=0.9.13';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.12';
-import { prepareStandingCoach } from './rig.js?v=0.9.12';
-import { setupPosePanel } from './pose-panel.js?v=0.9.12';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.12';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.13';
+import { prepareStandingCoach } from './rig.js?v=0.9.13';
+import { setupPosePanel } from './pose-panel.js?v=0.9.13';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.13';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -259,7 +259,7 @@ setupFullscreen({document,window,onChange:active=>{fullscreenTools.setActive(act
 humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
-posePanel = setupPosePanel({ human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
+posePanel = setupPosePanel({onRuntime:(type,data)=>runtimeLog.record(type,data), human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
 voicePanel = setupVoicePanel({ onMediaState:()=>defaultMedia?.refresh(),onRuntime:(type,data)=>runtimeLog.record(type,data), getState: () => state, dispatch, getPose: () => posePanel?.summary });
 setupReportPanel({onEvent:(type,data)=>runtimeLog.record(type,data),endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({runtime:runtimeLog.diagnostics,voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 defaultMedia=setupDefaultMedia({document,camera:posePanel,voice:voicePanel,onError:()=>{ $('media-start-status').textContent='自動啟用未完成，請點擊啟用相機與語音。'; }});

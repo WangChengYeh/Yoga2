@@ -1,6 +1,6 @@
-import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.9.12';
-import { CutoutSession } from './cutout-core.js?v=0.9.12';
-import { createHumanLayer } from './human-scene.js?v=0.9.12';
+import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.9.13';
+import { CutoutSession } from './cutout-core.js?v=0.9.13';
+import { createHumanLayer } from './human-scene.js?v=0.9.13';
 
 export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createHumanLayer, createSkeleton=createSkeletonLayer }) {
   const $=id=>document.getElementById(id);

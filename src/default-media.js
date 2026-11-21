@@ -6,7 +6,7 @@ export function setupDefaultMedia({document,camera,voice,onError=()=>{}}){
  function refresh(){
   if(disposed)return;
   const c=camera.mediaStatus,v=voice.mediaStatus;
-  audioRetry.hidden=!v.audioRetry;
+  audioRetry.hidden=!v.audioRetry;audioRetry.textContent=v.needsGesture?(v.activationWelcome?'和 Luna 打招呼':'開啟聲音'):'重試聲音';
   hello.hidden=!v.welcomePending||Boolean(v.audioRetry);hello.disabled=Boolean(v.welcoming||v.welcomePreparing);hello.textContent=v.welcomePreparing?'Luna 正在準備招呼…':v.welcoming?'Luna 正在打招呼…':'和 Luna 打招呼';
   root.hidden=Boolean(c.open&&v.active&&!v.outputBlocked);
   status.textContent=[c.open?'相機已開啟':c.phase==='requesting'?'等待相機權限':c.phase==='loading'?'相機準備中':'相機尚未啟用',v.active?'語音輸入已開啟':v.phase==='starting'?'語音等待啟用':v.phase==='unsupported'?'此瀏覽器不支援語音輸入':'語音輸入尚未啟用',...(v.outputBlocked?['語音輸出待啟用']:[])].join(' · ');

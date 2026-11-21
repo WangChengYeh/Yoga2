@@ -94,3 +94,13 @@ test('human segmentation is opt-in per captured context and follows the same sin
   segment=true;await h.frame();assert.equal(options[1].segment,true);assert.equal(h.results[1].context.humanToken,2);
   segment=false;await h.frame();assert.equal(options[2].segment,false);h.session.stop();
 });
+
+test('camera diagnostics distinguish an in-flight first inference from video that stopped advancing',async()=>{
+ const pending=deferred(),h=harness();h.engine.detect=()=>pending.promise;h.engine.diagnostics={stage:'portrait-loading'};await h.session.start();const run=h.frame(250);await Promise.resolve();
+ const busy=h.session.diagnostics;assert.equal(busy.inFlight,true);assert.equal(busy.attempts,1);assert.equal(busy.accepted,0);assert.equal(busy.lastAcceptedAgeMs,null);assert.equal(busy.engine.stage,'portrait-loading');
+ pending.resolve({landmarks:[]});await run;assert.equal(h.session.diagnostics.accepted,1);assert.equal(h.session.diagnostics.inFlight,false);
+ await h.frame(1600,false);assert.equal(h.session.diagnostics.attempts,1);assert.ok(h.session.diagnostics.lastAcceptedAgeMs>=1600);h.session.stop();
+});
+test('camera failure has a stable error code and stopped inference cannot modify later session counters',async()=>{
+ const h=harness();h.engine.detect=async()=>{throw Object.assign(new Error('not persisted'),{code:'POSE_REQUEST_TIMEOUT'});};await h.session.start();await h.frame();assert.equal(h.session.diagnostics.lastError,'POSE_REQUEST_TIMEOUT');assert.equal(h.session.diagnostics.inFlight,false);assert.doesNotMatch(JSON.stringify(h.session.diagnostics),/not persisted/);h.session.stop();
+});

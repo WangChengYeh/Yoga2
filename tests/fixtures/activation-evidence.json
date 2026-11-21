@@ -1,0 +1,33 @@
+{
+  "sourceVersion": "0.9.12",
+  "initialWelcome": {
+    "userActivation": {
+      "active": false,
+      "hasBeenActive": false
+    },
+    "paused": false,
+    "speaking": false,
+    "pending": false,
+    "voiceCount": 69,
+    "voiceMode": "preferred-local"
+  },
+  "manualRetry": {
+    "userActivation": {
+      "active": true,
+      "hasBeenActive": true
+    },
+    "voiceMode": "system-default",
+    "startedAfterMs": 46
+  },
+  "crashEvidence": {
+    "previousSessionUnclean": false,
+    "capturedJsError": false,
+    "capturedWebglLoss": false
+  },
+  "cameraEvidence": {
+    "phase": "active",
+    "pairedFrameAvailable": false,
+    "summary": "stale",
+    "pipelineStage": "not-recorded"
+  }
+}

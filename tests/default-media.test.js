@@ -62,3 +62,7 @@ test('audio retry control only retries output and never restarts camera, recogni
  h.events.click({target:{closest:()=>null}});assert.equal(warm,1);assert.equal(retry,0);
  h.events.click({target:{closest:()=>true}});h.node('audio-retry').listeners.click();assert.equal(retry,1);assert.deepEqual(h.calls,['camera','voice']);h.controller.dispose();
 });
+
+test('first-interaction greeting is shown as activation, not an automatic playback failure',()=>{
+ const h=harness();h.setVoice({phase:'awaiting-gesture',active:true,outputBlocked:true,needsGesture:true,activationWelcome:true,audioRetry:true,welcomePending:true});h.controller.refresh();assert.equal(h.node('audio-retry').textContent,'和 Luna 打招呼');assert.equal(h.node('audio-retry').hidden,false);h.controller.dispose();
+});

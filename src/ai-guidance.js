@@ -1,5 +1,5 @@
-import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.12';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.12';
+import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.13';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.13';
 const cues=LESSONS.flatMap((lesson,index)=>GUIDANCE[lesson.id].map(([time])=>guidanceAt(lessonStart(index)+time))).concat(guidanceAt(COURSE_DURATION));
 export const nextGuidance=time=>cues.find(cue=>cue.at>time);
 export function guidanceMessages(cue,state){

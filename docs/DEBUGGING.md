@@ -58,6 +58,18 @@ v0.9.11 點「重試聲音」直接重播保留的失敗句子；不再用音量
 
 目前沒有另開 WebAudio 麥克風或完整 AEC 管線，也不宣稱瀏覽器保證全雙工。若手機播音時本身中止辨識，請保存服務錯誤、狀態、喇叭／耳機模式與 OS／瀏覽器資訊。
 
+## 真實包判讀與 v0.9.13 修正
+
+已收到 v0.9.12 真實手機包。AI 約 6 秒 ready，初次招呼時 userActivation 的 active／hasBeenActive 都是 false，佇列 pending／speaking／paused 均 false，仍有 69 個 voice。約 10 秒後逾時；之後使用者點擊且改用 system-default，開始事件距 speak-request 為 46 ms。兩個條件同時改變，不能獨立證明是手勢或指定 voice；目前更不應把它當作佇列已卡住或模型未載入。
+
+v0.9.13 在明確得知頁面尚無互動時先保留句子、顯示啟用按鈕，不製造 10 秒逾時。當前回答也可等啟用再播放，期間保持暫停。初次點擊走已觀察到成功的系統 voice 路徑。互動 API 不存在時不猜測，維持原播放／錯誤處理。
+
+包內另有一次 voice error，但沒有 speech error；按原程式路徑判讀，與語音輸入服務出錯後呼叫整個 stop() 一致，原包未記錄具體辨識錯誤碼，無法回補。現在輸入錯誤只停止辨識，保留 TTS 及其 watchdog，另外記 lastRecognitionError／恢復時間；不因重開 mic 取消招呼。手動「停止語音」與背景仍停止全部。錯誤後不自動恢復課程。
+
+相機為 active、video readyState=4，但結果 stale、無配對推論幀與人像校準；不能單憑 readyState 說相機仍正常更新，也不能確定卡在去背模型載入。新增 pipeline 的 attempts／accepted／slow／inFlightAgeMs、lastAcceptedAgeMs、lastVideoTime／videoCurrentTime、tracks（狀態／muted／enabled），engine stage 可分 capture-frame、portrait-loading、pose-inference、portrait-inference、mask-compose。這些是診斷增補，尚未宣稱修好相機卡住。
+
+包內前次有 pagehide／background，previousSessionUnclean=false，沒有記錄 JS／WebGL／GPU OOM 錯誤。這只代表此包沒抓到崩潰證據，不能排除其他時間曾 crash；GPU 的 maxBufferSize 不是可用 RAM。原始 ZIP 與照片不放公開 repo，僅去識別化 flags／相對時序存成測試 fixture。
+
 ## 本機下載與 crash 線索（v0.9.12）
 
 一般畫面「下載除錯包」，全螢幕從「⋯」開啟，選完整除錯包或精簡日誌。成功準備後自動嘗試下載，並保留可由使用者點擊的「儲存 ZIP」連結；應用程式只能確認 ZIP 已備妥，無法確認手機已寫進檔案 App。換新包或 dispose 會回收舊 Blob URL，不自動上傳。線上回報服務未設定、被擋或限流不影響本機下載；已有待送回報時可下載相同 report ID 與快照。

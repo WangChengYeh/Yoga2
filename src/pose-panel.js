@@ -1,8 +1,8 @@
-import { CameraSession } from './camera-session.js?v=0.9.12';
-import { createPoseEngine } from './pose-engine.js?v=0.9.12';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.12';
+import { CameraSession } from './camera-session.js?v=0.9.13';
+import { createPoseEngine } from './pose-engine.js?v=0.9.13';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.13';
 
-export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{} }) {
+export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
   const ctx = overlay.getContext('2d');
@@ -37,6 +37,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
       } catch { return null; }
     },
     onState: ({ phase, message, preview: showPreview }) => {
+      onRuntime('camera',{phase});
       const running = ['requesting', 'loading', 'active'].includes(phase);
       human?.cameraState(phase === 'active');
       $('camera-toggle').textContent = running ? '關閉相機' : phase === 'error' ? '重試開啟相機' : '開啟相機';
@@ -48,7 +49,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
       onMediaState();
       document.querySelector('.studio').classList.toggle('camera-on', showPreview);
     },
-    onStale: () => { human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
+    onStale: () => {onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
     onResult: (data, now) => {
       human?.accept(data,now);
       if (!isFreshResult(data, getKey(), now)) { clear(); filter.reset(); return; }
@@ -81,7 +82,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
     start:()=>session.start(),
     get mediaStatus(){return {phase:session.phase,open:Boolean(session.stream)};},
     get active() { return session.phase === 'active'; },
-    get diagnostics(){return {phase:session.phase,mode:session.engine?.mode||null,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
+    get diagnostics(){return {phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
     get summary() { return { ...summary, active: session.phase === 'active' }; },
     contextChanged() {
       const next = getKey();

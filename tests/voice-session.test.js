@@ -152,9 +152,9 @@ test('browser-aborted recognition reconnects without cancelling coach output or 
  h.instances[0].onerror({error:'aborted'});assert.equal(h.session.wanted,true);assert.equal(h.session.utterance,cue);h.run(150);assert.equal(h.instances.length,2);h.session.stop();
 });
 
-test('failed microphone startup during reconnect cannot leave orphan coach audio playing',()=>{
+test('failed microphone startup cannot prevent the independently requested coach audio',()=>{
  const h=harness({Recognition:class{start(){throw new Error('not allowed');}abort(){}}});h.session.wanted=true;
- h.session.speak('歡迎',{kind:'welcome'});assert.equal(h.session.wanted,false);assert.equal(h.utterances.length,0);assert.equal(h.timers.size,0);
+ h.session.speak('歡迎',{kind:'welcome'});assert.equal(h.session.wanted,false);assert.equal(h.utterances.length,1);assert.equal(h.session.lastRecognitionError.code,'recognition-start-error');h.session.stop();assert.equal(h.timers.size,0);
 });
 
 test('orphan native queue is cancelled before speech without detaching the enabled microphone',()=>{
@@ -176,4 +176,31 @@ test('a newer text answer during blocked output replaces the retry target instea
  const h=harness({onText:text=>'回答：'+text});h.session.enable();h.session.speak('舊回答');h.run(10000);
  h.instances[0].result('新問題');assert.equal(h.utterances.length,1);assert.equal(h.session.failedSpeech.text,'回答：新問題');assert.equal(h.session.inputActive,false);
  h.session.retryAudio();assert.equal(h.utterances.at(-1).text,'回答：新問題');h.session.stop();
+});
+
+test('uploaded no-activation case waits for one gesture without timing out, then emits real speech',async()=>{
+ const {readFile}=await import('node:fs/promises');const evidence=JSON.parse(await readFile(new URL('./fixtures/activation-evidence.json',import.meta.url),'utf8'));
+ let activation={...evidence.initialWelcome.userActivation};const states=[],h=harness({getActivation:()=>activation,onAudioState:s=>states.push(s)});h.session.enable();h.session.speak('測試招呼',{kind:'welcome'});
+ assert.equal(h.utterances.length,0);assert.equal(h.session.audioNeedsGesture,true);assert.equal(h.session.lastAudioError,undefined);assert.equal(h.timers.size,0);assert.equal(states.at(-1).code,'activation-required');assert.equal(h.instances[0].aborted,false);
+ activation={...evidence.manualRetry.userActivation};h.session.retryAudio();const utterance=h.utterances.at(-1);assert.equal(utterance.voice,null);utterance.onstart();assert.equal(h.session.speaking,true);assert.equal(h.session.audioNeedsGesture,false);h.session.stop();
+});
+test('microphone service errors keep welcome/reply/guidance speaking and retain their precise input error code',()=>{
+ for(const kind of ['welcome','reply','guidance'])for(const code of ['network','audio-capture','not-allowed']){
+  const h=harness();h.session.enable();const recognition=h.instances[0];h.session.speak('教練正在說話',{kind});const utterance=h.utterances.at(-1);utterance.onstart();const cancelled=h.cancelled;
+  recognition.onerror({error:code});assert.equal(h.session.wanted,false);assert.equal(h.session.utterance,utterance);assert.equal(h.session.speaking,true);assert.equal(h.cancelled,cancelled);assert.equal(h.session.lastRecognitionError.code,code);assert.equal(h.states.at(-1).inputCode,code);
+  utterance.onend();assert.equal(h.session.speaking,false);h.session.stop();
+ }
+});
+test('re-enabling recognition during speech preserves utterance, mouth, and old callback guards',()=>{
+ const h=harness();h.session.enable();h.session.speak('我是 Luna',{kind:'welcome'});const utterance=h.utterances[0];utterance.onstart();const old=h.instances[0],late=old.onresult;old.onerror({error:'network'});h.session.enable();
+ assert.equal(h.session.utterance,utterance);assert.equal(h.session.speaking,true);assert.equal(h.instances.length,2);assert.ok(h.session.lastRecognitionError.recoveredAt);
+ late({resultIndex:0,results:[Object.assign([{transcript:'暫停',confidence:.9}],{isFinal:true})]});assert.equal(h.texts.length,0);h.session.stop();
+});
+test('unknown activation capability preserves existing automatic speech instead of inventing a browser restriction',()=>{
+ const h=harness({getActivation:()=>undefined});h.session.speak('招呼',{kind:'welcome'});assert.equal(h.utterances.length,1);assert.notEqual(h.session.audioNeedsGesture,true);h.session.stop();
+});
+
+test('unactivated spoken reply keeps the conversation paused until explicit playback ends',()=>{
+ let ends=0;let activation={hasBeenActive:false,isActive:false};const h=harness({getActivation:()=>activation,onReplyEnd:()=>ends++});h.session.enable();h.instances[0].result('問題');assert.equal(h.utterances.length,0);assert.equal(h.session.inputActive,true);assert.equal(ends,0);
+ activation={hasBeenActive:true,isActive:true};assert.equal(h.session.retryAudio(),true);h.utterances.at(-1).onstart();h.utterances.at(-1).onend();assert.equal(ends,1);h.session.stop();
 });

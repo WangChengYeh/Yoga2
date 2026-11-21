@@ -1,5 +1,5 @@
-import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.12';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.12';
+import { loadLocalModel, checkedShardResponse } from './local-ai-model.js?v=0.9.13';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.13';
 let engine,stage='worker',resource=null;const shardSizes=new Map();
 // WebLLM has one engine: serialize generations so an interrupted old turn cannot overlap a new one.
 let inferenceQueue=Promise.resolve(),activeInference=null;

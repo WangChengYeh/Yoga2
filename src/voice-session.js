@@ -3,8 +3,8 @@ export function recognitionMessage(code) {
 }
 
 export class VoiceSession {
-  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true }) {
-    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onInterrupt, setTimer, clearTimer, audioEnabled });
+  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true, getActivation = () => globalThis.navigator?.userActivation }) {
+    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onInterrupt, setTimer, clearTimer, audioEnabled, getActivation });
     this.wanted = false; this.epoch = 0; this.recognition = null; this.utterance = null; this.speaking = false; this.emptyTurns = 0;
     this.timers = new Set();
   }
@@ -16,13 +16,13 @@ export class VoiceSession {
   }
   audioSnapshot(event,utterance=this.utterance){
     let voices=[];try{voices=this.synthesis?.getVoices?.()||[];}catch{/* diagnostics must not throw */}
-    const activation=globalThis.navigator?.userActivation;
+    const activation=this.getActivation();
     const snapshot={event,at:new Date().toISOString(),userActivation:activation?{active:Boolean(activation.isActive),hasBeenActive:Boolean(activation.hasBeenActive)}:null,requestedVoiceLanguage:utterance?.voice?.lang||null,language:utterance?.lang||null,paused:Boolean(this.synthesis?.paused),speaking:Boolean(this.synthesis?.speaking),pending:Boolean(this.synthesis?.pending),voiceCount:voices.length,voiceMode:this.systemVoice?'system-default':'preferred-local',recognitionAttached:Boolean(this.recognition),wanted:this.wanted,kind:this.speechKind||null,characters:String(utterance?.text||'').length};
     this.audioEvents=(this.audioEvents||[]).concat(snapshot).slice(-12);return snapshot;
   }
   retryAudio(){
     if(this.utterance)return Boolean(this.failedSpeech);
-    if(!this.failedSpeech||this.inputActive||!this.audioEnabled(this.failedSpeech.kind))return false;
+    if(!this.failedSpeech||(this.inputActive&&!this.audioNeedsGesture)||!this.audioEnabled(this.failedSpeech.kind))return false;
     const failed=this.failedSpeech;this.audioSnapshot('manual-retry');
     this.speak(failed.text,{kind:failed.kind,rate:failed.rate,retry:true});return true;
   }
@@ -64,9 +64,18 @@ export class VoiceSession {
     if(this.listenTimer){this.cancelTimer(this.listenTimer);this.listenTimer=null;}
   }
   enable() {
-    this.stop(false);
-    if(!this.Recognition){this.emit('unsupported','這個瀏覽器不支援語音辨識，可用下方按鈕或文字問答。');return;}
+    if(this.wanted&&this.recognition)return;
+    this.detachRecognition();
+    if(!this.Recognition){this.wanted=false;this.emit('unsupported','這個瀏覽器不支援語音辨識，可用下方按鈕或文字問答。');return;}
     this.wanted=true;this.emptyTurns=0;this.listen();
+  }
+  disableListening(announce=true){
+    this.wanted=false;this.detachRecognition();this.cancelInput();
+    if(announce)this.emit('off','聆聽已關閉；教練仍可發聲。');
+  }
+  failListening(code,message){
+    this.lastRecognitionError={code,at:new Date().toISOString()};
+    this.disableListening(false);this.onState({phase:'error',message,active:false,inputCode:code});
   }
   stop(announce=true) {
     ++this.epoch;this.wanted=false;this.cancelInput();
@@ -87,7 +96,7 @@ export class VoiceSession {
   listen() {
     if(!this.wanted||this.recognition)return;
     const token=this.epoch;let recognition;const finals=new Set();
-    try{recognition=new this.Recognition();}catch{this.stop(false);this.emit('error','瀏覽器無法建立語音辨識，請使用按鈕或文字問答。');return;}
+    try{recognition=new this.Recognition();}catch{this.failListening('recognition-create-error','瀏覽器無法建立語音辨識；教練仍可發聲，可使用文字問答。');return;}
     this.recognition=recognition;
     recognition.lang='zh-TW';recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;
     const current=()=>token===this.epoch&&this.recognition===recognition&&this.wanted;
@@ -99,13 +108,13 @@ export class VoiceSession {
       this.emptyTurns++;
       this.emit('waiting','仍在聆聽，隨時可以說話。');this.scheduleListen();
     };
-    recognition.onstart=()=>{if(current()){if(this.listenTimer)this.cancelTimer(this.listenTimer);this.listenTimer=null;this.emit('listening','正在聽，請說一句指令或課程問題。');}};
+    recognition.onstart=()=>{if(current()){if(this.lastRecognitionError)this.lastRecognitionError={...this.lastRecognitionError,recoveredAt:new Date().toISOString()};if(this.listenTimer)this.cancelTimer(this.listenTimer);this.listenTimer=null;this.emit('listening','正在聽，請說一句指令或課程問題。');}};
     recognition.onspeechstart=()=>{if(current()&&!this.utterance&&!this.echoText)this.interruptForInput();};
     recognition.onend=empty;
     recognition.onerror=(event)=>{
       if(!current())return;
       if(event.error==='no-speech'||event.error==='aborted'){empty();return;}
-      this.stop(false);this.emit('error',recognitionMessage(event.error));
+      this.failListening(event.error||'recognition-error',recognitionMessage(event.error));
     };
     recognition.onresult=(event)=>{
       if(!current())return;
@@ -125,9 +134,9 @@ export class VoiceSession {
     };
     this.emit('starting','正在開啟語音，請允許瀏覽器使用麥克風。');
     try{
-      this.listenTimer=this.timer(()=>{if(current()){this.stop(false);this.emit('error','語音辨識在 12 秒內未啟動，請點擊重新啟用。');}},12000);
+      this.listenTimer=this.timer(()=>{if(current()){this.failListening('recognition-start-timeout','語音辨識在 12 秒內未啟動，請點擊重新啟用；教練仍可發聲。');}},12000);
       recognition.start();
-    }catch{this.stop(false);this.emit('error','瀏覽器無法啟動聆聽，請再點一次，或使用下方按鈕。');}
+    }catch{this.failListening('recognition-start-error','瀏覽器無法啟動聆聽，請再點一次；教練仍可發聲。');}
   }
   acceptText(text) {
     this.cancelSpeech(undefined,{preserveInput:true});
@@ -156,7 +165,7 @@ export class VoiceSession {
     this.speaking=false;this.onSpeaking(false);this.scheduleListen();return true;
   }
   speak(text,{kind='reply',rate=.95,retry=false}={}) {
-    if(retry){this.audioBlocked=false;if(this.lastAudioError==='start-timeout')this.systemVoice=true;}
+    if(retry){this.audioBlocked=false;if(this.audioNeedsGesture||this.lastAudioError==='start-timeout')this.systemVoice=true;this.audioNeedsGesture=false;}
     if(kind==='guidance'&&this.utterance&&this.speechKind==='reply')return false;
     if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
     if(this.utterance){this.utterance.onend=null;this.utterance.onerror=null;this.utterance.onstart=null;this.utterance=null;this.synthesis?.cancel();}
@@ -165,6 +174,13 @@ export class VoiceSession {
     if(this.audioBlocked||!this.audioEnabled(kind)||!this.synthesis||!this.Utterance){
       if(this.audioBlocked&&this.audioEnabled(kind))this.failedSpeech={text:String(text),kind,rate};
       this.speechKind=null;if(kind==='reply')this.finishInput('text');this.emit('text','已顯示文字回覆。');this.scheduleListen();return;
+    }
+    const activation=this.getActivation();
+    if(!retry&&activation?.hasBeenActive===false){
+      this.failedSpeech={text:String(text),kind,rate};this.audioBlocked=true;this.audioNeedsGesture=true;this.speechKind=null;
+      this.audioSnapshot('awaiting-gesture');
+      const message=kind==='welcome'?'Luna 已準備好，點「和 Luna 打招呼」就能開始說話。':'點「開啟聲音」就能播放教練的回覆。';
+      this.onAudioState({blocked:true,needsGesture:true,code:'activation-required',message});this.emit('awaiting-gesture',message);return;
     }
     const token=this.epoch,utterance=new this.Utterance(String(text));this.utterance=utterance;this.rememberSpeech(text);
     utterance.lang='zh-TW';utterance.rate=Math.max(.8,Math.min(1.25,rate));
@@ -184,7 +200,7 @@ export class VoiceSession {
       if(!current())return;
       this.cancelTimer(watchdog);watchdog=this.timer(()=>fail('playback-timeout'),60000);this.speechTimer=watchdog;
       this.failedSpeech=null;this.audioBlocked=false;this.audioPrimed=true;this.onAudioState({blocked:false,message:'語音播放已準備好。'});
-      this.audioSnapshot('started',utterance);this.speaking=true;this.onSpeaking(true);this.emit('speaking','教練回話中，仍在聆聽，可直接說話打斷。');
+      this.audioSnapshot('started',utterance);this.speaking=true;this.onSpeaking(true);this.emit('speaking',this.wanted?'教練回話中，仍在聆聽，可直接說話打斷。':'教練回話中；語音輸入未啟用，可用文字互動。');
     };
     utterance.onend=()=>{
       if(!current())return;
@@ -192,7 +208,7 @@ export class VoiceSession {
       this.audioSnapshot('ended',utterance);this.expireEcho();this.onSpeechEnd(kind);this.emit('waiting','教練回覆完畢，仍在聆聽。');if(kind==='reply')this.finishInput('ended');this.scheduleListen();
     };
     utterance.onerror=event=>fail(event?.error||'synthesis-error');
-    this.listen();this.emit('replying','正在準備教練回覆，仍可說話打斷。');
+    this.listen();this.emit('replying',this.wanted?'正在準備教練回覆，仍可說話打斷。':'正在準備教練回覆；可用文字互動。');
     if(!current())return;
     try{
       // A previous native utterance may have lost its end event. Clear only an

@@ -168,3 +168,8 @@ test('close-up can occupy almost the entire frame without being incorrectly reje
   const h=sessionHarness();h.start();const d=h.data();d.landmarks=[];d.segmentation.confidence.fill(1);
   assert.equal(h.s.accept(d,200),true);assert.equal(h.frames[0].c.mode,'portrait');
 });
+
+test('frame processor exposes portrait load stage without retaining frames or hiding close state',async()=>{
+ let resolve;const stages=[];const processor=createFrameProcessor({detector:{close(){}},createCanvas:()=>{},createSegmenter:()=>new Promise(r=>resolve=r),onStage:s=>stages.push(s)});
+ const pending=processor.detect({},1,{segment:true});assert.equal(processor.diagnostics.stage,'portrait-loading');assert.deepEqual(Object.keys(processor.diagnostics).sort(),['segmentationFailed','stage']);processor.close();assert.equal(processor.diagnostics.stage,'closed');resolve({close(){}});await assert.rejects(pending,/closed/);assert.deepEqual(stages,['portrait-loading','closed']);
+});

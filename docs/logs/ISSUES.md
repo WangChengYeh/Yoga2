@@ -38,6 +38,12 @@
 
 使用者要求把出問題的包直接存到本機後再分享，並詢問偶發 crash。已提供完整／精簡 ZIP 與不依賴 GitHub 的儲存連結。尚無 crash 的實際日誌或 OS 終止資料，不能斷定原因。新增跨重開安全事件 ring 與未正常結束線索，並讓精簡包跳過圖片／GPU 擷取，降低除錯時的額外操作。289 項測試通過，不代表已修復或重現手機 crash。
 
+## v0.9.13 · 首份真實除錯包
+
+讀取使用者 v0.9.12 ZIP，完整包含 JSON 與兩張 PNG。可確認模型 ready、招呼生成成功；最初無 userActivation 且原生佇列 idle，點擊後改用 system-default 的開始事件約 46 ms 到達，後續有完成事件。不能由事件保證喇叭有聲，也不能將手勢與 voice 的因果分開。另有未記代碼的 voice error；原程式會在辨識服務錯誤時停止全部語音，已修為通道獨立。
+
+相機 active 但分析過期，未記錄當時 pipeline stage。新增階段／計數／時間／track 診斷，待下一份包判讀。前次有 pagehide／background、沒有未正常結束標記，也沒有 GPU OOM／JS／WebGL crash 紀錄；未能確認使用者所說的偶發 crash。301 項測試通過；不公開原始照片或 ZIP。
+
 ## 尚未結案
 
 - 專用 GitHub App 建立／安裝與匿名實際 Issue、附件尚未完整驗收。

@@ -235,11 +235,11 @@ test('interrupted pending greeting cannot arrive late over a user question or af
   }finally{h.close();}
  }
 });
-test('cancelled welcome before completion remains available for explicit audio retry after microphone re-enable',async()=>{
+test('enabling microphone does not cancel or restart a welcome already speaking',async()=>{
  const h=harness(()=>({phase:'ready',ready:true,disable(){}}));try{
   h.panel.welcome();await new Promise(r=>setImmediate(r));const first=h.spoken.at(-1);first.onstart();
   h.panel.enableListening();assert.equal(h.panel.diagnostics.welcomeCompleted,false);assert.equal(h.panel.mediaStatus.welcomePending,true);
-  h.panel.primeAudio();assert.equal(h.spoken.length,2);h.spoken.at(-1).onstart();h.spoken.at(-1).onend();assert.equal(h.panel.diagnostics.welcomeCompleted,true);assert.equal(h.state.playing,false);
+  h.panel.primeAudio();assert.equal(h.spoken.length,1);h.spoken.at(-1).onend();assert.equal(h.panel.diagnostics.welcomeCompleted,true);assert.equal(h.state.playing,false);
  }finally{h.close();}
 });
 
@@ -274,4 +274,26 @@ test('audio failure diagnostic is copyable without answer text and remains selec
   let copied;Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async text=>copied=text}}});await h.element('audio-copy').listeners.click();assert.match(copied,/recognitionAttached/);
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async()=>{throw new Error('blocked');}}}});await h.element('audio-copy').listeners.click();assert.equal(h.element('audio-details').open,true);assert.match(h.element('audio-copy-status').textContent,/長按/);
  }finally{if(original)Object.defineProperty(globalThis,'navigator',original);else delete globalThis.navigator;h.close();}
+});
+
+test('input error during welcome does not cancel speech and exposes a recoverable independent warning',async()=>{
+ const h=harness(()=>({phase:'ready',ready:true,disable(){}}));try{
+  h.panel.enableListening();h.panel.welcome();await new Promise(r=>setImmediate(r));const utterance=h.spoken.at(-1);utterance.onstart();const count=h.cancelled;
+  h.recognitions[0].onerror({error:'network'});assert.equal(h.cancelled,count);assert.equal(h.panel.diagnostics.speaking,true);assert.equal(h.element('voice-input-error').hidden,false);assert.match(h.element('voice-input-error').textContent,/network/);
+  h.panel.enableListening();assert.equal(h.spoken.length,1);assert.equal(h.element('voice-input-error').hidden,true);utterance.onend();assert.equal(h.panel.diagnostics.welcomeCompleted,true);assert.equal(h.state.playing,false);
+ }finally{h.close();}
+});
+test('coaching generation does not compete with pending welcome playback',async()=>{
+ let guides=0;const ai={phase:'ready',ready:true,disable(){},guide(){guides++;return Promise.resolve('雙手慢慢舉高。');},greet:async()=> '嗨，我是 Luna'};
+ const h=harness(()=>ai);try{
+  h.panel.welcome();await new Promise(r=>setImmediate(r));for(let i=0;i<5;i++)h.panel.update(i*100);assert.equal(guides,0);
+  h.spoken.at(-1).onstart();h.spoken.at(-1).onend();h.panel.update(1000);assert.equal(guides,1);
+ }finally{h.close();}
+});
+
+test('microphone error while answering preserves speech but cancels automatic motion resume',()=>{
+ const h=harness();try{
+  h.panel.enableListening();h.dispatch({type:'play'});ask(h,'關鍵要領');const utterance=h.spoken.at(-1);utterance.onstart();h.recognitions[0].onerror({error:'audio-capture'});
+  assert.equal(h.panel.diagnostics.speaking,true);assert.equal(h.state.playing,false);utterance.onend();assert.equal(h.state.playing,false);assert.equal(h.panel.diagnostics.lastRecognitionError.code,'audio-capture');
+ }finally{h.close();}
 });

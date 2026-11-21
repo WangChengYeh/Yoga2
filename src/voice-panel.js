@@ -1,10 +1,10 @@
-import { APP_VERSION } from './release.js?v=0.9.12';
-import { AIGuidance } from './ai-guidance.js?v=0.9.12';
-import { LocalCoachAI } from './local-ai.js?v=0.9.12';
-import { CourseNarrator } from './guidance.js?v=0.9.12';
-import { VoiceSession } from './voice-session.js?v=0.9.12';
-import { respondToUtterance } from './voice-intents.js?v=0.9.12';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.12';
+import { APP_VERSION } from './release.js?v=0.9.13';
+import { AIGuidance } from './ai-guidance.js?v=0.9.13';
+import { LocalCoachAI } from './local-ai.js?v=0.9.13';
+import { CourseNarrator } from './guidance.js?v=0.9.13';
+import { VoiceSession } from './voice-session.js?v=0.9.13';
+import { respondToUtterance } from './voice-intents.js?v=0.9.13';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.13';
 
 export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
@@ -43,10 +43,10 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   const session=new VoiceSession({
     Recognition,Utterance:window.SpeechSynthesisUtterance,synthesis:window.speechSynthesis,
     audioEnabled:kind=>kind==='guidance'?guidanceToggle.checked:$('voice-output').checked,
-    onAudioState:({blocked,message})=>{
-      onRuntime('speech',{phase:blocked?'error':'started',code:blocked?session.lastAudioError:'none'});
+    onAudioState:({blocked,message,needsGesture=false,code})=>{
+      onRuntime('speech',{phase:needsGesture?'awaiting-gesture':blocked?'error':'started',code:code||'none'});
       audioBlocked=blocked;$('voice-audio-status').hidden=!blocked;$('voice-audio-status').textContent=message;
-      $('audio-details').hidden=!blocked;if(blocked)$('audio-diagnostic').textContent=JSON.stringify(audioDiagnostic(),null,2);onMediaState();
+      $('audio-details').hidden=!blocked||needsGesture;if(blocked&&!needsGesture)$('audio-diagnostic').textContent=JSON.stringify(audioDiagnostic(),null,2);onMediaState();
     },
     onSpeechEnd:kind=>{if(kind==='welcome'){welcomeCompleted=true;welcomeTextReady='';onMediaState();}},
     onInterrupt:()=>{ai.cancelReply?.();},
@@ -72,8 +72,9 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     },
     onReply:(text,kind)=>{$('voice-reply').textContent=text;if(kind==='guidance')guidanceStatus.textContent=`${guidanceSource==='AI'?'AI 教練 · ':''}${text}`;},
     onSpeechError:kind=>{if(kind==='guidance'){narrator?.suspend();guidanceStatus.textContent='先保留帶練文字；點「重試聲音」重播這句。';}},
-    onState:({phase,message,active})=>{
-      if(phase!==voicePhase)onRuntime('voice',{phase});voicePhase=phase;
+    onState:({phase,message,active,inputCode})=>{
+      if(phase!==voicePhase||inputCode)onRuntime('voice',{phase,code:inputCode||'none'});voicePhase=phase;
+      if(inputCode){$('voice-input-error').hidden=false;$('voice-input-error').textContent=`語音輸入暫停 [${inputCode}]：${message}`;}else if(phase==='listening')$('voice-input-error').hidden=true;
       $('voice-toggle').textContent=active?'關閉聆聽':'開啟聆聽';
       $('voice-toggle').setAttribute('aria-pressed',active);
       $('voice-status').textContent=message;
@@ -81,15 +82,15 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     },
     onSpeaking:(value)=>{if(value&&session.speechKind==='welcome')welcomeDelivered=true;speaking=value;speechStart=performance.now()/1000;if(!value)mouth?.setAmount(0);},
   });
-  function audioDiagnostic(){return {version:APP_VERSION,userAgent:window.navigator?.userAgent||globalThis.navigator?.userAgent||'unavailable',lastAudioError:session.lastAudioError||null,blocked:audioBlocked,engine:session.lastAudioSnapshot||null,events:session.audioEvents||[]};}
+  function audioDiagnostic(){return {version:APP_VERSION,userAgent:window.navigator?.userAgent||globalThis.navigator?.userAgent||'unavailable',lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,blocked:audioBlocked,needsGesture:Boolean(session.audioNeedsGesture),engine:session.lastAudioSnapshot||null,events:session.audioEvents||[]};}
   $('audio-copy').addEventListener('click',async()=>{
     const text=JSON.stringify(audioDiagnostic(),null,2);$('audio-diagnostic').textContent=text;
     try{await navigator.clipboard.writeText(text);$('audio-copy-status').textContent='聲音診斷已複製，可貼回對話。';}
     catch{$('audio-details').open=true;$('audio-copy-status').textContent='請長按診斷文字複製。';}
   });
   let guidanceSource='基本口令';
-  aiGuidance=new AIGuidance({ai,getState,speak:(text,options)=>session.speak(text,options),enabled:()=>guidanceToggle.checked,active:()=>guidanceToggle.checked,canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply',onSource:source=>{guidanceSource=source;}});
-  narrator=new CourseNarrator({speak:(text,options)=>aiGuidance.say(text,options),cancel:()=>{aiGuidance.cancel();session.cancelSpeech('guidance');},canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply',enabled:guidanceToggle.checked});
+  aiGuidance=new AIGuidance({ai,getState,speak:(text,options)=>session.speak(text,options),enabled:()=>guidanceToggle.checked,active:()=>guidanceToggle.checked,canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply'&&session.speechKind!=='welcome'&&!welcomePreparing&&(!welcomeTextReady||welcomeCompleted||welcomeEngaged),onSource:source=>{guidanceSource=source;}});
+  narrator=new CourseNarrator({speak:(text,options)=>aiGuidance.say(text,options),cancel:()=>{aiGuidance.cancel();session.cancelSpeech('guidance');},canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply'&&session.speechKind!=='welcome'&&!welcomePreparing&&(!welcomeTextReady||welcomeCompleted||welcomeEngaged),enabled:guidanceToggle.checked});
   if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){guidanceToggle.checked=false;guidanceToggle.disabled=true;narrator.setEnabled(false);guidanceStatus.textContent='此瀏覽器不支援聲音帶練，仍可觀看示範。';}
   function startAI(){if(['off','error'].includes(ai.phase)){cancelWelcome();if(!welcomeCompleted&&!welcomeEngaged)welcomeAttempted=false;aiGuidance.cancel({clearCache:true});void ai.enable();}}
   $('local-ai-retry').addEventListener('click',startAI);
@@ -129,7 +130,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
   function activateAudio(){if(session.retryAudio())return;if(!welcome({gesture:true}))session.primeAudio();}
   guidanceToggle.addEventListener('change',()=>{narrator.setEnabled(guidanceToggle.checked,getState());if(!guidanceToggle.checked)guidanceStatus.textContent='帶練語音已關閉。';});
   if(!Recognition){$('voice-toggle').disabled=true;$('voice-status').textContent='此瀏覽器不支援語音辨識，仍可使用按鈕或輸入問題。';}
-  $('voice-toggle').addEventListener('click',()=>{if(session.wanted){welcomeEngaged=true;session.stop();}else {session.enable();activateAudio();}});
+  $('voice-toggle').addEventListener('click',()=>{if(session.wanted){welcomeEngaged=true;session.disableListening();}else {session.enable();activateAudio();}});
   $('voice-stop').addEventListener('click',()=>{guidanceToggle.checked=false;narrator.setEnabled(false);session.stop();guidanceStatus.textContent='帶練語音已關閉。';welcomeEngaged=true;ai.cancelReply?.();});
   $('voice-output').addEventListener('change',()=>{if(!$('voice-output').checked){session.cancelSpeech('reply');session.cancelSpeech('welcome');}else activateAudio();onMediaState();});
   for(const button of document.querySelectorAll('[data-voice-text]'))button.addEventListener('click',()=>session.acceptText(button.dataset.voiceText));
@@ -143,7 +144,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     welcome,
     enableAI:startAI,
     enableListening(){if(!session.wanted)session.enable();},
-    get mediaStatus(){return {phase:voicePhase,active:session.wanted&&voicePhase!=='starting',outputBlocked:audioBlocked,welcomePending:welcomeEligible()&&Boolean(ai.ready||welcomePreparing||welcomeTextReady),welcoming:session.speechKind==='welcome'&&speaking,welcomePreparing,audioRetry:Boolean(session.failedSpeech)&&session.audioEnabled(session.failedSpeech.kind)&&!session.inputActive};},
+    get mediaStatus(){return {phase:voicePhase,active:session.wanted&&voicePhase!=='starting',outputBlocked:audioBlocked,needsGesture:Boolean(session.audioNeedsGesture),activationWelcome:session.failedSpeech?.kind==='welcome',welcomePending:welcomeEligible()&&Boolean(ai.ready||welcomePreparing||welcomeTextReady),welcoming:session.speechKind==='welcome'&&speaking,welcomePreparing,audioRetry:Boolean(session.failedSpeech)&&session.audioEnabled(session.failedSpeech.kind)&&(!session.inputActive||session.audioNeedsGesture)};},
     playbackChanged(action){
       if(!managedPlayback&&!answering&&['pause','toggle','play','seek','restart','repeat'].includes(action.type)){
         if(getState().playing){welcomeEngaged=true;cancelWelcome();}
@@ -152,7 +153,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
       narrator.update(getState(),action);
     },
     silence(){cancelWelcome();narrator.suspend();aiGuidance.cancel();session.stop(false);onMediaState();},
-    get diagnostics(){return {welcomeDelivered,welcomeCompleted,welcomePreparing,welcomeEngaged,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume),localAI:ai.phase,localAIDiagnostics:ai.diagnostics||null,lastAudioError:session.lastAudioError||null,audioBlocked,audioEngine:session.lastAudioSnapshot||null,audioEvents:session.audioEvents||[],audioRetryAvailable:Boolean(session.failedSpeech),guidanceSource,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,recognitionAttached:Boolean(session.recognition),bargeInMode:'transcript-echo-filter',status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
+    get diagnostics(){return {welcomeDelivered,welcomeCompleted,welcomePreparing,welcomeEngaged,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume),localAI:ai.phase,localAIDiagnostics:ai.diagnostics||null,lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,audioNeedsGesture:Boolean(session.audioNeedsGesture),audioBlocked,audioEngine:session.lastAudioSnapshot||null,audioEvents:session.audioEvents||[],audioRetryAvailable:Boolean(session.failedSpeech),guidanceSource,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,recognitionAttached:Boolean(session.recognition),bargeInMode:'transcript-echo-filter',status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
     attachModel(model){mouth=createMouthMotion(model);},
     update(now){aiGuidance.update();mouth?.setAmount(mouthAmount(speaking,now/1000-speechStart));},
   };

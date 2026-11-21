@@ -34,3 +34,7 @@ Five integration checks cover source/output matching, face/clothing versus tree-
 ## Chair cleanup replay
 
 `semantic-chair-mask.json` contains only recorded semantic probabilities (64×64, 8-bit run-length encoding) from the reported chair case. No RGB photo pixels are included. Unit tests replay foreground-class selection, connected-person filtering and preservation of the facial calibration reference. This recorded replay is separate from the real-model JPEG integration test above.
+
+## Activation evidence regression
+
+`activation-evidence.json` retains only selected engine/gesture flags and relative timing from the uploaded v0.9.12 debug package. It contains no camera/scene image, transcript, generated greeting, full user agent, report ID or absolute timestamp. It covers first speech without activation, followed by a user-activated system-voice request whose start event arrived 46 ms later. Since both activation and voice selection changed, this evidence does not isolate which browser restriction caused the initial failure, nor prove physical speaker output.
