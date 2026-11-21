@@ -140,11 +140,12 @@ async function init() {
   const timeout = setTimeout(() => controller.abort(), 45000);
   let response;
   try {
-    response = await fetch('./models/michelle.glb', { signal: controller.signal });
+    const modelURL = document.documentElement.dataset.modelUrl || './models/michelle.glb';
+    response = await fetch(modelURL, { signal: controller.signal });
     if (!response.ok) throw new Error(`Model HTTP ${response.status}`);
     const data = await response.arrayBuffer();
     $('loading-detail').textContent = '角色已下載，正在準備材質與骨架。';
-    const gltf = await new GLTFLoader().parseAsync(data, new URL('./models/', location.href).href);
+    const gltf = await new GLTFLoader().parseAsync(data, new URL('.', new URL(modelURL, location.href)).href);
     const model = gltf.scene;
     const skeletons = new Set();
     model.traverse((o) => {

@@ -12,4 +12,4 @@
 
 - Version: 0.180.0, MIT license, copyright Three.js authors.
 - The build includes the upstream license at `dist/vendor/THREE-LICENSE.txt`.
-- Browser modules are served from the same origin; no third-party JavaScript CDN is required.
+- The `dist/` build serves browser modules from the same origin. The root GitHub Pages entry uses the same version pinned on jsDelivr, and loads the pinned upstream character directly.

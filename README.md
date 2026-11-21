@@ -28,9 +28,11 @@ python3 -m http.server 8080 --directory dist
 
 ## GitHub Pages
 
-儲存庫包含 `.github/workflows/pages.yml`。在 GitHub 的 **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**（首次啟用需要管理員操作）。之後每次推送到 `main` 都會檢查、建置並部署。
+網站路徑：`https://wangchengyeh.github.io/Yoga2/`。沿用儲存庫現有的 **Deploy from a branch → main → / (root)** 設定，GitHub 自動發布根目錄 `index.html`，不需要改成 GitHub Actions 部署來源。
 
-網站路徑：`https://wangchengyeh.github.io/Yoga2/`。首次設定後，可到 **Actions → Build and deploy Yoga2 to GitHub Pages → Run workflow** 手動觸發；部署成功前這個路徑可能尚無網站。
+Pages 入口使用固定版本的 jsDelivr Three.js 模組與上游人物 GLB，首次開啟需要連網。`npm run build` 另產生所有執行素材放在同一網站的 `dist/` 版本，適合其他靜態主機。`scripts/sync-pages.mjs` 由共用 HTML 產生 Pages 首頁，避免兩版介面不同步；修改介面後執行建置並一併提交更新的 `index.html`。
+
+`.github/workflows/pages.yml` 執行語法、建置、動作及模型測試；網站發布由 GitHub 原有的 Pages 流程處理，避免兩個部署工作互相覆蓋。
 
 ## 檔案結構
 
