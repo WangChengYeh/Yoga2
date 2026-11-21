@@ -6,7 +6,7 @@
 
 - `npm run check`：249 項通過，0 失敗／跳過；含語法與插話整合測試。
 - 測試涵蓋 TTS／AI 思考時收音、回音片段、連續 final 去重、打斷舊語音／AI 與保留課程恢復意圖。
-- `npm run build` 通過、模型雜湊驗證完成；GitHub CI／Pages 待本次提交後確認；手機實際同時收播與回音仍待驗收。
+- `npm run build` 通過、模型雜湊驗證完成；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44901476431)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44901475914) 均成功，對應實作提交 [0a47717](https://github.com/WangChengYeh/Yoga2/commit/0a47717d9db394b44b1697d23653bcdccc387c3f)；手機實際同時收播與回音仍待驗收。
 
 ## 2026-11-21 · v0.9.6
 
