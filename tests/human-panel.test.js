@@ -35,3 +35,28 @@ test('repeated active notifications do not toggle the human off or reframe again
   const h=harness();h.panel.attach({});h.panel.cameraState(true);const token=h.panel.context.humanToken;
   h.panel.cameraState(true);assert.equal(h.panel.context.segment,true);assert.equal(h.panel.context.humanToken,token);assert.deepEqual(h.layouts,[true]);
 });
+
+function boneHarness() {
+  const elements=new Map();let created=0,disposed=0,frames=0,lastPose;
+  const el=id=>{if(!elements.has(id))elements.set(id,{checked:id==='ai-skeleton-toggle',value:'1',listeners:{},setAttribute(){},addEventListener(k,fn){this.listeners[k]=fn;},textContent:''});return elements.get(id);};
+  let mesh={};
+  const panel=setupHumanPanel({document:{getElementById:el},createLayer:()=>({get mesh(){return mesh;},apply(){mesh={};frames++;},clear(){mesh=null;},dispose(){mesh=null;},update(){}}),createSkeleton:()=>{created++;return {update(p){lastPose=p;},clear(){},dispose(){disposed++;}};}});
+  panel.attach({});panel.cameraState(true);
+  const data=()=>({capturedAt:100,context:{...panel.context},brightness:100,landmarks:[Array.from({length:33},(_,i)=>({x:i===23?.4:i===24?.6:.5,y:i===0?.15:i===31||i===32?.9:.5,visibility:1}))],segmentation:{width:2,height:2,confidence:new Float32Array([0,1,0,1]),frame:{width:2,height:2,rgba:new Uint8ClampedArray(16).fill(255)}}});
+  return {panel,el,data,get created(){return created;},get disposed(){return disposed;},get frames(){return frames;},get lastPose(){return lastPose;}};
+}
+test('AI skeleton switch hides only bones while camera segmentation and cutout keep running',()=>{
+  const h=boneHarness();h.panel.accept(h.data(),200);assert.equal(h.created,1);assert.ok(h.lastPose.edges.length>0);
+  h.el('ai-skeleton-toggle').checked=false;h.el('ai-skeleton-toggle').listeners.change();assert.equal(h.disposed,1);assert.equal(h.panel.context.segment,true);
+  h.panel.accept(h.data(),300);assert.equal(h.created,1);assert.equal(h.frames,2);
+  h.el('ai-skeleton-toggle').checked=true;h.el('ai-skeleton-toggle').listeners.change();h.panel.accept(h.data(),400);assert.equal(h.created,2);
+});
+test('camera off, watchdog, late old generation and render-time expiry cannot retain stale AI bones',()=>{
+  for(const invalidate of [h=>h.panel.cameraState(false),h=>h.panel.stale(),h=>h.panel.update({},1700),h=>{const old=h.data();old.context.humanToken--;h.panel.accept(old,300);}]){
+    const h=boneHarness();h.panel.accept(h.data(),200);assert.equal(h.created,1);invalidate(h);assert.equal(h.disposed,1);
+  }
+});
+test('uncertain/no pose clears bone geometry while a valid portrait cutout remains visible',()=>{
+  const h=boneHarness();const d=h.data();d.landmarks=[];h.panel.accept(d,200);
+  assert.equal(h.frames,1);assert.equal(h.lastPose.edges.length,0);assert.match(h.el('skeleton-status').textContent,/尚未看清/);assert.equal(h.panel.context.segment,true);
+});

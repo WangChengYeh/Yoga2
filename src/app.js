@@ -1,13 +1,14 @@
-import { practiceLayout } from './practice-layout.js?v=0.6.2';
-import { setupFullscreen } from './fullscreen.js?v=0.6.2';
-import { setupHumanPanel } from './human-panel.js?v=0.6.2';
+import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.7.0';
+import { practiceLayout } from './practice-layout.js?v=0.7.0';
+import { setupFullscreen } from './fullscreen.js?v=0.7.0';
+import { setupHumanPanel } from './human-panel.js?v=0.7.0';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.6.2';
-import { prepareStandingCoach } from './rig.js?v=0.6.2';
-import { setupPosePanel } from './pose-panel.js?v=0.6.2';
-import { setupVoicePanel } from './voice-panel.js?v=0.6.2';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.7.0';
+import { prepareStandingCoach } from './rig.js?v=0.7.0';
+import { setupPosePanel } from './pose-panel.js?v=0.7.0';
+import { setupVoicePanel } from './voice-panel.js?v=0.7.0';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -16,7 +17,7 @@ let activeLesson = -1;
 let posePanel;
 let voicePanel;
 let humanPanel, coachStage, dualView=false, manualView=false;
-let coachBones=[],coachWidth=.8,coachHeight=2.2;
+let coachBones=[],coachWidth=.8,coachHeight=2.2,coachSkeleton,coachSkeletonSource;
 const actorPoint=new THREE.Vector3(),layoutRight=new THREE.Vector3();
 function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView,coachWidth,humanWidth:humanPanel?.bounds?.width||.8,height:Math.max(coachHeight,humanPanel?.bounds?.height||0),fov:camera.fov});}
 const lessonButtons = [];
@@ -40,6 +41,7 @@ let framePending = false;
 
 function showError(title, detail) {
   humanPanel?.unavailable();
+  coachSkeleton?.dispose();coachSkeleton=null;
   state.playing = false;
   state.ready = false;
   $('loading').hidden = false;
@@ -192,6 +194,7 @@ async function init() {
     coachStage.add(model);
     pose = prepareStandingCoach(model);
     coachBones=[];model.traverse(o=>{if(o.isBone)coachBones.push(o);});
+    coachSkeletonSource=createCoachSkeletonSource(model,coachStage);
     humanPanel.attach(scene);
     voicePanel?.attachModel(model);
     state.time = 0; state.playing = false;
@@ -241,13 +244,18 @@ function animate(now) {
       controls.minDistance=fit.distance*.7;controls.maxDistance=fit.distance*1.65;
     }
   }
-  humanPanel?.update(camera);
+  if(state.ready&&coachSkeletonSource&&$('coach-skeleton-toggle').checked){
+    coachSkeleton ||= createSkeletonLayer({parent:coachStage,color:0xb25813,name:'Yoga2CoachSkeleton'});
+    coachSkeleton.update(coachSkeletonSource());
+  }
+  humanPanel?.update(camera,now);
   renderer.render(scene, camera);
 }
 document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
+$('coach-skeleton-toggle').addEventListener('change',()=>{if(!$('coach-skeleton-toggle').checked){coachSkeleton?.dispose();coachSkeleton=null;}});
 setupFullscreen({document,window,onChange:()=>resize(true)});
 humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-.65:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
