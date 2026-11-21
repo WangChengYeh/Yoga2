@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { motionAt } from './course.js?v=0.6.1';
+import { motionAt } from './course.js?v=0.6.2';
 
 // Normalize the actual asset's forward direction before framing it. A camera
 // on +Z must see the face even when an imported GLB uses another forward axis.

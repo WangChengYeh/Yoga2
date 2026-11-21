@@ -23,6 +23,7 @@ export function composeCutout(value) {
   const { width, height } = frame;
   const rgba = new Uint8ClampedArray(frame.rgba.length);
   let foreground = 0;
+  let left=width,right=0,top=height,bottom=0;
   const sample = (x, y) => { const v = confidence[y * mw + x]; return Number.isFinite(v) ? clamp(v, 0, 1) : 0; };
   for (let y = 0; y < height; y++) {
     const sy = clamp((y + .5) * mh / height - .5, 0, mh - 1), y0 = Math.floor(sy), fy = sy - y0;
@@ -34,10 +35,10 @@ export function composeCutout(value) {
       const alpha = t*t*(3-2*t), i=(y*width+x)*4;
       rgba[i]=frame.rgba[i]; rgba[i+1]=frame.rgba[i+1]; rgba[i+2]=frame.rgba[i+2];
       rgba[i+3]=Math.round(frame.rgba[i+3]*alpha);
-      if (alpha > .5) foreground++;
+      if (alpha > .5) {foreground++;left=Math.min(left,x);right=Math.max(right,x+1);top=Math.min(top,y);bottom=Math.max(bottom,y+1); }
     }
   }
-  return { width, height, rgba, coverage:foreground/(width*height) };
+  return { width, height, rgba, bounds:{left:left/width,right:right/width,top:top/height,bottom:bottom/height}, coverage:foreground/(width*height) };
 }
 const usable = p => p && [p.x,p.y].every(Number.isFinite) && p.x>=0 && p.x<=1 && p.y>=0 && p.y<=1 && (p.visibility ?? 0) >= .6;
 export function calibratePerson(points) {

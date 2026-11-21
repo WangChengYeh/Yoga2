@@ -1,4 +1,4 @@
-import { frameSize } from './cutout-core.js?v=0.6.1';
+import { frameSize } from './cutout-core.js?v=0.6.2';
 
 // The same snapshot supplies pose, portrait segmentation and RGB, including when
 // there are no usable body landmarks. Frames never leave the browser.

@@ -1,5 +1,5 @@
-import { CutoutSession } from './cutout-core.js?v=0.6.1';
-import { createHumanLayer } from './human-scene.js?v=0.6.1';
+import { CutoutSession } from './cutout-core.js?v=0.6.2';
+import { createHumanLayer } from './human-scene.js?v=0.6.2';
 
 export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createHumanLayer }) {
   const $=id=>document.getElementById(id);
@@ -26,6 +26,8 @@ export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createH
   return {
     attach(scene){layer?.dispose();layer=createLayer({scene});session.setReady(true);enterIfReady();},
     get context(){return session.context;},
+    get bounds(){return layer?.bounds;},
+    setLayout(value){layer?.setLayout(value);},
     cameraState(active){session.setCamera(active);if(active)enterIfReady();},
     accept(data,now){session.accept(data,now);},
     stale(){session.stale();},

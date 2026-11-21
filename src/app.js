@@ -1,11 +1,13 @@
-import { setupHumanPanel } from './human-panel.js?v=0.6.1';
+import { practiceLayout } from './practice-layout.js?v=0.6.2';
+import { setupFullscreen } from './fullscreen.js?v=0.6.2';
+import { setupHumanPanel } from './human-panel.js?v=0.6.2';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.6.1';
-import { prepareStandingCoach } from './rig.js?v=0.6.1';
-import { setupPosePanel } from './pose-panel.js?v=0.6.1';
-import { setupVoicePanel } from './voice-panel.js?v=0.6.1';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.6.2';
+import { prepareStandingCoach } from './rig.js?v=0.6.2';
+import { setupPosePanel } from './pose-panel.js?v=0.6.2';
+import { setupVoicePanel } from './voice-panel.js?v=0.6.2';
 
 window.yogaAppStarted = true;
 const $ = (id) => document.getElementById(id);
@@ -13,7 +15,10 @@ const state = { ...createPlayback(), ready: false, powerSaving: false };
 let activeLesson = -1;
 let posePanel;
 let voicePanel;
-let humanPanel, coachStage, dualView=false;
+let humanPanel, coachStage, dualView=false, manualView=false;
+let coachBones=[],coachWidth=.8,coachHeight=2.2;
+const actorPoint=new THREE.Vector3(),layoutRight=new THREE.Vector3();
+function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView,coachWidth,humanWidth:humanPanel?.bounds?.width||.8,height:Math.max(coachHeight,humanPanel?.bounds?.height||0),fov:camera.fov});}
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
@@ -43,18 +48,21 @@ function showError(title, detail) {
   document.querySelector('.spinner').hidden = true;
   $('retry').hidden = false;
   $('playback-status').textContent = '尚未就緒';
-  for (const id of ['play', 'restart', 'seek']) $(id).disabled = true;
+  for (const id of ['play', 'restart', 'seek', 'stage-play']) $(id).disabled = true;
   lessonButtons.forEach((button) => { button.disabled = true; });
 }
 $('retry').addEventListener('click', () => location.reload());
 
 function syncPlayback() {
+  $('stage-play').textContent=state.playing?'暫停':state.time>=COURSE_DURATION?'再練一次':state.time>0?'繼續':'開始帶練';
   $('play-icon').textContent = state.playing ? 'Ⅱ' : '▶';
   $('play-label').textContent = state.playing ? '暫停課程' : state.time >= COURSE_DURATION ? '再練一次' : state.time > 0 ? '繼續課程' : '開始帶練';
   $('playback-status').textContent = state.playing ? '帶練中' : state.time >= COURSE_DURATION ? '課程完成' : state.time > 0 ? '已暫停' : '準備就緒';
 }
 function syncTime() {
   const frame = courseFrame(state.time);
+  const stageText=`${frame.lesson.name} · ${formatTime(COURSE_DURATION-state.time)}`;
+  if($('stage-lesson').textContent!==stageText)$('stage-lesson').textContent=stageText;
   $('seek').value = state.time;
   $('elapsed').textContent = formatTime(Math.floor(state.time));
   $('course-remaining').textContent = formatTime(COURSE_DURATION - state.time);
@@ -78,6 +86,7 @@ function syncTime() {
   $('next-lesson').textContent = frame.complete ? '完成 · 3 / 3' : frame.index < LESSONS.length - 1 ? `下一個：${LESSONS[frame.index + 1].name}` : '最後一個動作，慢慢收回。';
   posePanel?.contextChanged();
 }
+$('stage-play').addEventListener('click',()=>{if(state.ready)dispatch({type:'toggle'});});
 $('play').addEventListener('click', () => { if (state.ready) dispatch({ type: 'toggle' }); });
 $('restart').addEventListener('click', () => { if (state.ready) dispatch({ type: 'restart' }); });
 $('seek').addEventListener('input', (event) => { if (state.ready) dispatch({ type: 'seek', time: Number(event.target.value) }); });
@@ -116,9 +125,8 @@ function resize(resetCamera = false) {
   camera.aspect = width / height;
   // Frame raised hands as well as the full body, including on narrow phones.
   if (resetCamera || !state.ready) {
-    const verticalDistance = 2.85 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    const horizontalDistance = (dualView ? 3.8 : 2.3) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
-    const distance = Math.max(verticalDistance, horizontalDistance);
+    manualView=false;
+    const distance=currentLayout().distance;
     camera.position.set(0, 1.25, distance);
     controls.target.set(0, 1.17, 0);
     controls.minDistance = distance * 0.7;
@@ -148,7 +156,7 @@ async function init() {
   controls.enablePan = false;
   controls.minPolarAngle = Math.PI * .24;
   controls.maxPolarAngle = Math.PI * .58;
-  controls.addEventListener('start', () => document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', 'false')));
+  controls.addEventListener('start', () => {manualView=true;document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', 'false'));});
   scene.add(new THREE.HemisphereLight(0xf7fff2, 0x8d9a85, 2.5));
   const key = new THREE.DirectionalLight(0xfff6e9, 3.3);
   key.position.set(-3, 5, 5); key.castShadow = true;
@@ -183,6 +191,7 @@ async function init() {
     });
     coachStage.add(model);
     pose = prepareStandingCoach(model);
+    coachBones=[];model.traverse(o=>{if(o.isBone)coachBones.push(o);});
     humanPanel.attach(scene);
     voicePanel?.attachModel(model);
     state.time = 0; state.playing = false;
@@ -190,7 +199,7 @@ async function init() {
     renderer.compile(scene, camera);
     state.ready = true;
     $('loading').hidden = true;
-    for (const id of ['play', 'restart', 'seek']) $(id).disabled = false;
+    for (const id of ['play', 'restart', 'seek', 'stage-play']) $(id).disabled = false;
     lessonButtons.forEach((button) => { button.disabled = false; });
     syncPlayback(); syncTime();
     console.info(`Yoga2: model ready in ${((performance.now() - started) / 1000).toFixed(2)}s`);
@@ -215,6 +224,23 @@ function animate(now) {
   }
   controls.update();
   voicePanel?.update(now);
+  if(coachStage&&coachBones.length){
+    const yaw=Math.atan2(camera.position.x-controls.target.x,camera.position.z-controls.target.z);
+    layoutRight.set(Math.cos(yaw),0,-Math.sin(yaw));
+    let radius=.3,top=1.72;
+    for(const bone of coachBones){bone.getWorldPosition(actorPoint);coachStage.worldToLocal(actorPoint);radius=Math.max(radius,Math.abs(actorPoint.dot(layoutRight))+.1);top=Math.max(top,actorPoint.y+.15);}
+    coachWidth+=(radius*2-coachWidth)*.18;coachHeight+=(top-coachHeight)*.18;
+    const fit=currentLayout();
+    coachStage.position.set(layoutRight.x*fit.coachX,0,layoutRight.z*fit.coachX);
+    humanPanel.setLayout({x:layoutRight.x*fit.humanX,z:layoutRight.z*fit.humanX,yaw});
+    if(!manualView){
+      actorPoint.copy(camera.position).sub(controls.target);
+      const distance=actorPoint.length();
+      actorPoint.setLength(distance+(fit.distance-distance)*.12);
+      camera.position.copy(controls.target).add(actorPoint);
+      controls.minDistance=fit.distance*.7;controls.maxDistance=fit.distance*1.65;
+    }
+  }
   humanPanel?.update(camera);
   renderer.render(scene, camera);
 }
@@ -222,6 +248,7 @@ document.addEventListener('visibilitychange', () => {
   lastFrame = 0;
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
+setupFullscreen({document,window,onChange:()=>resize(true)});
 humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-.65:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));

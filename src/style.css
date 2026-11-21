@@ -35,3 +35,14 @@
   .practice-column .studio .coach-tag{left:13px;bottom:54px}.practice-column .studio .coach-avatar{width:25px;height:25px;font-size:17px}.practice-column .studio .coach-tag strong{font-size:12px}.practice-column .studio .coach-tag div>span{font-size:10px}
   .practice-column .studio .view-tools{left:12px;bottom:12px}.view-tools button{padding:6px 10px;font-size:11px}.practice-column .studio .gesture-hint{display:none}.studio-watermark{font-size:70px}
 }
+
+.stage-playback{display:none}.studio-top{z-index:6}
+body.practice-fullscreen{overflow:hidden;overscroll-behavior:none}
+body.practice-fullscreen .practice-column .studio{position:fixed;inset:0;z-index:10000;width:100vw;height:100vh;height:100dvh;max-height:none;min-height:0;aspect-ratio:auto;border:0;border-radius:0}
+body.practice-fullscreen .studio-top{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));gap:10px}
+body.practice-fullscreen .stage-playback{position:absolute;z-index:6;display:flex;align-items:center;gap:12px;bottom:max(16px,env(safe-area-inset-bottom));right:max(16px,env(safe-area-inset-right));background:#fffffff0;border:1px solid #d2dfcd;border-radius:15px;padding:8px 10px;max-width:55%;font-size:14px}
+.stage-playback span{line-height:1.5}.stage-playback button{border:0;border-radius:10px;background:var(--green);color:white;padding:11px 15px;white-space:nowrap;font-size:14px}
+body.practice-fullscreen .gesture-hint{display:none}body.practice-fullscreen .coach-tag{bottom:75px}body.practice-fullscreen .view-tools{bottom:max(16px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left))}
+@media(max-width:760px){#fullscreen-toggle{font-size:11px;padding:8px 9px}.studio-top .pill{font-size:0;gap:0;padding:8px}.studio-top .pill .live-dot{width:7px;height:7px}.studio-actions{gap:4px}body.practice-fullscreen .stage-playback{font-size:12px;gap:7px;padding:6px;max-width:49%}.stage-playback button{font-size:12px;padding:10px}.stage-playback span{max-width:100px}body.practice-fullscreen .view-tools button{padding:7px 9px;font-size:12px}}
+
+@media(orientation:portrait) and (max-width:760px){body.practice-fullscreen .stage-playback{left:12px;right:12px;max-width:none;justify-content:space-between}body.practice-fullscreen .view-tools{bottom:calc(max(16px,env(safe-area-inset-bottom)) + 66px)}body.practice-fullscreen .coach-tag{bottom:133px}.stage-playback span{max-width:none}}

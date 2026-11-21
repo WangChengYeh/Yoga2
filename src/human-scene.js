@@ -1,21 +1,31 @@
 import * as THREE from 'three';
-import { personPlacement } from './cutout-core.js?v=0.6.1';
+import { personPlacement } from './cutout-core.js?v=0.6.2';
 
 export function createHumanLayer({ scene, createCanvas=()=>document.createElement('canvas') }) {
-  let mesh, texture, canvas, ctx, calibration, aspect;
+  let mesh, texture, canvas, ctx, calibration, aspect, bounds, layout;
   let placement={x:.72,scale:1}, disposed=false;
   function align() {
     if(!mesh||!calibration)return;
     const p=personPlacement(calibration,aspect,placement);
-    mesh.position.set(p.x,p.y,p.z);mesh.scale.set(p.width,p.height,1);
+    if(layout){
+      const offset=p.x-.72;
+      mesh.position.set(layout.x+Math.cos(layout.yaw)*offset,p.y,layout.z-Math.sin(layout.yaw)*offset);
+    }else mesh.position.set(p.x,p.y,p.z);
+    mesh.scale.set(p.width,p.height,1);
   }
   function clear() {
     if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh.material.dispose();texture.dispose();}
     if(canvas)canvas.width=canvas.height=1;
-    mesh=texture=canvas=ctx=calibration=null;
+    mesh=texture=canvas=ctx=calibration=bounds=null;
   }
   return {
     get mesh(){return mesh;},
+    get bounds(){
+      if(!mesh||!bounds)return null;
+      const p=personPlacement(calibration,aspect,placement);
+      return {width:2*Math.max(Math.abs(bounds.left-calibration.hipX),Math.abs(bounds.right-calibration.hipX))*p.width,height:Math.max(1.72,p.y+(.5-bounds.top)*p.height)};
+    },
+    setLayout(value){layout=value;align();},
     apply(frame,alignment) {
       if(disposed)return;
       if(!mesh) {
@@ -29,7 +39,7 @@ export function createHumanLayer({ scene, createCanvas=()=>document.createElemen
       }
       if(canvas.width!==frame.width)canvas.width=frame.width;if(canvas.height!==frame.height)canvas.height=frame.height;
       const pixels=ctx.createImageData(frame.width,frame.height);pixels.data.set(frame.rgba);ctx.putImageData(pixels,0,0);
-      texture.needsUpdate=true;calibration=alignment;aspect=frame.width/frame.height;align();
+      texture.needsUpdate=true;bounds=frame.bounds;calibration=alignment;aspect=frame.width/frame.height;align();
     },
     setPlacement(value){placement={...placement,...value};align();},
     update(camera){if(mesh)mesh.rotation.y=Math.atan2(camera.position.x-mesh.position.x,camera.position.z-mesh.position.z);},
