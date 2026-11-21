@@ -1,6 +1,7 @@
-import { CameraSession } from './camera-session.js?v=0.9.16';
-import { createPoseEngine } from './pose-engine.js?v=0.9.16';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.16';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.17';
+import { CameraSession } from './camera-session.js?v=0.9.17';
+import { createPoseEngine } from './pose-engine.js?v=0.9.17';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.17';
 
 export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{} }) {
   const $ = (id) => document.getElementById(id);
@@ -9,7 +10,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
   const lightCanvas = document.createElement('canvas'); lightCanvas.width = lightCanvas.height = 16;
   const lightContext = lightCanvas.getContext('2d', { willReadFrequently: true });
   const filter = new FeedbackFilter();
-  let key = null;
+  let key = null,latestObservation=null;
   let summary = {valid:false,message:'',updatedAt:0};
   const getKey = () => feedbackKey(getFrame(), isPlaying());
   const clear = () => ctx?.clearRect(0, 0, overlay.width, overlay.height);
@@ -44,12 +45,12 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
       $('camera-toggle').setAttribute('aria-pressed', running);
       $('camera-status').textContent = phase === 'active' ? '本機觀察中' : phase === 'requesting' ? '等待相機權限' : phase === 'loading' ? '準備辨識中' : phase === 'error' ? '暫時無法啟用' : '相機未開啟';
       preview.hidden = !showPreview;
-      if (phase !== 'active') { clear(); filter.reset(); key = null; }
+      if (phase !== 'active') { latestObservation=null; clear(); filter.reset(); key = null; }
       feedback(message, phase === 'error' ? 'setup' : 'info');
       onMediaState();
       document.querySelector('.studio').classList.toggle('camera-on', showPreview);
     },
-    onStale: () => {onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
+    onStale: () => {latestObservation=null;onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
     onResult: (data, now) => {
       human?.accept(data,now);
       if (!isFreshResult(data, getKey(), now)) { clear(); filter.reset(); return; }
@@ -69,6 +70,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
         }
       }
       const stable = filter.update(observation, data.context.key, now);
+      latestObservation=humanObservation(data,observation,stable);
       onObservation(data,observation,stable);
       feedback(stable.message, stable.kind);
     },
@@ -82,6 +84,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
   return {
     start:()=>session.start(),
     get mediaStatus(){return {phase:session.phase,open:Boolean(session.stream)};},
+    get aiContext(){return humanContext(latestObservation,{now:performance.now(),phase:session.phase,lesson:getFrame().lesson.id,videoWidth:video.videoWidth,videoHeight:video.videoHeight});},
     get active() { return session.phase === 'active'; },
     get diagnostics(){return {phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
     get summary() { return { ...summary, active: session.phase === 'active' }; },

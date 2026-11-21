@@ -1,11 +1,12 @@
-import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.16';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.16';
+import { sensorText } from './coach-context.js?v=0.9.17';
+import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.17';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.17';
 const cues=LESSONS.flatMap((lesson,index)=>GUIDANCE[lesson.id].map(([time])=>guidanceAt(lessonStart(index)+time))).concat(guidanceAt(COURSE_DURATION));
 export const nextGuidance=time=>cues.find(cue=>cue.at>time);
-export function guidanceMessages(cue,state){
+export function guidanceMessages(cue,state,context=null){
  const frame=courseFrame(cue.at);
- return [{role:'system',content:'你是瑜伽教練 Luna。只輸出一句繁體中文帶練口令，最多 24 個中文字，不要解釋、引號、清單或自我介紹。保留提供的核心口令意思，不得換動作、提前換邊或新增方向。你沒有看到使用者，不可判斷其姿勢、健康或提供醫療建議。'},
- {role:'user',content:`動作：${frame.lesson.name}。階段：${frame.complete?'完成休息':frame.label}。核心口令：${cue.text}。請用溫柔自然的一句話帶練。`}];
+ return [{role:'system',content:'你是瑜伽教練 Luna。只輸出一句繁體中文帶練口令，最多 24 個中文字，不要解釋、引號、清單或自我介紹。保留提供的核心口令意思，不得換動作、提前換邊或新增方向。附有當下感知及骨架；預備口令的目標階段可能在未來，不得把當下骨架當成未來真人動作。不宣稱姿勢正確，不提供醫療建議。'},
+ {role:'user',content:`動作：${frame.lesson.name}。階段：${frame.complete?'完成休息':frame.label}。核心口令：${cue.text}。請用溫柔自然的一句話帶練。\n${sensorText(context)}`}];
 }
 const required={
  'reach:0':/上舉|舉高|抬高|舉起|往上/,'reach:6':/呼吸/,'reach:10':/放下|放回|收回/,
@@ -28,8 +29,8 @@ export function validGuidance(text,cue){
 
 // Cache at most one sentence per course phase. No generated text survives AI off/reload.
 export class AIGuidance {
- constructor({ai,getState,speak,canSpeak=()=>true,enabled=()=>true,active=()=>true,onSource=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}){
-  Object.assign(this,{ai,getState,speak,canSpeak,enabled,active,onSource,setTimer,clearTimer});this.cache=new Map();this.attempted=new Set();this.serial=0;
+ constructor({ai,getState,getContext=()=>null,speak,canSpeak=()=>true,enabled=()=>true,active=()=>true,onSource=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}){
+  Object.assign(this,{ai,getState,getContext,speak,canSpeak,enabled,active,onSource,setTimer,clearTimer});this.cache=new Map();this.attempted=new Set();this.serial=0;
  }
  usable(){return this.enabled()&&typeof this.ai.guide==='function'&&(this.ai.ready||this.ai.pending?.kind==='guidance');}
  current(key){const state=this.getState();return this.active()&&this.canSpeak()&&guidanceAt(state.time).key===key&&(state.playing||state.time>=COURSE_DURATION);}
@@ -39,7 +40,7 @@ export class AIGuidance {
   if(this.flight||!this.ai.ready||this.cache.has(cue.key)||this.attempted.has(cue.key))return;
   this.attempted.add(cue.key);
   const flight={key:cue.key,serial:this.serial};this.flight=flight;
-  let result;try{result=this.ai.guide(cue,this.getState());}catch{this.flight=null;return;}
+  let result;try{result=this.ai.guide(cue,this.getState(),this.getContext());}catch{this.flight=null;return;}
   Promise.resolve(result).then(text=>{
    if(this.flight!==flight||flight.serial!==this.serial)return;
    const sentence=validGuidance(text,cue);if(sentence)this.cache.set(cue.key,sentence);

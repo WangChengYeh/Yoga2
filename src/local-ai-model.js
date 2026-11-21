@@ -1,3 +1,4 @@
+export const LOCAL_AI_CONTEXT_WINDOW=16384;
 // Only tensor/shard data errors qualify for cache repair; never retry OOM/GPU errors.
 export const invalidModelData=error=>/Tensor-cache record range .*exceeds shard size|AI_SHARD_SIZE_MISMATCH/i.test(String(error?.message||error));
 export function validateShardBytes(received,expected,url){
@@ -24,7 +25,7 @@ export async function loadLocalModel(sdk,{modelId,progress=()=>{},recovery=()=>{
  }
  for(let attempt=0;attempt<2;attempt++){
   const engine=new sdk.MLCEngine(options);
-  try{await engine.reload(modelId,{context_window_size:1024});return engine;}
+  try{await engine.reload(modelId,{context_window_size:LOCAL_AI_CONTEXT_WINDOW});return engine;}
   catch(error){
    try{await engine.unload?.();}catch{/* Worker teardown still releases failed GPU allocations. */}
    if(!invalidModelData(error))throw error;

@@ -2,14 +2,14 @@ import {reducePlayback} from '../src/course.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setupVoicePanel} from '../src/voice-panel.js';
-function harness(createAI,getPose=()=>null){
+function harness(createAI,getPose=()=>null,getContext=()=>null){
  const oldDocument=globalThis.document,oldWindow=globalThis.window,elements=new Map(),spoken=[],primers=[],events={};let microphones=0,cancelled=0;const recognitions=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{id,checked:['guidance-toggle','voice-output'].includes(id),dataset:{},value:'',listeners:{},textContent:'',addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  globalThis.document={hidden:false,getElementById:element,querySelectorAll:()=>[],addEventListener:(type,fn)=>events[type]=fn};
  globalThis.window={SpeechRecognition:class{constructor(){microphones++;recognitions.push(this);}start(){this.onstart?.();}abort(){}},SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},speechSynthesis:{getVoices:()=>[{lang:'zh-TW',localService:true}],speak:u=>(u.volume===0?primers:spoken).push(u),cancel:()=>cancelled++},addEventListener:(type,fn)=>events[type]=fn};
  const state={ready:true,time:0,playing:false,speed:1};let panel;
  const dispatch=action=>{Object.assign(state,reducePlayback(state,action));panel.playbackChanged(action);};
- panel=setupVoicePanel({getState:()=>state,dispatch,getPose,...(createAI?{createAI}:{})});
+ panel=setupVoicePanel({getState:()=>state,dispatch,getPose,getContext,...(createAI?{createAI}:{})});
  return {state,panel,spoken,primers,element,events,dispatch,recognitions,get microphones(){return microphones;},get cancelled(){return cancelled;},close(){panel.silence();globalThis.document=oldDocument;globalThis.window=oldWindow;}};
 }
 test('playback wiring speaks movement names without microphone, pauses immediately and resumes current cue',()=>{
@@ -314,4 +314,9 @@ test('production voice panel reconnects after each answer and accepts three cons
   }
   assert.equal(h.panel.diagnostics.microphone.counts.acceptedFinals,3);assert.equal(h.panel.diagnostics.microphone.counts.reconnects,3);
  }finally{h.close();}
+});
+test('pose questions reach LLM with live human and coach context instead of stopping at static pose rules',async()=>{
+ const snapshots=[],c={human:{fresh:true,joints:[[100,200,0,900]]},coach:{ready:true,joints:[[0,1000,0]]}};
+ const h=harness(()=>({phase:'ready',ready:true,disable(){},ask:async(text,state,context)=>{snapshots.push({text,state,context});return '我目前收到雙手上舉的觀察。';}}),()=>({active:true,valid:true,message:'雙手高於頭部',updatedAt:performance.now()}),()=>c);
+ try{ask(h,'我的姿勢如何');await new Promise(r=>setImmediate(r));assert.equal(snapshots.length,1);assert.equal(snapshots[0].context.human,c.human);assert.equal(snapshots[0].context.coach,c.coach);assert.equal(snapshots[0].context.interaction.conversationPaused,true);assert.equal(h.spoken.at(-1).text,'我目前收到雙手上舉的觀察。');}finally{h.close();}
 });

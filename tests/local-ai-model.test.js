@@ -11,7 +11,7 @@ function sdkFixture(errors=[]){
 }
 test('existing Cache API entries are bypassed with official IndexedDB backend',async()=>{
  const h=sdkFixture(),engine=await loadLocalModel(h.sdk,{modelId});
- assert.equal(engine.options.appConfig.cacheBackend,'indexeddb');assert.equal(h.deletions.length,0);assert.equal(h.loads.length,1);assert.equal(h.loads[0].options.context_window_size,1024);
+ assert.equal(engine.options.appConfig.cacheBackend,'indexeddb');assert.equal(h.deletions.length,0);assert.equal(h.loads.length,1);assert.equal(h.loads[0].options.context_window_size,16384);
 });
 test('reported 68 MB record versus empty shard clears only this model and retries once',async()=>{
  const h=sdkFixture([new Error(original)]),repairs=[];const engine=await loadLocalModel(h.sdk,{modelId,recovery:r=>repairs.push(r)});

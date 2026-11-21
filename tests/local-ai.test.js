@@ -1,4 +1,4 @@
-import {loadLocalModel,checkedShardResponse} from '../src/local-ai-model.js';
+import {loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW} from '../src/local-ai-model.js';
 import { aiErrorDetail, aiErrorCode, cleanAIText, aiFailureMessage } from '../src/ai-diagnostics.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,8 +44,8 @@ test('inference, error and timeout all release resources and settle pending ques
 });
 test('AI receives bounded text and no invented visual observation or executable action',()=>{
  const messages=localAIMessages('a'.repeat(1000),{time:0});assert.equal(messages.length,2);
- assert.match(messages[0].content,/沒有影像或骨架/);assert.match(messages[0].content,/不輸出程式/);
- assert.equal(messages[1].content.split('使用者問題：')[1].length,160);
+ assert.match(messages[0].content,/真人、教練骨架/);assert.match(messages[1].content,/"available":false/);assert.match(messages[0].content,/不輸出程式/);
+ assert.equal(messages[1].content.split('使用者問題：')[1].length,300);
 });
 
 test('production worker initializes supported SDK/model then returns bounded text replies and errors',async()=>{
@@ -55,8 +55,8 @@ test('production worker initializes supported SDK/model then returns bounded tex
   const messages=[],reloads=[],requests=[];let fail=false;
   class Engine{constructor(options){this.options=options;this.chat={completions:{create:async request=>{requests.push(request);if(fail)throw Error('GPU lost');return {choices:[{message:{content:'自然呼吸。'}}]};}}};}async reload(...args){reloads.push(args);this.options.initProgressCallback({progress:1});}}
   const self={postMessage:m=>messages.push(m)};
-  runInNewContext(source.replace(/^import .*;\n/gm,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()'),{self,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(half?['shader-f16']:[])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>({MLCEngine:Engine})});
-  await self.onmessage({data:{type:'load',half}});assert.match(reloads[0][0],half?/q4f16_1/:/q4f32_1/);assert.equal(reloads[0][1].context_window_size,1024);assert.equal(messages.at(-1).type,'ready');
+  runInNewContext(source.replace(/^import .*;\n/gm,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()'),{self,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(half?['shader-f16']:[])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,loadSDK:async()=>({MLCEngine:Engine})});
+  await self.onmessage({data:{type:'load',half}});assert.match(reloads[0][0],half?/q4f16_1/:/q4f32_1/);assert.equal(reloads[0][1].context_window_size,16384);assert.equal(messages.at(-1).type,'ready');
   await self.onmessage({data:{type:'ask',id:8,messages:localAIMessages('肩膀怎麼放？',{time:0})}});
   assert.equal(messages.at(-1).id,8);assert.equal(messages.at(-1).text,'自然呼吸。');assert.equal(requests[0].max_tokens,160);assert.equal(requests[0].stream,false);
   fail=true;await self.onmessage({data:{type:'ask',id:9,messages:[]}});assert.equal(messages.at(-1).type,'error');
@@ -66,7 +66,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.16');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.17');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -99,7 +99,7 @@ test('worker separately diagnoses GPU availability, SDK import failure and model
   const sent=[],self={postMessage:m=>sent.push(m)};
   const navigator=scenario==='no-api'?{}:{gpu:{requestAdapter:async()=>scenario==='null-adapter'?null:{features:new Set(['shader-f16'])}}};
   class Engine{constructor(){ }async reload(){if(scenario==='download'){await globalFetch('https://models.test/weights.bin?token=secret');throw Error('Failed download HTTP 403');}throw Object.assign(new Error('Failed to allocate GPU buffer'),{name:'GPUOutOfMemoryError'});}}
-  let globalFetch;const context={self,navigator,URL,setTimeout,clearTimeout,aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>{if(scenario==='sdk')throw new TypeError('Failed to fetch dynamically imported module');return {MLCEngine:Engine};},fetch:async()=>({ok:false,status:403})};
+  let globalFetch;const context={self,navigator,URL,setTimeout,clearTimeout,aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,loadSDK:async()=>{if(scenario==='sdk')throw new TypeError('Failed to fetch dynamically imported module');return {MLCEngine:Engine};},fetch:async()=>({ok:false,status:403})};
   runInNewContext(source,context);globalFetch=context.fetch;
   await self.onmessage({data:{type:'load',half:true}});const error=sent.at(-1);
   assert.equal(error.type,'error');assert.equal(error.code,({'no-api':'WORKER_GPU_UNAVAILABLE','null-adapter':'WORKER_GPU_ADAPTER_NULL',sdk:'SDK_LOAD_ERROR',memory:'GPU_MEMORY_ERROR',download:'RESOURCE_LOAD_ERROR'})[scenario]);
@@ -150,7 +150,7 @@ test('AI retains only bounded previous exchange in memory, reports playback cont
  const first=h.ai.ask('今天想放鬆肩膀',{time:0,playing:false}),a=w.messages.at(-1);assert.match(a.messages.at(-1).content,/尚未開始/);
  w.onmessage({data:{type:'reply',id:a.id,text:'先放鬆肩膀，我陪你慢慢練。'}});await first;
  const second=h.ai.ask('那第一個動作呢',{time:0,playing:false}),b=w.messages.at(-1);assert.equal(b.messages.length,4);assert.equal(b.messages[1].content,'今天想放鬆肩膀');assert.match(b.messages[2].content,/我陪你/);
- w.onmessage({data:{type:'reply',id:b.id,text:'雙手慢慢上舉。'}});await second;assert.equal(h.ai.history.length,2);
+ w.onmessage({data:{type:'reply',id:b.id,text:'雙手慢慢上舉。'}});await second;assert.equal(h.ai.history.length,4);
  assert.doesNotMatch(JSON.stringify(h.ai.diagnostics),/今天想放鬆肩膀|第一個動作呢/);h.ai.disable();assert.deepEqual(h.ai.history,[]);
 });
 test('cancelled AI answers never enter short-term conversation memory',async()=>{
@@ -171,7 +171,7 @@ test('worker serializes overlapping inference and ignores cancelled replies',asy
   interruptGenerate(){interrupts++;}
  }
  const self={postMessage:m=>sent.push(m)};
- runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>({MLCEngine:Engine})});
+ runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,loadSDK:async()=>({MLCEngine:Engine})});
  await self.onmessage({data:{type:'load'}});
  const first=self.onmessage({data:{type:'ask',id:1,kind:'guidance',messages:[]}});
  await Promise.resolve();await Promise.resolve();
@@ -196,7 +196,7 @@ test('worker skips a queued request cancelled before it starts',async()=>{
   interruptGenerate(){}
  }
  const self={postMessage:m=>sent.push(m)};
- runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,loadSDK:async()=>({MLCEngine:Engine})});
+ runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,loadSDK:async()=>({MLCEngine:Engine})});
  await self.onmessage({data:{type:'load'}});
  const first=self.onmessage({data:{type:'ask',id:1,messages:[]}});
  await Promise.resolve();await Promise.resolve();
@@ -211,4 +211,22 @@ test('activated AI generates welcome through its model without recording synthet
  const h=harness();await h.ai.enable();h.ready();const w=h.workers[0];const greeting=h.ai.greet({time:0,playing:false}),request=w.messages.at(-1);
  assert.equal(request.kind,'reply');assert.match(request.messages.at(-1).content,/主動.*打招呼/);assert.match(request.messages.at(-1).content,/等待回答/);
  w.onmessage({data:{type:'reply',id:request.id,text:'嗨，我是 Luna，想先聊聊嗎？'}});assert.equal(await greeting,'嗨，我是 Luna，想先聊聊嗎？');assert.deepEqual(h.ai.history,[]);h.ai.disable();
+});
+test('real AI transport includes sensors for greetings, answers and guidance and reports only consumed snapshot',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0],context={capturedAtMs:200,human:{fresh:true,camera:'active',joints:[[100,200,0,900]],observation:{code:'reach-seen'}},coach:{ready:true,order:['Hips'],joints:[[0,1000,0]],edges:[]}};
+ for(const start of [()=>h.ai.greet({time:0},context),()=>h.ai.ask('我的動作如何',{time:7},context),()=>h.ai.guide({at:6,text:'保持呼吸'}, {time:7},context)]){
+  const response=start(),request=w.messages.at(-1);assert.equal(request.type,'ask');assert.match(JSON.stringify(request.messages),/reach-seen/);assert.match(JSON.stringify(request.messages),/Hips/);assert.match(JSON.stringify(request.messages),/100,200,0,900/);
+  if(request.kind==='reply'){const snapshot=JSON.stringify(h.ai.diagnostics.sensors);await h.ai.ask('busy',{time:0},{human:{fresh:false}});assert.equal(JSON.stringify(h.ai.diagnostics.sensors),snapshot);}
+  w.onmessage({data:{type:'reply',id:request.id,text:'保持自然呼吸。'}});await response;
+ }
+ h.ai.disable();
+});
+test('16K conversation keeps six bounded exchanges without retaining old sensor snapshots in history',async()=>{
+ const h=harness();await h.ai.enable();h.ready();const w=h.workers[0];
+ for(let i=0;i<8;i++){
+  const response=h.ai.ask('問題'+i+'x'.repeat(600),{time:0},{human:{fresh:false},coach:{ready:true,order:['Hips'],joints:[[0,1000,0]]}}),request=w.messages.at(-1);
+  w.onmessage({data:{type:'reply',id:request.id,text:'回答'+i}});await response;
+ }
+ assert.equal(h.ai.history.length,12);assert.match(h.ai.history[0].content,/問題2/);assert.equal(h.ai.history[0].content.length,300);assert.doesNotMatch(JSON.stringify(h.ai.history),/Hips|joints|感知資料/);
+ h.ai.disable();assert.deepEqual(h.ai.history,[]);
 });

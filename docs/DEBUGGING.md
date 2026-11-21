@@ -131,3 +131,13 @@ origin 區分 browser-event、recognition-result（結果衍生判斷）與 cont
 v0.9.15 使用者包顯示：手動關閉／開啟辨識後各有一組有效辨識與正常 TTS start/end；回答後原辨識實例仍附著，但沒有後續 result/end/error，直到下一次手動重啟。這支持回覆後連線失效的工作假設，不能單由無事件證明瀏覽器硬體根因。
 
 正式介面在 welcome/reply 的原生播放結束事件後自動重建仍啟用的 SpeechRecognition，無須手動點開關；輸出期間與被打斷時保留原辨識，guidance 短口令不重建。重建有極短的辨識切換間隔，不能保證瀏覽器硬體全雙工。`microphone.counts.reconnects`、`history` 的 reconnect/output-ended 與 activity 麥克風事件可驗證；新連線啟動失敗仍顯示輸入錯誤且取消自動恢復帶練。這不是 v0.9.14 playback-timeout 的修復。
+
+### v0.9.17 · LLM 感知與 16K 上下文
+
+對話／問候／帶練口令 request 都附帶同一格式的當下感知快照：相機狀態、亮度、人數、原始與穩定規則判斷、來源時間、真人 33 關節與可用連線、教練 22 命名關節與連線、課程進度／速度及語音互動狀態。真人座標為未鏡像來源影像 x/y、相對髖部 z，全部乘 1000 取整；第四欄為 visibility×1000。不可見或不在畫面內的關節是 null；過期超過 1500 ms、相機關閉或課程已切換時不送舊骨架。教練是當下真實模型的局部 3D 座標×1000，與真人的影像座標不可直接相減，和畫面骨架顯示開關無關。
+
+`voice.localAIDiagnostics.sensors` 是最後一次實際送入模型的快照，`sensorsRequest` 記錄 request ID／kind／時間；這不是目前每幀狀態，也不包含問題文字。規則式「姿勢如何」現在在 AI 就緒時也送 LLM；不可用時仍採基本回覆。預取帶練的目標階段可能在未來，prompt 明確區別當下教練骨架與目標階段；口令仍遵守既有動作／方向限制。沒有新增每幀 LLM 推論、自動改課或姿勢正確性保證。
+
+模型 `context_window_size=16384`（16K），診斷 model.contextWindow 可查；輸出上限仍為回答 160／口令 64 tokens。最近六輪問答只留記憶體，各使用者最多 300 字元、回答最多 512 字元，清背景／停用會清空。16K 是整體上下文上限，不代表每次送滿或有無限記憶；本版仍保留 45 秒生成逾時。增加 KV 配置與實際輸入長度可能增加 RAM、GPU 與等待時間，沒有宣稱手機穩定性已驗收。
+
+支援上限來源：[MLC 官方 Qwen2.5-0.5B q4f16 設定](https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC/blob/main/mlc-chat-config.json)，`context_window_size=32768`；採用 16384。

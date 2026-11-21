@@ -42,7 +42,7 @@ test('AI failure and unsafe/contradictory output use basic cues, without invente
  assert.equal(validGuidance('現在換邊，輕輕側彎。',guidanceAt(32)),'現在換邊，輕輕側彎。');
 });
 test('guidance prompt uses phase facts and has no user image, transcript or pose claims',()=>{
- const text=JSON.stringify(guidanceMessages(guidanceAt(32),{time:1}));assert.match(text,/換邊/);assert.match(text,/24/);assert.match(text,/沒有看到使用者/);assert.doesNotMatch(text,/rgba|landmarks|使用者問題/);
+ const text=JSON.stringify(guidanceMessages(guidanceAt(32),{time:1}));assert.match(text,/換邊/);assert.match(text,/24/);assert.match(text,/不得把當下骨架當成未來真人動作/);assert.match(text,/available/);assert.doesNotMatch(text,/rgba|landmarks|使用者問題/);
 });
 
 test('invalid prefetch is attempted once per phase rather than running the model on every frame',async()=>{

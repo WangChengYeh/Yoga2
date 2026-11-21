@@ -1,21 +1,22 @@
-import { guidanceMessages } from './ai-guidance.js?v=0.9.16';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.16';
-import { courseFrame } from './course.js?v=0.9.16';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.16';
+import { sensorText, sensorContext } from './coach-context.js?v=0.9.17';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.17';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.17';
+import { courseFrame } from './course.js?v=0.9.17';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.17';
 
-export function localAIMessages(text,state,history=[]) {
+export function localAIMessages(text,state,history=[],context=null) {
   const frame=courseFrame(state.time);
   return [
-    {role:'system',content:'你是瑜伽教練 Luna。用繁體中文，兩句內自然對話，像面對面陪練；先回應對方，再視需要問一個簡短問題。未開始時先聊天或確認準備，不催促、不自行開始；不要每次重複介紹自己。只提供溫和動作提示；不診斷、不承諾姿勢正確、不宣稱看見使用者。你沒有影像或骨架資料。使用者不舒服時請停止動作。不輸出程式、指令或工具呼叫。'},
-    ...history.slice(-2).filter(m=>['user','assistant'].includes(m.role)).map(m=>({role:m.role,content:String(m.content).slice(0,96)})),
-    {role:'user',content:`狀態：${frame.complete?'已完成':state.playing?'帶練中':state.time===0?'尚未開始':'暫停中'}。目前課程：${frame.lesson.name}；階段：${frame.complete?'已完成':frame.label}；要領：${GUIDANCE_TIPS[frame.lesson.id]}。\n使用者問題：${String(text).slice(0,160)}`},
+    {role:'system',content:'你是瑜伽教練 Luna。用繁體中文，兩句內自然對話，像面對面陪練；先回應對方，再視需要問一個簡短問題。未開始時先聊天或確認準備，不催促、不自行開始；不要每次重複介紹自己。只提供溫和動作提示；不診斷、不承諾姿勢正確；依提供的相機判斷與真人、教練骨架回答；只有 fresh=true 才能描述當下真人觀察。資料缺失、過期、多人或關節不明時坦白說明，不猜測；stable.valid 不成立時不可宣稱動作已確認。骨架是有限量測，非影像；真人與教練座標不同，不能直接比較數值。使用者不舒服時請停止動作。不輸出程式、指令或工具呼叫。'},
+    ...history.slice(-12).filter(m=>['user','assistant'].includes(m.role)).map(m=>({role:m.role,content:String(m.content).slice(0,512)})),
+    {role:'user',content:`狀態：${frame.complete?'已完成':state.playing?'帶練中':state.time===0?'尚未開始':'暫停中'}。目前課程：${frame.lesson.name}；階段：${frame.complete?'已完成':frame.label}；要領：${GUIDANCE_TIPS[frame.lesson.id]}。速度：${state.speed||1}；進度秒：${Number(state.time)||0}。\n${sensorText(context)}\n使用者問題：${String(text).slice(0,300)}`},
   ];
 }
 
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.16',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.17',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[]};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];
   }
@@ -62,7 +63,7 @@ export class LocalCoachAI {
       worker.onmessage=({data})=>{
         if(!current())return;
         if(data.type==='stage'){this.record(data.stage);if(this.phase==='loading')this.emit('loading',`正在${AI_STAGE_NAMES[data.stage]||data.stage}…`);}
-        if(data.type==='model-info')this.diagnostics.model={id:data.modelId,cacheBackend:data.cacheBackend};
+        if(data.type==='model-info')this.diagnostics.model={id:data.modelId,cacheBackend:data.cacheBackend,contextWindow:data.contextWindow};
         if(data.type==='shard-check'){this.diagnostics.shardsChecked=(this.diagnostics.shardsChecked||0)+1;this.diagnostics.lastShard=data.result;}
         if(data.type==='recovery'){this.diagnostics.recovery=data.info;this.diagnostics.failedResource=null;}
         if(data.type==='resource-error')this.diagnostics.failedResource=data.resource;
@@ -91,21 +92,22 @@ export class LocalCoachAI {
     try{this.worker?.postMessage({type:'cancel-guidance',id:pending.id});}catch{/* stale worker */}
     this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');
   }
-  greet(state){
+  greet(state,context=null){
     this.cancelGuidance();
-    return this.request(localAIMessages('請主動向剛進來的使用者打招呼：簡短自我介紹是 Luna，問想先聊聊還是伸展，等待回答，不要指示開始動作。',state),'reply');
+    return this.request(localAIMessages('請主動向剛進來的使用者打招呼：簡短自我介紹是 Luna，問想先聊聊還是伸展，等待回答，不要指示開始動作。',state,[],context),'reply',context);
   }
-  ask(text,state){
+  ask(text,state,context=null){
     this.cancelGuidance();const generation=this.generation;
-    return this.request(localAIMessages(text,state,this.history),'reply').then(reply=>{
-      if(reply&&generation===this.generation)this.history=[{role:'user',content:String(text).slice(0,96)},{role:'assistant',content:reply.slice(0,96)}];
+    return this.request(localAIMessages(text,state,this.history,context),'reply',context).then(reply=>{
+      if(reply&&generation===this.generation)this.history=this.history.concat([{role:'user',content:String(text).slice(0,300)},{role:'assistant',content:reply.slice(0,512)}]).slice(-12);
       return reply;
     });
   }
-  guide(cue,state){return this.request(guidanceMessages(cue,state),'guidance');}
-  request(messages,kind){
+  guide(cue,state,context=null){return this.request(guidanceMessages(cue,state,context),'guidance',context);}
+  request(messages,kind,context=null){
     if(!this.ready||this.pending)return Promise.resolve(null);
-    const id=++this.serial;this.record('inference');this.diagnostics.failedResource=null;
+    this.diagnostics.sensors=sensorContext(context);
+    const id=++this.serial;this.diagnostics.sensorsRequest={id,kind,at:new Date().toISOString()};this.record('inference');this.diagnostics.failedResource=null;
     this.emit('thinking',kind==='guidance'?'AI 正在準備帶練口令。':'AI 正在想，基本控制仍可使用。');
     return new Promise(resolve=>{
       this.pending={id,resolve,kind};

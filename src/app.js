@@ -1,20 +1,21 @@
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.16';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.16';
-import { setupDefaultMedia } from './default-media.js?v=0.9.16';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.16';
+import { coachContext } from './coach-context.js?v=0.9.17';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.17';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.17';
+import { setupDefaultMedia } from './default-media.js?v=0.9.17';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.17';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.16';
-import { createSkeletonLayer, createCoachSkeletonSource } from './skeleton.js?v=0.9.16';
-import { practiceLayout } from './practice-layout.js?v=0.9.16';
-import { setupFullscreen } from './fullscreen.js?v=0.9.16';
-import { setupHumanPanel } from './human-panel.js?v=0.9.16';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.17';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.17';
+import { practiceLayout } from './practice-layout.js?v=0.9.17';
+import { setupFullscreen } from './fullscreen.js?v=0.9.17';
+import { setupHumanPanel } from './human-panel.js?v=0.9.17';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.16';
-import { prepareStandingCoach } from './rig.js?v=0.9.16';
-import { setupPosePanel } from './pose-panel.js?v=0.9.16';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.16';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.17';
+import { prepareStandingCoach } from './rig.js?v=0.9.17';
+import { setupPosePanel } from './pose-panel.js?v=0.9.17';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.17';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -266,7 +267,13 @@ humanPanel=setupHumanPanel({document,onLayout:enabled=>{dualView=enabled;if(coac
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
 posePanel = setupPosePanel({onObservation:(data,observation,stable)=>activityLog.pose(data,observation,stable),onRuntime:recordActivity, human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
-voicePanel = setupVoicePanel({ onMediaState:()=>defaultMedia?.refresh(),onRuntime:recordActivity, getState: () => state, dispatch, getPose: () => posePanel?.summary });
+function getCoachContext(){
+  const now=performance.now(),frame=courseFrame(state.time);
+  if(state.ready&&pose)pose(frame.localTime,frame.lesson.id);
+  coachStage?.updateWorldMatrix(true,true);
+  return {capturedAtMs:now,human:posePanel?.aiContext,coach:coachContext(state.ready&&coachSkeletonSource?coachSkeletonSource():null,{now,names:COACH_JOINTS,lesson:frame.lesson.id,time:state.time,ready:state.ready})};
+}
+voicePanel = setupVoicePanel({getContext:getCoachContext, onMediaState:()=>defaultMedia?.refresh(),onRuntime:recordActivity, getState: () => state, dispatch, getPose: () => posePanel?.summary });
 setupReportPanel({onEvent:(type,data)=>runtimeLog.record(type,data),endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({runtime:runtimeLog.diagnostics,activity:activityLog.diagnostics,voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'selfie_multiclass_256x256/float32/1',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 defaultMedia=setupDefaultMedia({document,camera:posePanel,voice:voicePanel,onError:()=>{ $('media-start-status').textContent='自動啟用未完成，請點擊啟用相機與語音。'; }});
 init().catch((error) => {

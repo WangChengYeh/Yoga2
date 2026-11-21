@@ -84,3 +84,8 @@ test('AI bones and round joints keep coach-sized thickness across camera crop si
     layer.dispose();
   }
 });
+test('LLM coach snapshot uses the actual Luna rig while its skeleton overlay is absent',async()=>{
+ const {coachContext}=await import('../src/coach-context.js');const model=await loadCharacter(),stage=new THREE.Group();stage.add(model);const pose=prepareStandingCoach(model),source=createCoachSkeletonSource(model,stage);
+ const snapshot=time=>{pose(time,'reach');stage.updateWorldMatrix(true,true);return coachContext(source(),{now:100,names:COACH_JOINTS,lesson:'reach',time,ready:true});};
+ const standing=snapshot(0),raised=snapshot(7);assert.equal(raised.joints.length,22);assert.equal(raised.order[9],'LeftHand');assert.notDeepEqual(standing.joints[9],raised.joints[9]);assert.ok(raised.joints[9][1]>raised.joints[5][1]);assert.equal(stage.children.length,1,'no skeleton render layer is needed');
+});

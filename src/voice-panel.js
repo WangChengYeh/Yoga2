@@ -1,12 +1,12 @@
-import { APP_VERSION } from './release.js?v=0.9.16';
-import { AIGuidance } from './ai-guidance.js?v=0.9.16';
-import { LocalCoachAI } from './local-ai.js?v=0.9.16';
-import { CourseNarrator } from './guidance.js?v=0.9.16';
-import { VoiceSession } from './voice-session.js?v=0.9.16';
-import { respondToUtterance } from './voice-intents.js?v=0.9.16';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.16';
+import { APP_VERSION } from './release.js?v=0.9.17';
+import { AIGuidance } from './ai-guidance.js?v=0.9.17';
+import { LocalCoachAI } from './local-ai.js?v=0.9.17';
+import { CourseNarrator } from './guidance.js?v=0.9.17';
+import { VoiceSession } from './voice-session.js?v=0.9.17';
+import { respondToUtterance } from './voice-intents.js?v=0.9.17';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.17';
 
-export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
+export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
   let speaking=false, mouth, speechStart=0,answering=false,narrator,conversation=null,managedPlayback=false,aiGuidance,voicePhase='off',audioBlocked=false;
@@ -65,8 +65,8 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
           if(response.action.type!=='play'){conversationDispatch(response.action);conversationDispatch({type:'pause'});}
         }else conversationDispatch(response.action);
       }
-      if(['unknown','how','tips','hello'].includes(response.intent)&&ai.ready&&typeof ai.ask==='function'){
-        return ai.ask(text,getState()).then(reply=>reply||response.reply);
+      if(['unknown','how','tips','hello','pose'].includes(response.intent)&&ai.ready&&typeof ai.ask==='function'){
+        return ai.ask(text,getState(),currentContext()).then(reply=>reply||response.reply);
       }
       if(response.intent==='unknown'&&!ai.ready)return ['off','error'].includes(ai.phase)?'我在這裡。目前可以陪你練習這三個動作，也可以問我動作要領；完整對話暫時還沒準備好。':'我還在準備，先慢慢來。你可以先問今天的動作，準備好時再說開始。';
       return response.reply;}finally{answering=false;}
@@ -90,9 +90,10 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     catch{$('audio-details').open=true;$('audio-copy-status').textContent='請長按診斷文字複製。';}
   });
   let guidanceSource='基本口令';
-  aiGuidance=new AIGuidance({ai,getState,speak:(text,options)=>session.speak(text,options),enabled:()=>guidanceToggle.checked,active:()=>guidanceToggle.checked,canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply'&&session.speechKind!=='welcome'&&!welcomePreparing&&(!welcomeTextReady||welcomeCompleted||welcomeEngaged),onSource:source=>{guidanceSource=source;}});
+  aiGuidance=new AIGuidance({ai,getState,getContext:currentContext,speak:(text,options)=>session.speak(text,options),enabled:()=>guidanceToggle.checked,active:()=>guidanceToggle.checked,canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply'&&session.speechKind!=='welcome'&&!welcomePreparing&&(!welcomeTextReady||welcomeCompleted||welcomeEngaged),onSource:source=>{guidanceSource=source;}});
   narrator=new CourseNarrator({speak:(text,options)=>aiGuidance.say(text,options),cancel:()=>{aiGuidance.cancel();session.cancelSpeech('guidance');},canSpeak:()=>!conversation&&!answering&&!document.hidden&&session.speechKind!=='reply'&&session.speechKind!=='welcome'&&!welcomePreparing&&(!welcomeTextReady||welcomeCompleted||welcomeEngaged),enabled:guidanceToggle.checked});
   if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){guidanceToggle.checked=false;guidanceToggle.disabled=true;narrator.setEnabled(false);guidanceStatus.textContent='此瀏覽器不支援聲音帶練，仍可觀看示範。';}
+  function currentContext(){return {...(getContext()||{}),interaction:{listening:session.wanted,recognitionAttached:Boolean(session.recognition),speaking:session.speaking,outputKind:session.speechKind||null,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume)}};}
   function startAI(){if(['off','error'].includes(ai.phase)){cancelWelcome();if(!welcomeCompleted&&!welcomeEngaged)welcomeAttempted=false;aiGuidance.cancel({clearCache:true});void ai.enable();}}
   $('local-ai-retry').addEventListener('click',startAI);
   function cancelWelcome(){
@@ -118,7 +119,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     // Download/activation must finish before an AI-generated greeting is requested.
     Promise.resolve().then(()=>{
       if(serial!==welcomeSerial||!welcomeEligible())return null;
-      return ai.greet?.(getState())||Promise.resolve(welcomeText);
+      return ai.greet?.(getState(),currentContext())||Promise.resolve(welcomeText);
     }).then(text=>{
       if(serial!==welcomeSerial)return;
       welcomePreparing=false;
