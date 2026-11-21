@@ -3,11 +3,28 @@ export function recognitionMessage(code) {
 }
 
 export class VoiceSession {
-  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true, getActivation = () => globalThis.navigator?.userActivation }) {
-    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onInterrupt, setTimer, clearTimer, audioEnabled, getActivation });
+  constructor({ Recognition, Utterance, synthesis, onText = () => '', onState = () => {}, onReply = () => {}, onSpeaking = () => {}, onSpeechError = () => {}, onInputStart = () => {}, onReplyEnd = () => {}, onInputCancel = () => {}, onAudioState = () => {}, onSpeechEnd = () => {}, onMicrophoneEvent = () => {}, onInterrupt = () => {}, setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), audioEnabled = () => true, getActivation = () => globalThis.navigator?.userActivation }) {
+    Object.assign(this,{ Recognition, Utterance, synthesis, onText, onState, onReply, onSpeaking, onSpeechError, onInputStart, onReplyEnd, onInputCancel, onAudioState, onSpeechEnd, onMicrophoneEvent, onInterrupt, setTimer, clearTimer, audioEnabled, getActivation });
     this.wanted = false; this.epoch = 0; this.recognition = null; this.utterance = null; this.speaking = false; this.emptyTurns = 0;
-    this.timers = new Set();
+    this.timers = new Set();this.inputHistory=[];this.inputLastEvents={};this.inputPhase='off';this.inputObserved={audioActive:null,soundActive:null,speechActive:null};this.inputCounts={starts:0,audioStarts:0,soundStarts:0,speechStarts:0,resultEvents:0,acceptedFinals:0,echoResults:0,manualInputs:0,noMatches:0,errors:0};
   }
+  inputEvent(type,{native=false,code,final}={}){
+    const derived=['echo-result','accepted-final'].includes(type),at=new Date().toISOString(),entry={at,type,origin:derived?'recognition-result':native?'browser-event':'controller',outputKind:this.speechKind||null,whileSpeaking:this.speaking};
+    if(code)entry.code=code;if(typeof final==='boolean')entry.final=final;
+    if(native&&!derived)this.lastNativeInputAt=at;this.inputLastEvents[type]=at;
+    const counter={started:'starts','audio-start':'audioStarts','sound-start':'soundStarts','speech-start':'speechStarts',result:'resultEvents','accepted-final':'acceptedFinals','echo-result':'echoResults','manual-input':'manualInputs','no-match':'noMatches',error:'errors'}[type];if(counter)this.inputCounts[counter]++;
+    if(type==='audio-start')this.inputObserved.audioActive=true;
+    if(type==='audio-end')this.inputObserved.audioActive=false;
+    if(type==='sound-start')this.inputObserved.soundActive=true;
+    if(type==='sound-end')this.inputObserved.soundActive=false;
+    if(type==='speech-start')this.inputObserved.speechActive=true;
+    if(type==='speech-end')this.inputObserved.speechActive=false;
+    if(type==='ended')this.inputObserved={audioActive:false,soundActive:false,speechActive:false};
+    if(['detached','disabled','stopped','error'].includes(type))this.inputObserved={audioActive:null,soundActive:null,speechActive:null};
+    if(['starting','started','audio-start','audio-end','sound-start','sound-end','speech-start','speech-end','detached','ended','disabled','stopped','error'].includes(type))this.inputPhase=type;
+    this.inputHistory=this.inputHistory.concat(entry).slice(-24);this.onMicrophoneEvent(entry);
+  }
+  get microphoneDiagnostics(){return {wanted:this.wanted,recognitionAttached:Boolean(this.recognition),phase:this.inputPhase,observed:{...this.inputObserved},counts:{...this.inputCounts},eventHandlersExposed:this.inputCapabilities||null,lastNativeEventAt:this.lastNativeInputAt||null,lastEvents:{...this.inputLastEvents},lastError:this.lastRecognitionError||null,history:this.inputHistory.map(e=>({...e})),note:'Recognition events only; no microphone waveform, level meter, recording or transcript. Missing events do not prove silence or a working microphone.'};}
   primeAudio(){
     // A zero-volume utterance is not proof of audible readiness and can occupy
     // the native queue. Only warm the voice list/resume; real speech confirms start.
@@ -60,7 +77,7 @@ export class VoiceSession {
   cancelTimer(id) { this.clearTimer(id);this.timers.delete(id); }
   detachRecognition() {
     const recognition=this.recognition;this.recognition=null;
-    if(recognition){recognition.onspeechstart=null;recognition.onresult=null;recognition.onend=null;recognition.onerror=null;recognition.onstart=null;try{recognition.abort();}catch{/* already ended */}}
+    if(recognition){recognition.onaudiostart=recognition.onaudioend=recognition.onsoundstart=recognition.onsoundend=recognition.onspeechend=recognition.onnomatch=null;recognition.onspeechstart=null;recognition.onresult=null;recognition.onend=null;recognition.onerror=null;recognition.onstart=null;try{recognition.abort();}catch{/* already ended */}this.inputEvent('detached');}
     if(this.listenTimer){this.cancelTimer(this.listenTimer);this.listenTimer=null;}
   }
   enable() {
@@ -70,12 +87,12 @@ export class VoiceSession {
     this.wanted=true;this.emptyTurns=0;this.listen();
   }
   disableListening(announce=true){
-    this.wanted=false;this.detachRecognition();this.cancelInput();
+    this.wanted=false;this.detachRecognition();this.cancelInput();this.inputEvent('disabled');
     if(announce)this.emit('off','聆聽已關閉；教練仍可發聲。');
   }
-  failListening(code,message){
+  failListening(code,message,native=false){
     this.lastRecognitionError={code,at:new Date().toISOString()};
-    this.disableListening(false);this.onState({phase:'error',message,active:false,inputCode:code});
+    this.disableListening(false);this.inputEvent('error',{native,code});this.onState({phase:'error',message,active:false,inputCode:code});
   }
   stop(announce=true) {
     ++this.epoch;this.wanted=false;this.cancelInput();
@@ -84,7 +101,7 @@ export class VoiceSession {
     this.detachRecognition();
     const utterance=this.utterance;this.utterance=null;
     if(utterance){utterance.onstart=null;utterance.onend=null;utterance.onerror=null;this.synthesis?.cancel();}
-    this.speaking=false;this.speechKind=null;this.onSpeaking(false);
+    this.speaking=false;this.speechKind=null;this.onSpeaking(false);this.inputEvent('stopped');
     if(announce)this.emit('off','語音已關閉。觸控與文字問答仍可使用。');
   }
   scheduleListen() {
@@ -97,48 +114,50 @@ export class VoiceSession {
     if(!this.wanted||this.recognition)return;
     const token=this.epoch;let recognition;const finals=new Set();
     try{recognition=new this.Recognition();}catch{this.failListening('recognition-create-error','瀏覽器無法建立語音辨識；教練仍可發聲，可使用文字問答。');return;}
-    this.recognition=recognition;
+    this.recognition=recognition;this.inputObserved={audioActive:null,soundActive:null,speechActive:null};this.inputCapabilities=Object.fromEntries(['onaudiostart','onaudioend','onsoundstart','onsoundend','onspeechstart','onspeechend','onnomatch','onresult'].map(key=>[key,key in recognition]));
     recognition.lang='zh-TW';recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;
     const current=()=>token===this.epoch&&this.recognition===recognition&&this.wanted;
-    const empty=()=>{
+    const empty=(ended=true)=>{
       if(!current())return;
-      this.detachRecognition();
+      if(ended)this.inputEvent('ended',{native:true});this.detachRecognition();
       if(this.utterance||this.speechKind==='reply'){this.scheduleListen();return;}
       if(this.inputActive){this.speak('我沒有聽清楚，請再說一次。');this.scheduleListen();return;}
       this.emptyTurns++;
       this.emit('waiting','仍在聆聽，隨時可以說話。');this.scheduleListen();
     };
-    recognition.onstart=()=>{if(current()){if(this.lastRecognitionError)this.lastRecognitionError={...this.lastRecognitionError,recoveredAt:new Date().toISOString()};if(this.listenTimer)this.cancelTimer(this.listenTimer);this.listenTimer=null;this.emit('listening','正在聽，請說一句指令或課程問題。');}};
-    recognition.onspeechstart=()=>{if(current()&&!this.utterance&&!this.echoText)this.interruptForInput();};
-    recognition.onend=empty;
+    recognition.onstart=()=>{if(current()){this.inputEvent('started',{native:true});if(this.lastRecognitionError)this.lastRecognitionError={...this.lastRecognitionError,recoveredAt:new Date().toISOString()};if(this.listenTimer)this.cancelTimer(this.listenTimer);this.listenTimer=null;this.emit('listening','正在聽，請說一句指令或課程問題。');}};
+    recognition.onspeechstart=()=>{if(!current())return;this.inputEvent('speech-start',{native:true});if(!this.utterance&&!this.echoText)this.interruptForInput();};
+    for(const [handler,type] of Object.entries({onaudiostart:'audio-start',onaudioend:'audio-end',onsoundstart:'sound-start',onsoundend:'sound-end',onspeechend:'speech-end',onnomatch:'no-match'}))recognition[handler]=()=>{if(current())this.inputEvent(type,{native:true});};
+    recognition.onend=()=>empty(true);
     recognition.onerror=(event)=>{
       if(!current())return;
-      if(event.error==='no-speech'||event.error==='aborted'){empty();return;}
-      this.failListening(event.error||'recognition-error',recognitionMessage(event.error));
+      if(event.error==='no-speech'||event.error==='aborted'){this.inputEvent('error',{native:true,code:event.error});empty(false);return;}
+      this.failListening(event.error||'recognition-error',recognitionMessage(event.error),true);
     };
     recognition.onresult=(event)=>{
       if(!current())return;
-      const results=event.results;
+      const results=event.results;this.inputEvent('result',{native:true,final:Array.from(results).slice(event.resultIndex||0).some(result=>result.isFinal)});
       for(let index=event.resultIndex||0;index<results.length;index++){
         const result=results[index],alternative=result?.[0],text=String(alternative?.transcript||'').trim();
         if(!text||finals.has(index))continue;
-        if(this.isEcho(text)){if(result.isFinal)finals.add(index);continue;}
+        if(this.isEcho(text)){this.inputEvent('echo-result',{native:true,final:Boolean(result.isFinal)});if(result.isFinal)finals.add(index);continue;}
         if(alternative.confidence>0&&alternative.confidence<.55){
           if(result.isFinal){finals.add(index);if(!this.utterance&&!this.speechKind){this.interruptForInput();this.speak('我沒有聽清楚，請再說一次。');}}
           continue;
         }
         this.interruptForInput();
         if(!result.isFinal)continue;
-        finals.add(index);this.emptyTurns=0;this.acceptText(text);
+        finals.add(index);this.emptyTurns=0;this.inputEvent('accepted-final',{native:true});this.acceptText(text,{source:'recognition'});
       }
     };
-    this.emit('starting','正在開啟語音，請允許瀏覽器使用麥克風。');
+    this.inputEvent('starting');this.emit('starting','正在開啟語音，請允許瀏覽器使用麥克風。');
     try{
       this.listenTimer=this.timer(()=>{if(current()){this.failListening('recognition-start-timeout','語音辨識在 12 秒內未啟動，請點擊重新啟用；教練仍可發聲。');}},12000);
       recognition.start();
     }catch{this.failListening('recognition-start-error','瀏覽器無法啟動聆聽，請再點一次；教練仍可發聲。');}
   }
-  acceptText(text) {
+  acceptText(text,{source='manual'}={}) {
+    if(source!=='recognition')this.inputEvent('manual-input');
     this.cancelSpeech(undefined,{preserveInput:true});
     this.onInterrupt();
     this.beginInput();

@@ -204,3 +204,22 @@ test('unactivated spoken reply keeps the conversation paused until explicit play
  let ends=0;let activation={hasBeenActive:false,isActive:false};const h=harness({getActivation:()=>activation,onReplyEnd:()=>ends++});h.session.enable();h.instances[0].result('問題');assert.equal(h.utterances.length,0);assert.equal(h.session.inputActive,true);assert.equal(ends,0);
  activation={hasBeenActive:true,isActive:true};assert.equal(h.session.retryAudio(),true);h.utterances.at(-1).onstart();h.utterances.at(-1).onend();assert.equal(ends,1);h.session.stop();
 });
+
+test('microphone diagnostics distinguish requested listening from observed audio, speech and final results without content',()=>{
+ const h=harness();h.session.enable();const r=h.instances[0];assert.equal(h.session.microphoneDiagnostics.observed.audioActive,null);
+ r.onaudiostart();r.onsoundstart();r.onspeechstart();r.onnomatch();r.result('私人問題測試字串',.9,false);r.result('私人問題測試字串');
+ const d=h.session.microphoneDiagnostics;assert.equal(d.observed.audioActive,true);assert.equal(d.counts.audioStarts,1);assert.equal(d.counts.soundStarts,1);assert.equal(d.counts.speechStarts,1);assert.equal(d.counts.resultEvents,2);assert.equal(d.counts.acceptedFinals,1);assert.equal(d.counts.manualInputs,0);assert.equal(d.counts.noMatches,1);assert.ok(d.lastNativeEventAt);assert.ok(d.lastEvents['audio-start']);assert.ok(d.lastEvents.result);assert.doesNotMatch(JSON.stringify(d),/私人問題測試字串|好，已處理/);
+ r.onspeechend();r.onsoundend();r.onaudioend();assert.equal(h.session.microphoneDiagnostics.observed.audioActive,false);assert.equal(h.session.wanted,true);h.session.stop();
+});
+test('microphone history records detection during TTS and counts rejected echo independently of accepted input',()=>{
+ const h=harness();h.session.enable();h.session.speak('教練口令獨特測試字串',{kind:'guidance'});h.utterances[0].onstart();const r=h.instances[0];r.onaudiostart();r.onspeechstart();r.result('教練口令獨特測試字串');
+ const d=h.session.microphoneDiagnostics;assert.equal(d.counts.echoResults,1);assert.equal(d.counts.acceptedFinals,0);assert.ok(d.history.some(e=>e.type==='speech-start'&&e.whileSpeaking&&e.origin==='browser-event'&&e.outputKind==='guidance'));assert.doesNotMatch(JSON.stringify(d),/獨特測試字串/);h.session.stop();
+});
+test('microphone event ring is bounded and late native callbacks cannot revive stopped input',()=>{
+ const h=harness();h.session.enable();const r=h.instances[0],late=r.onaudiostart;for(let i=0;i<40;i++){r.onsoundstart();r.onsoundend();}assert.equal(h.session.microphoneDiagnostics.history.length,24);assert.equal(h.session.microphoneDiagnostics.counts.soundStarts,40);
+ h.session.stop();const count=h.session.microphoneDiagnostics.history.length,last=h.session.microphoneDiagnostics.lastNativeEventAt;late();assert.equal(h.session.microphoneDiagnostics.history.length,count);assert.equal(h.session.microphoneDiagnostics.lastNativeEventAt,last);assert.equal(h.session.microphoneDiagnostics.recognitionAttached,false);assert.equal(h.session.microphoneDiagnostics.observed.audioActive,null);assert.equal(r.onaudiostart,null);
+});
+test('manual controls cannot be mistaken for speech recognition and aborted error is not fabricated as an end event',()=>{
+ const h=harness();h.session.enable();h.session.acceptText('繼續');const d=h.session.microphoneDiagnostics;assert.equal(d.counts.manualInputs,1);assert.equal(d.counts.resultEvents,0);
+ h.instances[0].onerror({error:'aborted'});const after=h.session.microphoneDiagnostics;assert.ok(after.history.some(e=>e.type==='error'&&e.code==='aborted'));assert.equal(after.history.some(e=>e.type==='ended'),false);h.session.stop();
+});

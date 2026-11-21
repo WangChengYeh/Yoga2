@@ -297,3 +297,10 @@ test('microphone error while answering preserves speech but cancels automatic mo
   assert.equal(h.panel.diagnostics.speaking,true);assert.equal(h.state.playing,false);utterance.onend();assert.equal(h.state.playing,false);assert.equal(h.panel.diagnostics.lastRecognitionError.code,'audio-capture');
  }finally{h.close();}
 });
+
+test('exported package diagnostics include observed microphone lifecycle and counts instead of only wanted flags',()=>{
+ const h=harness();try{
+  h.panel.enableListening();const r=h.recognitions[0];r.onaudiostart();r.onsoundstart();r.onspeechstart();recognitionResult(r,'現在做什麼');
+  const d=h.panel.diagnostics.microphone;assert.equal(d.wanted,true);assert.equal(d.recognitionAttached,true);assert.equal(d.observed.audioActive,true);assert.equal(d.counts.acceptedFinals,1);assert.doesNotMatch(JSON.stringify(d),/現在做什麼/);
+ }finally{h.close();}
+});

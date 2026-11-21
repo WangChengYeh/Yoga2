@@ -44,6 +44,12 @@
 
 相機 active 但分析過期，未記錄當時 pipeline stage。新增階段／計數／時間／track 診斷，待下一份包判讀。前次有 pagehide／background、沒有未正常結束標記，也沒有 GPU OOM／JS／WebGL crash 紀錄；未能確認使用者所說的偶發 crash。301 項測試通過；不公開原始照片或 ZIP。
 
+## v0.9.14 · 第二份包與麥克風狀態詢問
+
+使用者再提供 v0.9.13 包。當前語音無錯誤且有完整開始／結束事件；相機接受 38 幀、0 幀過慢，影像在場景，最新接受結果距擷取約半秒。前段 audio-capture 不等於當前仍失敗；也沒有 crash 證據。原本只記 listening／recognitionAttached，不足以判斷是否真正回報聲音，已新增事件／計數與 origin。
+
+另直接從 scene.png 確認下載選單與正在打包訊息遮人物，修正 capture 時機及 clone 的暫時介面遮擋，保留本機 ZIP 連結。308 項測試通過，未將原始照片或 ZIP 公開。
+
 ## 尚未結案
 
 - 專用 GitHub App 建立／安裝與匿名實際 Issue、附件尚未完整驗收。

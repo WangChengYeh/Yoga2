@@ -1,4 +1,4 @@
-import { APP_VERSION } from './release.js?v=0.9.13';
+import { APP_VERSION } from './release.js?v=0.9.14';
 const KEY='yoga2.runtime.v1',LIMIT=32;
 // Persist only allowlisted breadcrumbs, never error messages, stack, transcripts or images.
 const token=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,80}$/.test(value)?value:'unknown';

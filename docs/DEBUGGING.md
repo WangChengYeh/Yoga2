@@ -70,6 +70,32 @@ v0.9.13 在明確得知頁面尚無互動時先保留句子、顯示啟用按鈕
 
 包內前次有 pagehide／background，previousSessionUnclean=false，沒有記錄 JS／WebGL／GPU OOM 錯誤。這只代表此包沒抓到崩潰證據，不能排除其他時間曾 crash；GPU 的 maxBufferSize 不是可用 RAM。原始 ZIP 與照片不放公開 repo，僅去識別化 flags／相對時序存成測試 fixture。
 
+## 麥克風狀態（v0.9.14）
+
+v0.9.13 的 listening／recognitionAttached 只表示程式意圖與實例存在。camera.pipeline.tracks 來自 video-only stream，不能拿來當麥克風 tracks。新版 ZIP 的 voice.microphone（聲音複製診斷也包含）分開記：
+
+| 欄位 | 代表範圍 |
+| --- | --- |
+| wanted／recognitionAttached | 程式要求與實例，不能證明收到音訊 |
+| observed.audioActive／soundActive／speechActive | 目前實例內最近原生回報；尚未收到相應事件、程式已移除實例或出錯而無法判定時為 null |
+| counts.audioStarts／soundStarts／speechStarts／resultEvents | 收音、聲音、說話及結果回呼次數 |
+| counts.acceptedFinals／echoResults／manualInputs／noMatches | 送交處理的 final、過濾回音、文字／觸控控制與 nomatch 次數，非字數 |
+| counts.errors／lastError | error 回呼（含 no-speech／aborted）與最近需停用辨識的錯誤 |
+| lastEvents | 每類事件最近時間，保留已從 ring 淘汰的 audio-start 等時間 |
+| history | 最多 24 筆事件、時間、來源、outputKind、whileSpeaking；無內容 |
+
+origin 區分 browser-event、recognition-result（結果衍生判斷）與 controller（程式開關）；不把 aborted 錯誤虛構成收到 onend。eventHandlersExposed 只代表實例暴露的 handler 名稱，不保證 iOS 實際送出事件。沒有 callback 不等於硬體靜音；不額外開一條音訊 getUserMedia、不記錄波形或音量。只把少量收音／說話／錯誤事件加入持久 runtime，不把每個 interim 同步寫入儲存。
+
+語意參考 [Web Speech API 事件定義](https://webaudio.github.io/web-speech-api/#speechrecognition-events)：audio-start 為開始擷取，sound-start 為偵測聲音，speech-start 為辨識用說話，result 為回傳結果。仍以手機實際回報為準，不能宣稱已驗證完整雙向同時收播。
+
+## v0.9.13 第二份真實包
+
+目前片段有 reply 與多段 guidance 的開始／結束事件，lastAudioError／lastRecognitionError 均 null，收音意圖與實例仍存在；前一段曾有 audio-capture。包內當時沒有 input lifecycle 或 result 次數，因此不能判斷本次是否實際收到使用者語音，或只是手動控制。
+
+相機 attempts=39、accepted=38、slow=0，一個推論在途 163 ms，最近接受結果 488 ms 前，上一推論 570 ms，video time 有前進，track live／未 muted；去背已在場景。關節不足是這個鏡頭的可見性提示，不是已證實管線卡住。未記錄 crash。
+
+實際 scene.png 被下載下拉選單與「正在打包」訊息遮住；擷取前收起兩層選單，clone 才隱藏 report-notice（含 fullscreen CSS 的 display 覆蓋），不動原始相機影像、不隱藏普通播放控制。screenshot.omittedTransientUi 記錄排除項目，ZIP 連結仍在實際頁面上。
+
 ## 本機下載與 crash 線索（v0.9.12）
 
 一般畫面「下載除錯包」，全螢幕從「⋯」開啟，選完整除錯包或精簡日誌。成功準備後自動嘗試下載，並保留可由使用者點擊的「儲存 ZIP」連結；應用程式只能確認 ZIP 已備妥，無法確認手機已寫進檔案 App。換新包或 dispose 會回收舊 Blob URL，不自動上傳。線上回報服務未設定、被擋或限流不影響本機下載；已有待送回報時可下載相同 report ID 與快照。

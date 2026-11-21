@@ -1,10 +1,10 @@
-import { APP_VERSION } from './release.js?v=0.9.13';
-import { AIGuidance } from './ai-guidance.js?v=0.9.13';
-import { LocalCoachAI } from './local-ai.js?v=0.9.13';
-import { CourseNarrator } from './guidance.js?v=0.9.13';
-import { VoiceSession } from './voice-session.js?v=0.9.13';
-import { respondToUtterance } from './voice-intents.js?v=0.9.13';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.13';
+import { APP_VERSION } from './release.js?v=0.9.14';
+import { AIGuidance } from './ai-guidance.js?v=0.9.14';
+import { LocalCoachAI } from './local-ai.js?v=0.9.14';
+import { CourseNarrator } from './guidance.js?v=0.9.14';
+import { VoiceSession } from './voice-session.js?v=0.9.14';
+import { respondToUtterance } from './voice-intents.js?v=0.9.14';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.14';
 
 export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
@@ -48,6 +48,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
       audioBlocked=blocked;$('voice-audio-status').hidden=!blocked;$('voice-audio-status').textContent=message;
       $('audio-details').hidden=!blocked||needsGesture;if(blocked&&!needsGesture)$('audio-diagnostic').textContent=JSON.stringify(audioDiagnostic(),null,2);onMediaState();
     },
+    onMicrophoneEvent:event=>{if(['error','audio-start','audio-end','speech-start'].includes(event.type))onRuntime('microphone',{phase:event.type,code:event.code||'none',source:event.outputKind||'none'});},
     onSpeechEnd:kind=>{if(kind==='welcome'){welcomeCompleted=true;welcomeTextReady='';onMediaState();}},
     onInterrupt:()=>{ai.cancelReply?.();},
     onInputStart:beginConversation,
@@ -82,7 +83,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
     },
     onSpeaking:(value)=>{if(value&&session.speechKind==='welcome')welcomeDelivered=true;speaking=value;speechStart=performance.now()/1000;if(!value)mouth?.setAmount(0);},
   });
-  function audioDiagnostic(){return {version:APP_VERSION,userAgent:window.navigator?.userAgent||globalThis.navigator?.userAgent||'unavailable',lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,blocked:audioBlocked,needsGesture:Boolean(session.audioNeedsGesture),engine:session.lastAudioSnapshot||null,events:session.audioEvents||[]};}
+  function audioDiagnostic(){return {version:APP_VERSION,userAgent:window.navigator?.userAgent||globalThis.navigator?.userAgent||'unavailable',lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,microphone:session.microphoneDiagnostics,blocked:audioBlocked,needsGesture:Boolean(session.audioNeedsGesture),engine:session.lastAudioSnapshot||null,events:session.audioEvents||[]};}
   $('audio-copy').addEventListener('click',async()=>{
     const text=JSON.stringify(audioDiagnostic(),null,2);$('audio-diagnostic').textContent=text;
     try{await navigator.clipboard.writeText(text);$('audio-copy-status').textContent='聲音診斷已複製，可貼回對話。';}
@@ -153,7 +154,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, createAI=options=
       narrator.update(getState(),action);
     },
     silence(){cancelWelcome();narrator.suspend();aiGuidance.cancel();session.stop(false);onMediaState();},
-    get diagnostics(){return {welcomeDelivered,welcomeCompleted,welcomePreparing,welcomeEngaged,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume),localAI:ai.phase,localAIDiagnostics:ai.diagnostics||null,lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,audioNeedsGesture:Boolean(session.audioNeedsGesture),audioBlocked,audioEngine:session.lastAudioSnapshot||null,audioEvents:session.audioEvents||[],audioRetryAvailable:Boolean(session.failedSpeech),guidanceSource,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,recognitionAttached:Boolean(session.recognition),bargeInMode:'transcript-echo-filter',status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
+    get diagnostics(){return {welcomeDelivered,welcomeCompleted,welcomePreparing,welcomeEngaged,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume),localAI:ai.phase,localAIDiagnostics:ai.diagnostics||null,lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,microphone:session.microphoneDiagnostics,audioNeedsGesture:Boolean(session.audioNeedsGesture),audioBlocked,audioEngine:session.lastAudioSnapshot||null,audioEvents:session.audioEvents||[],audioRetryAvailable:Boolean(session.failedSpeech),guidanceSource,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,recognitionAttached:Boolean(session.recognition),bargeInMode:'transcript-echo-filter',status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
     attachModel(model){mouth=createMouthMotion(model);},
     update(now){aiGuidance.update();mouth?.setAmount(mouthAmount(speaking,now/1000-speechStart));},
   };

@@ -1,5 +1,5 @@
-import { APP_VERSION } from './release.js?v=0.9.13';
-import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.9.13';
+import { APP_VERSION } from './release.js?v=0.9.14';
+import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.9.14';
 
 const toBlob=canvas=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('截圖編碼失敗')),'image/png'));
 export async function captureReport({stage, human, render, diagnostics, screenshot, win=window, doc=document, id=crypto.randomUUID(),images=true,fallbackReason=null}) {
@@ -22,8 +22,11 @@ export async function captureReport({stage, human, render, diagnostics, screensh
     const scale=Math.min(1.5,2048/Math.max(rect.width,rect.height));
     // html2canvas clones DOM synchronously; onclone replaces WebGL with the
     // synchronous frozen raster instead of relying on preserveDrawingBuffer.
-    scene=await screenshot(stage,{scale,backgroundColor:'#e6eee5',logging:false,allowTaint:false,useCORS:true,onclone:clone=>{const target=clone.querySelector('#viewport canvas');if(target&&frozen){const replacement=clone.createElement('canvas');replacement.width=frozen.width;replacement.height=frozen.height;replacement.style.cssText=target.style.cssText;replacement.getContext('2d').drawImage(frozen,0,0);target.replaceWith(replacement);}}});
-    data.screenshot={width:scene.width,height:scene.height,scope:'practice-stage-with-controls'};
+    scene=await screenshot(stage,{scale,backgroundColor:'#e6eee5',logging:false,allowTaint:false,useCORS:true,onclone:clone=>{
+      for(const selector of ['#report-local-controls','#practice-settings']){const menu=clone.querySelector(selector);if(menu)menu.open=false;}
+      const notice=clone.querySelector('.report-notice');if(notice){notice.hidden=true;notice.style.setProperty('display','none','important');}
+      const target=clone.querySelector('#viewport canvas');if(target&&frozen){const replacement=clone.createElement('canvas');replacement.width=frozen.width;replacement.height=frozen.height;replacement.style.cssText=target.style.cssText;replacement.getContext('2d').drawImage(frozen,0,0);target.replaceWith(replacement);}}});
+    data.screenshot={width:scene.width,height:scene.height,scope:'practice-stage-with-controls',omittedTransientUi:['download-menu','settings-menu','report-notice']};
   } catch(e){errors.push(`場景截圖: ${e.message}`);}
   const encoded=await Promise.allSettled([input?toBlob(input):null,scene?toBlob(scene):null]);
   const [cameraBlob,sceneBlob]=encoded.map((r,i)=>{if(r.status==='fulfilled')return r.value;errors.push(`${i===0?'相機':'場景'}編碼失敗: ${r.reason?.message}`);return null;});
@@ -39,13 +42,14 @@ export function setupReportPanel({capture,endpoint,win=window,doc=document,onEve
   let report,popup,timer,started=0,busy=false,retryAt=0;
   const message=text=>{status.textContent=text;showNotice();};
   const finish=()=>{busy=false;button.disabled=false;if(localURL)download.textContent=report?'下載同份回報':'重新擷取除錯包';button.textContent=report?'重試回報':'回報問題';clearInterval(timer);};
+  const closeMenus=()=>{for(const id of ['report-local-controls','practice-settings']){const menu=doc.getElementById(id);if(menu)menu.open=false;}};
   const getCapture=(id,options)=>{
     if(capturing)return capturing;
     capturingId=id;capturing=Promise.resolve().then(()=>capture(id,options)).finally(()=>{capturing=null;capturingId=null;});return capturing;
   };
   async function saveLocal(images){
     if(localBusy||disposed)return;
-    localBusy=true;download.disabled=logs.disabled=true;
+    closeMenus();localBusy=true;download.disabled=logs.disabled=true;
     try{
       message(images?'正在打包相機、場景與日誌；只儲存到本機，不會上傳。':'正在打包精簡日誌；不擷取圖片，也不會上傳。');
       let pack;onEvent('report-capture',{phase:images?'full':'logs'});
@@ -81,7 +85,7 @@ export function setupReportPanel({capture,endpoint,win=window,doc=document,onEve
     if(busy||disposed)return;
     if(Date.now()<retryAt){message(`GitHub 要求稍候，請在 ${Math.ceil((retryAt-Date.now())/1000)} 秒後重試。`);return;}
     if(!endpoint){message('回報服務尚未設定，請更新版本後再試。');return;}
-    busy=true;button.disabled=true;started=Date.now();
+    closeMenus();busy=true;button.disabled=true;started=Date.now();
     const id=report?.id||capturingId||crypto.randomUUID();
     // Open during the visitor click, before any await (mobile popup rules).
     popup=win.open(`${endpoint}/?id=${encodeURIComponent(id)}`,'yoga-debug-report');

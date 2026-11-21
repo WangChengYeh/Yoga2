@@ -53,3 +53,18 @@ test('disposing during online capture prevents late timers and leaves local cont
  let resolve;const h=harness({endpoint:'https://reports.example',capture:id=>new Promise(r=>resolve=()=>pack(id).then(r))});const pending=h.click('report-problem');await Promise.resolve();h.panel.dispose();await resolve();await pending;
  await h.click('report-download');assert.equal(h.created.length,0);assert.equal(h.node('report-problem').disabled,false);
 });
+
+test('downloads close the nested menu before any capture; the ZIP link stays usable afterwards',async()=>{
+ let h;h=harness({capture:(id,images)=>{assert.equal(h.node('report-local-controls').open,false);assert.equal(h.node('practice-settings').open,false);return pack(id,images);}});try{
+  h.node('report-local-controls').open=true;h.node('practice-settings').open=true;await h.click('report-download');assert.equal(h.node('report-local-link').hidden,false);assert.equal(h.node('report-local-link').clicks,1);
+ }finally{h.panel.dispose();}
+});
+test('scene clone hides report progress and closes menus without hiding normal controls or altering live DOM',async()=>{
+ const liveNotice={hidden:false},cloneNotice={hidden:false,style:{setProperty(name,value,priority){this[name]=value;this.priority=priority;}}},downloadMenu={open:true},settingsMenu={open:true},normalControl={hidden:false};
+ const canvas={width:500,height:400,toBlob:fn=>fn(new Blob(['png']))};
+ const result=await captureReport({id,stage:{getBoundingClientRect:()=>({width:500,height:400})},human:{},render:()=>null,diagnostics:()=>({}),doc:{getElementById:()=>null,body:{classList:{contains:()=>false}}},win:{screen:{},innerWidth:500,innerHeight:400,location:{},navigator:{}},screenshot:async(stage,options)=>{
+  options.onclone({querySelector:selector=>({'#report-local-controls':downloadMenu,'#practice-settings':settingsMenu,'.report-notice':cloneNotice,'#stage-play':normalControl}[selector]||null)});
+  assert.equal(downloadMenu.open,false);assert.equal(settingsMenu.open,false);assert.equal(cloneNotice.style.display,'none');assert.equal(cloneNotice.style.priority,'important');assert.equal(normalControl.hidden,false);assert.equal(liveNotice.hidden,false);return canvas;
+ }});
+ assert.equal(result.diagnostics.missingScene,false);assert.deepEqual(result.diagnostics.screenshot.omittedTransientUi,['download-menu','settings-menu','report-notice']);
+});
