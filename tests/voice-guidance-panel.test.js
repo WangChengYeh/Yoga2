@@ -173,7 +173,7 @@ test('speech while AI thinks cancels generation before accepting a new question 
 
 function readyGreetingHarness(){
  let options;
- const ai={phase:'off',get ready(){return this.phase==='ready';},enable(){this.phase='ready';options.onState({phase:'ready',message:'ready'});},disable(){this.phase='off';},cancelReply(){}};
+ const ai={phase:'off',get ready(){return this.phase==='ready';},enable(){this.phase='ready';options.onState({phase:'ready',message:'ready'});},disable(){this.phase='off';},cancelReply(){},ask:async()=> '嗨，我在這裡。'};
  const h=harness(o=>{options=o;return ai;});
  h.panel.enableAI();return h;
 }
