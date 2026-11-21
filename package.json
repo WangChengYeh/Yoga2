@@ -1,6 +1,6 @@
 {
   "name": "yoga2-studio",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "test:portrait": "node scripts/prepare-pose.mjs && node scripts/prepare-portrait.mjs && python3 scripts/analyze-portrait.py --image tests/fixtures/half-body-portrait.jpg --output test-results/portrait && node --test tests/portrait.integration.mjs"
   },
   "dependencies": {
-    "three": "0.180.0",
-    "@mediapipe/tasks-vision": "0.10.32"
+    "@mediapipe/tasks-vision": "0.10.32",
+    "html2canvas": "1.4.1",
+    "three": "0.180.0"
   }
 }

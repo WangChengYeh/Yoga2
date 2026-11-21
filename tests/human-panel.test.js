@@ -60,3 +60,13 @@ test('uncertain/no pose clears bone geometry while a valid portrait cutout remai
   const h=boneHarness();const d=h.data();d.landmarks=[];h.panel.accept(d,200);
   assert.equal(h.frames,1);assert.equal(h.lastPose.edges.length,0);assert.match(h.el('skeleton-status').textContent,/尚未辨識/);assert.equal(h.panel.context.segment,true);
 });
+test('report keeps the raw inference frame matching the displayed cutout and drops it on camera off',()=>{
+  const h=boneHarness(),d=h.data();h.panel.accept(d,200);const snapshot=h.panel.snapshot;
+  assert.equal(snapshot.frame,d.segmentation.frame);assert.equal(snapshot.capturedAt,100);assert.equal(snapshot.completedAt,200);assert.equal(snapshot.inScene,true);
+  h.panel.cameraState(false);assert.equal(h.panel.snapshot,null);
+});
+test('rejected segmentation retains raw input for diagnostics but never claims it is in the scene',()=>{
+  const h=boneHarness(),d=h.data();d.landmarks=[[],[]];h.panel.accept(d,200);
+  assert.equal(h.panel.snapshot.frame,d.segmentation.frame);assert.equal(h.panel.snapshot.inScene,false);
+  h.panel.cameraState(false);assert.equal(h.panel.snapshot,null);
+});

@@ -33,3 +33,8 @@
 - [Official task documentation](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter/index); Google MediaPipe, Apache-2.0.
 - Downloaded and checksum-verified during builds; excluded from Git. Pages loads the pinned Google model after the camera is enabled; the self-contained build includes it.
 - RGB/masks stay in browser memory. This replaces the small binary Selfie Segmenter used in v0.6.1–v0.7.0; higher quality comes with a larger download and inference cost.
+
+## html2canvas (M8)
+
+- html2canvas 1.4.1, MIT license, pinned npm dependency. [Source](https://github.com/niklasvh/html2canvas).
+- Used locally in the browser to rasterize the practice stage and controls; no images are sent to this library's provider. Pages loads the pinned JavaScript from jsDelivr; the build bundles it. Only an explicit diagnostic report uploads captured images to GitHub.

@@ -1,0 +1,1 @@
+{"name":"yoga2-debug-report-bridge","private":true,"type":"module","scripts":{"build":"bash scripts/build.sh && node scripts/validate-artifact.mjs"}}

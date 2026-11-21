@@ -1,2 +1,2 @@
 // Generated from package.json by prepare-release.mjs.
-export const APP_VERSION = '0.7.1';
+export const APP_VERSION = '0.8.0';

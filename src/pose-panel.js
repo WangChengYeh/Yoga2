@@ -1,6 +1,6 @@
-import { CameraSession } from './camera-session.js?v=0.7.1';
-import { createPoseEngine } from './pose-engine.js?v=0.7.1';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.7.1';
+import { CameraSession } from './camera-session.js?v=0.8.0';
+import { createPoseEngine } from './pose-engine.js?v=0.8.0';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.8.0';
 
 export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   const $ = (id) => document.getElementById(id);
@@ -78,6 +78,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human }) {
   window.addEventListener('pagehide', () => session.stop());
   return {
     get active() { return session.phase === 'active'; },
+    get diagnostics(){return {phase:session.phase,mode:session.engine?.mode||null,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
     get summary() { return { ...summary, active: session.phase === 'active' }; },
     contextChanged() {
       const next = getKey();

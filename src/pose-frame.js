@@ -1,5 +1,5 @@
-import { portraitMask } from './portrait-mask.js?v=0.7.1';
-import { frameSize } from './cutout-core.js?v=0.7.1';
+import { portraitMask } from './portrait-mask.js?v=0.8.0';
+import { frameSize } from './cutout-core.js?v=0.8.0';
 
 // The same snapshot supplies pose, portrait segmentation and RGB, including when
 // there are no usable body landmarks. Frames never leave the browser.
