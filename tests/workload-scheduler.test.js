@@ -16,3 +16,13 @@ test('render caps reflect normal/camera/power/AI policy and diagnostic time excl
  let time=0;const s=new WorkloadScheduler({now:()=>time});assert.equal(s.profile().renderFPS,30);assert.equal(s.profile({camera:true}).renderFPS,30);assert.equal(s.profile({powerSaving:true}).renderFPS,24);const release=await s.acquire('ai-load');time=500;assert.equal(s.diagnostics.active.runningMs,500);assert.equal(s.profile().renderFPS,15);assert.doesNotMatch(JSON.stringify(s.diagnostics),/resolve|reject|signal/);release();await assert.rejects(s.acquire('unknown'),TypeError);
 });
 test('render selection never exceeds user cap and busy/automatic/power caps compose',async()=>{const s=new WorkloadScheduler();assert.equal(s.profile({renderFPS:60,renderCap:20}).renderFPS,20);const release=await s.acquire('ai-inference');assert.equal(s.profile({renderFPS:10,renderCap:15}).renderFPS,10);release();assert.equal(s.profile({renderFPS:30,powerSaving:true}).renderFPS,24);});
+
+test('latest-wins replaces only queued work and expiry cannot release an active native operation',async()=>{
+ let now=0;const timers=new Map(),s=new WorkloadScheduler({now:()=>now,setTimer:(fn)=>{const id=Symbol();timers.set(id,fn);return id;},clearTimer:id=>timers.delete(id)}),release=await s.acquire('vision-load');
+ const old=s.acquire('vision-frame',{key:'pose',ttlMs:1000}),rejected=assert.rejects(old,{code:'WORK_REPLACED'});const fresh=s.acquire('vision-frame',{key:'pose',ttlMs:1000});await rejected;
+ const expired=assert.rejects(fresh,{code:'WORK_EXPIRED'});now=1100;for(const fn of [...timers.values()])fn();await expired;assert.equal(s.diagnostics.active.kind,'vision-load');assert.equal(s.diagnostics.queued.length,0);assert.equal(s.diagnostics.dropped,2);release();assert.equal(timers.size,0);
+});
+test('user reply outranks vision and optional explanation; elapsed TTL checked even when timers are delayed',async()=>{
+ let now=0;const s=new WorkloadScheduler({now:()=>now,setTimer:()=>0,clearTimer:()=>{}}),r=await s.acquire('scene-load');
+ const expired=s.acquire('ai-guidance',{ttlMs:1000}),rejected=assert.rejects(expired,{code:'WORK_EXPIRED'});const v=s.acquire('vision-frame'),a=s.acquire('ai-inference');now=2000;r();const ar=await a;ar();const vr=await v;vr();await rejected;assert.equal(s.diagnostics.active,null);
+});

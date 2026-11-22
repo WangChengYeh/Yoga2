@@ -1,7 +1,8 @@
+import { FACTORS } from './workload-budget.js';
 export const RENDER_FPS=[10,15,20,24,30,60],RESPONSE_SECONDS=[3,5,8,10,15,30];
 export function performancePreferences(getStorage=()=>window.localStorage){
- let storage,value={renderFPS:30,responseSeconds:8,auto:true};
- const normalize=v=>({renderFPS:RENDER_FPS.includes(Number(v.renderFPS))?Number(v.renderFPS):30,responseSeconds:RESPONSE_SECONDS.includes(Number(v.responseSeconds))?Number(v.responseSeconds):8,auto:v.auto!==false});
+ let storage,value={renderFPS:30,responseSeconds:8,auto:true,cpuFactor:1,gpuFactor:1};
+ const normalize=v=>({renderFPS:RENDER_FPS.includes(Number(v.renderFPS))?Number(v.renderFPS):30,responseSeconds:RESPONSE_SECONDS.includes(Number(v.responseSeconds))?Number(v.responseSeconds):8,auto:v.auto!==false,cpuFactor:FACTORS.includes(Number(v.cpuFactor))?Number(v.cpuFactor):1,gpuFactor:FACTORS.includes(Number(v.gpuFactor))?Number(v.gpuFactor):1});
  try{storage=getStorage();value=normalize(JSON.parse(storage.getItem('yoga2.workload.v1')||'{}'));}catch{/* Optional storage. */}
  return {get value(){return {...value};},set(patch){value=normalize({...value,...patch});try{storage?.setItem('yoga2.workload.v1',JSON.stringify(value));}catch{/* Session settings still work. */}return this.value;}};
 }

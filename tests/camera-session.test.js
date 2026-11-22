@@ -123,3 +123,8 @@ test('optional camera frame observer failures do not disable camera or drop stag
  const seen=[],h=harness({onTiming:t=>seen.push(t)});h.video.requestVideoFrameCallback=()=>{throw Error('unsupported');};h.engine.detect=async()=>({landmarks:[],timings:{poseMs:20,portraitMs:40}});await h.session.start();await h.frame();assert.equal(h.session.phase,'active');assert.deepEqual(seen[0].timings,{poseMs:20,portraitMs:40});assert.equal(seen[0].accepted,true);h.session.stop();
 });
 test('stopping while video play is pending cannot register a late telemetry observer',async()=>{const d=deferred(),h=harness();let observers=0;h.video.play=()=>d.promise;h.video.requestVideoFrameCallback=()=>++observers;const starting=h.session.start();await Promise.resolve();h.session.stop();d.resolve();await starting;assert.equal(observers,0);assert.equal(h.session.phase,'idle');});
+
+test('expired queued pose work resumes with a new frame instead of silently stopping the camera',async()=>{
+ let calls=0;const scheduler={run:async(k,f)=>f(),acquire:async()=>{if(!calls++)throw Object.assign(new Error(),{name:'AbortError',code:'WORK_EXPIRED'});return ()=>{};}};
+ const h=harness({scheduler});await h.session.start();await h.frame();assert.equal(h.session.phase,'active');assert.equal(h.session.diagnostics.dropped,1);assert.equal(h.frames.size,1);await h.frame();assert.equal(h.results.length,1);assert.equal(h.session.phase,'active');h.session.stop();
+});

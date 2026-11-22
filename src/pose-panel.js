@@ -1,12 +1,12 @@
-import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.29';
-import { HintManager } from './hint-manager.js?v=0.9.29';
-import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.29';
-import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.29';
-import { cameraPreferences } from './camera-settings.js?v=0.9.29';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.29';
-import { CameraSession } from './camera-session.js?v=0.9.29';
-import { createPoseEngine } from './pose-engine.js?v=0.9.29';
-import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.29';
+import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.30';
+import { HintManager } from './hint-manager.js?v=0.9.30';
+import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.30';
+import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.30';
+import { CAMERA_FPS, cameraPreferences } from './camera-settings.js?v=0.9.30';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.30';
+import { CameraSession } from './camera-session.js?v=0.9.30';
+import { createPoseEngine } from './pose-engine.js?v=0.9.30';
+import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.30';
 
 export function setupPosePanel({ scheduler=null,onHintChange=()=>{},createSession=options=>new CameraSession(options),onEvaluationTiming=()=>{},now=()=>performance.now(),setTimer=(fn,ms)=>setTimeout(fn,ms),clearTimer=id=>clearTimeout(id),getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
@@ -33,10 +33,10 @@ export function setupPosePanel({ scheduler=null,onHintChange=()=>{},createSessio
   const sdkRoot = config.visionRoot || new URL('./vendor/mediapipe/', location.href).href;
   const modelUrl = config.poseModelUrl || new URL('./models/pose_landmarker_lite.task', location.href).href;
   const segmentationModelUrl=config.segmentationModelUrl || new URL('./models/selfie_multiclass_256x256.tflite',location.href).href;
-  const effective=()=>({camera:Math.min(preference.value.cameraFPS,getCaps().camera),analysis:Math.min(preference.value.analysisFPS,getCaps().analysis),maxSide:getCaps().maxSide});
+  const effective=()=>{const caps=getCaps(),f=caps.cpuFactor??1,camera=Math.min(preference.value.cameraFPS*f,caps.camera);return {camera:CAMERA_FPS.filter(v=>v<=camera).at(-1)||5,analysis:Math.min(preference.value.analysisFPS*f,caps.analysis),maxSide:caps.maxSide};};
   const updatePolicy=()=>{void session.setFPS(effective().camera);fpsStatus();};
   function fpsStatus(){const f=session.fpsDiagnostics;const text=`相機選擇 ${preference.value.cameraFPS} FPS，生效上限 ${f.requested} FPS，協商 ${f.negotiated??'未知'} FPS；辨識上限 ${effective().analysis} FPS。${f.status==='failed'?'設定失敗，維持原串流。':f.status==='unsupported'?'此瀏覽器不支援即時調整，重新開相機才套用。':''}`;$('camera-fps-status').textContent=text;}
-  const session = createSession({scheduler,onTiming,onSourceFrame,requestedFPS:preference.value.cameraFPS,onFPS:fps=>{fpsStatus();onRuntime('camera-fps',{phase:fps.status,requestedFPS:fps.requested,negotiatedFPS:fps.negotiated,analysisFPS:preference.value.analysisFPS,code:fps.error||'none'});},
+  const session = createSession({scheduler,onTiming,onSourceFrame,requestedFPS:effective().camera,onFPS:fps=>{fpsStatus();onRuntime('camera-fps',{phase:fps.status,requestedFPS:fps.requested,negotiatedFPS:fps.negotiated,analysisFPS:preference.value.analysisFPS,code:fps.error||'none'});},
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
     createEngine: signal => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl },{onMemoryEvent,signal}),
     minInterval: () => Math.max(isPowerSaving()?350:0,1000/Math.min(effective().camera,effective().analysis)),

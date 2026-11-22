@@ -1,13 +1,13 @@
-import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.29';
-import { APP_VERSION } from './release.js?v=0.9.29';
-import { HintSpeechRouter, hintSpeechPreferences } from './hint-speech.js?v=0.9.29';
-import { LocalCoachAI } from './local-ai.js?v=0.9.29';
-import { CourseNarrator } from './guidance.js?v=0.9.29';
-import { VoiceSession } from './voice-session.js?v=0.9.29';
-import { respondToUtterance } from './voice-intents.js?v=0.9.29';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.29';
+import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.30';
+import { APP_VERSION } from './release.js?v=0.9.30';
+import { HintSpeechRouter, hintSpeechPreferences } from './hint-speech.js?v=0.9.30';
+import { LocalCoachAI } from './local-ai.js?v=0.9.30';
+import { CourseNarrator } from './guidance.js?v=0.9.30';
+import { VoiceSession } from './voice-session.js?v=0.9.30';
+import { respondToUtterance } from './voice-intents.js?v=0.9.30';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.30';
 
-export function setupVoicePanel({ getState, dispatch, getPose, getHint=()=>null,publishHint=()=>false, getContext=()=>null, scheduler=null, onGPUCompletion=()=>{}, responseDeadlineMs=8000, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
+export function setupVoicePanel({ getState, dispatch, getPose, getHint=()=>null,getBudget=()=>({optionalLLM:true,cooldownScale:1}),publishHint=()=>false, getContext=()=>null, scheduler=null, onGPUCompletion=()=>{}, responseDeadlineMs=8000, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const preference=contextPreference();$('ai-context-window').value=String(preference.value);
   $('ai-context-status').textContent=`已選擇 ${contextLabel(preference.value)}，等待載入。`;
@@ -97,7 +97,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getHint=()=>null,
   let guidanceSource='基本口令';
   const speechPreference=hintSpeechPreferences();
   const speechAllowed=()=>guidanceToggle.checked&&!conversation&&!answering&&!document.hidden&&!audioBlocked&&session.speechKind!=='reply'&&session.speechKind!=='welcome'&&!welcomePreparing&&(!welcomeTextReady||welcomeCompleted||welcomeEngaged);
-  hintSpeech=new HintSpeechRouter({getHint,ai,getState,getContext:currentContext,publish:publishHint,getPolicy:()=>speechPreference.value,enabled:()=>guidanceToggle.checked&&getState().playing&&!document.hidden,canSpeak:()=>speechAllowed()&&session.speechKind!=='correction',canExplain:()=>speechAllowed()&&!session.inputActive,speak:text=>{session.speak(text,{kind:'correction'});return Boolean(session.utterance&&session.speechKind==='correction');},cancelSpeech:()=>{session.cancelSpeech('correction');if(session.failedSpeech?.kind==='correction')session.failedSpeech=null;}});
+  hintSpeech=new HintSpeechRouter({getHint,ai,getState,getContext:currentContext,publish:publishHint,getPolicy:()=>({...speechPreference.value,cooldownMs:speechPreference.value.cooldownMs*(getBudget().cooldownScale||1)}),enabled:()=>guidanceToggle.checked&&getState().playing&&!document.hidden,canSpeak:()=>speechAllowed()&&session.speechKind!=='correction',canExplain:()=>getBudget().optionalLLM!==false&&speechAllowed()&&!session.inputActive,speak:text=>{session.speak(text,{kind:'correction'});return Boolean(session.utterance&&session.speechKind==='correction');},cancelSpeech:()=>{session.cancelSpeech('correction');if(session.failedSpeech?.kind==='correction')session.failedSpeech=null;}});
   hintSpeech.start();
   narrator=new CourseNarrator({speak:(text,options)=>{guidanceSource='基本口令';return session.speak(text,options);},cancel:()=>session.cancelSpeech('guidance'),canSpeak:()=>speechAllowed()&&session.speechKind!=='correction',enabled:guidanceToggle.checked});
   for(const [id,key] of [['hint-speech-interval','intervalMs'],['hint-llm-cooldown','cooldownMs']]){const input=$(id);if(!input)continue;input.value=String(speechPreference.value[key]/1000);input.addEventListener('change',()=>{const policy=speechPreference.set({[key]:Number(input.value)*1000});input.value=String(policy[key]/1000);});}

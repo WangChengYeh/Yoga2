@@ -18,3 +18,7 @@ test('WebGPU buffer/texture uploads also wait for queue completion and native me
  let time=0;const t=timers(),events=[],d=deferred();class Q{writeBuffer(value){this.value=value;return 123;}writeTexture(){return 456;}onSubmittedWorkDone(){return d.promise;}}const original=Q.prototype.writeBuffer,h=trackWebGPUCompletion({Queue:Q,now:()=>time,setTimer:t.set,clearTimer:t.clear,onEvent:e=>events.push(e)}),q=new Q();assert.equal(q.writeBuffer('native'),123);assert.equal(q.value,'native');assert.equal(q.writeTexture(),456);time=10;d.resolve();await Promise.resolve();await Promise.resolve();h.flush();assert.ok(events.some(e=>e.type==='completed'));assert.equal(h.snapshot.hooks.writeBuffer,true);h.dispose();assert.equal(Q.prototype.writeBuffer,original);
 });
 test('a cancelled WebGL polling callback cannot act on a later foreground generation',()=>{const h=glHarness();h.tracker.capture(0,0);const late=[...h.t.all.values()][0].fn;h.tracker.suspend();h.setTime(10);h.tracker.capture(10,10);h.setState(4);late();assert.equal(h.events.length,0);assert.equal(h.tracker.diagnostics.pending,1);h.t.run(8);assert.equal(h.events.length,1);h.tracker.stop();});
+
+test('pending fence age is observable before completion and clears on suspension',()=>{
+ const h=glHarness();h.tracker.capture(0,0);h.setTime(350);assert.equal(h.tracker.diagnostics.oldestPendingMs,350);assert.equal(h.events.length,0);h.tracker.suspend();assert.equal(h.tracker.diagnostics.oldestPendingMs,null);h.tracker.stop();
+});

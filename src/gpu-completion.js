@@ -9,7 +9,7 @@ export function trackWebGLCompletion(gl,{now=()=>performance.now(),onComplete=()
   if(!supported||stopped)return false;if(pending.length>=limit){skipped++;return false;}let sync;
   try{sync=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE,0);if(!sync){failed++;lastError='fence-unavailable';return false;}gl.flush();pending.push({sync,start,submitted:submitTime});submitted++;schedule();return true;}catch{if(sync)remove({sync});failed++;lastError='submit-error';return false;}
  },suspend:cancel,stop(){cancel();stopped=true;},poll,
- get diagnostics(){return {supported,status:!supported?'unsupported':stopped?'stopped':lastError||'observing',submitted,completed,pending:pending.length,skipped,failed,aborted,pollIntervalMs:intervalMs,timeoutMs,limit,source:'webgl-fence',scope:'First observation of completion, not exact GPU execution time. Zero-timeout checks; no blocking finish.'};}};
+ get diagnostics(){return {supported,status:!supported?'unsupported':stopped?'stopped':lastError||'observing',submitted,completed,pending:pending.length,oldestPendingMs:pending.length?Math.max(0,now()-pending[0].submitted):null,skipped,failed,aborted,pollIntervalMs:intervalMs,timeoutMs,limit,source:'webgl-fence',scope:'First observation of completion, not exact GPU execution time. Zero-timeout checks; no blocking finish.'};}};
 }
 
 export function trackWebGPUCompletion({Queue=globalThis.GPUQueue,now=()=>globalThis.performance?.timeOrigin!=null?globalThis.performance.timeOrigin+globalThis.performance.now():Date.now(),onEvent=()=>{},setTimer=setTimeout,clearTimer=clearTimeout,timeoutMs=10000,batchMs=250,maxQueues=4}={}){

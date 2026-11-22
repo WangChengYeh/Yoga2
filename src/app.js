@@ -1,30 +1,31 @@
-import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.29';
-import { setupHintDisplay } from './hint-display.js?v=0.9.29';
-import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.29';
-import { TaskPerformance } from './task-performance.js?v=0.9.29';
-import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.29';
-import { performancePreferences, AdaptiveWorkload } from './performance-policy.js?v=0.9.29';
-import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.29';
-import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.29';
-import { webglMemory } from './webgl-memory.js?v=0.9.29';
-import { coachContext } from './coach-context.js?v=0.9.29';
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.29';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.29';
-import { setupDefaultMedia } from './default-media.js?v=0.9.29';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.29';
+import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.30';
+import { setupHintDisplay } from './hint-display.js?v=0.9.30';
+import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.30';
+import { TaskPerformance } from './task-performance.js?v=0.9.30';
+import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.30';
+import { performancePreferences } from './performance-policy.js?v=0.9.30';
+import { DualWorkload } from './workload-budget.js';
+import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.30';
+import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.30';
+import { webglMemory } from './webgl-memory.js?v=0.9.30';
+import { coachContext } from './coach-context.js?v=0.9.30';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.30';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.30';
+import { setupDefaultMedia } from './default-media.js?v=0.9.30';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.30';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.29';
-import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.29';
-import { practiceLayout } from './practice-layout.js?v=0.9.29';
-import { setupFullscreen } from './fullscreen.js?v=0.9.29';
-import { setupStudentPanel } from './student-panel.js?v=0.9.29';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.30';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.30';
+import { practiceLayout } from './practice-layout.js?v=0.9.30';
+import { setupFullscreen } from './fullscreen.js?v=0.9.30';
+import { setupStudentPanel } from './student-panel.js?v=0.9.30';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.29';
-import { prepareStandingCoach } from './rig.js?v=0.9.29';
-import { setupPosePanel } from './pose-panel.js?v=0.9.29';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.29';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.30';
+import { prepareStandingCoach } from './rig.js?v=0.9.30';
+import { setupPosePanel } from './pose-panel.js?v=0.9.30';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.30';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -39,13 +40,14 @@ const taskLog=new TaskPerformance({active:!document.hidden});
 let voicePanel,defaultMedia;
 let humanPanel, coachStage,coachEnvelope,autoFraming,autoInsets,dualView=false;
 let coachSkeleton,coachSkeletonSource;
-let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0,lastPresentation=0,sceneTask=null;
+let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0,sceneTask=null;
 const performancePreference=performancePreferences();
-const adaptive=new AdaptiveWorkload({onChange:d=>{runtimeLog.record('workload',{phase:d.reason,code:`tier-${d.level}`});memoryLog.mark('boundary',{module:'scheduler',phase:d.reason});posePanel?.updatePolicy();updatePerformanceStatus();}});
-adaptive.setEnabled(performancePreference.value.auto);
-function updatePerformanceStatus(){const p=performancePreference.value;$('workload-status').textContent=`3D 設定上限 ${Math.min(p.renderFPS,adaptive.caps.render)} FPS · 自動降規 ${adaptive.level}/2 · AI 等待 ${p.responseSeconds} 秒`;}
-const scheduler=new WorkloadScheduler({onEvent:e=>{if(e.kind!=='vision-frame')runtimeLog.record('scheduler',{phase:e.phase,source:e.kind});if(e.phase==='start'&&e.startedAt>e.queuedAt)taskLog.record(e.kind.startsWith('ai-')?'ai.wait':'vision.wait',e.queuedAt,e.startedAt);if(e.phase==='finish')taskLog.record(e.kind==='ai-inference'?'ai.wall':e.kind==='ai-load'?'ai.load':e.kind==='vision-frame'?'vision.wall':'load.wall',e.startedAt,e.atMs);}});
-scheduler.setHidden(document.hidden);
+const adaptive=new DualWorkload({onChange:d=>{runtimeLog.record('workload',{phase:'factor-change',code:`cpu-${d.cpuFactor}-gpu-${d.gpuFactor}`});posePanel?.updatePolicy();applyRenderQuality();updatePerformanceStatus();}});
+function renderProfile(){const p=performancePreference.value;return scheduler.profile({renderFPS:Math.max(5,p.renderFPS*Math.min(adaptive.cpuFactor,adaptive.gpuFactor)),renderCap:60,powerSaving:state.powerSaving});}
+function applyRenderQuality(){if(renderer)renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,state.powerSaving?1:1.75)*adaptive.caps.pixelScale);}
+function updatePerformanceStatus(){const p=performancePreference.value;$('workload-status').textContent=`CPU factor ${adaptive.cpuFactor.toFixed(2)} · GPU factor ${adaptive.gpuFactor.toFixed(2)} · 3D 上限 ${Math.max(5,p.renderFPS*Math.min(adaptive.cpuFactor,adaptive.gpuFactor))} FPS · AI 等待 ${p.responseSeconds} 秒`;}
+const scheduler=new WorkloadScheduler({onEvent:e=>{if(e.kind!=='vision-frame')runtimeLog.record('scheduler',{phase:e.phase,source:e.kind});if(e.phase==='start'&&e.startedAt>e.queuedAt)taskLog.record(e.kind.startsWith('ai-')?'ai.wait':'vision.wait',e.queuedAt,e.startedAt);if(e.phase==='finish')taskLog.record(['ai-inference','ai-guidance'].includes(e.kind)?'ai.wall':e.kind==='ai-load'?'ai.load':e.kind==='vision-frame'?'vision.wall':'load.wall',e.startedAt,e.atMs);}});
+scheduler.setHidden(document.hidden);adaptive.setHidden(document.hidden);
 const memoryLog=setupMemoryDiagnostics({collect:()=>({taskPerformance:{...taskLog.memoryStatus,gpuCompletion:gpuCompletionState()},scheduler:{...scheduler.diagnostics,preferences:performancePreference.value,adaptive:adaptive.diagnostics},webllm:voicePanel?.memoryStatus||null,webgl:webglMemory(renderer,scene),camera:posePanel?.memoryStatus||null,human:humanPanel?.memoryStatus||null}),requestWorker:()=>voicePanel?.requestMemory()});
 function gpuCompletionState(){return {render:renderCompletion?.diagnostics||{status:'initializing'},llm:voicePanel?.memoryStatus?.gpuCompletion||{status:'initializing'}};}
 const layoutRight=new THREE.Vector3();
@@ -150,7 +152,7 @@ $('quality').addEventListener('click', () => {
   state.powerSaving = !state.powerSaving;
   $('quality').setAttribute('aria-pressed', state.powerSaving);
   $('quality').textContent = state.powerSaving ? '省電模式：開' : '省電模式';
-  if (renderer) renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, state.powerSaving ? 1 : 1.75));
+  if (renderer) applyRenderQuality();
   resize();
 });
 
@@ -175,8 +177,8 @@ function resize(resetCamera = false) {
 async function init() {
   memoryLog.mark('model-load-before',{module:'webgl'});
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
-  renderCompletion=trackWebGLCompletion(renderer.getContext(),{onComplete:s=>taskLog.record('render.gpu',s.startMs,s.completedMs,{submittedMs:s.submittedMs,source:s.source})});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderCompletion=trackWebGLCompletion(renderer.getContext(),{onComplete:s=>{adaptive.recordGPU(s);taskLog.record('render.gpu',s.startMs,s.completedMs,{submittedMs:s.submittedMs,source:s.source});}});
+  applyRenderQuality();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
@@ -261,10 +263,9 @@ function animate(now) {
   if (state.ready && state.playing) {
     dispatch({ type: 'tick', delta });
   }
-  const interval = 1000 / scheduler.profile({renderFPS:performancePreference.value.renderFPS,renderCap:adaptive.caps.render,powerSaving:state.powerSaving}).renderFPS;
+  const interval = 1000 / renderProfile().renderFPS;
   if (now - lastRender < interval) return;
-  if(lastPresentation&&now-lastPresentation<2000)adaptive.observe({renderRatio:(now-lastPresentation)/interval});
-  lastPresentation=now;
+
   lastRender = now-(now-lastRender)%interval;
   const cpuStarted=performance.now();
   if (pose) {
@@ -290,11 +291,11 @@ function animate(now) {
   if(state.ready&&$('auto-frame')?.checked){controls.enableZoom=false;controls.enablePan=false;controls.minDistance=.05;controls.maxDistance=100;autoFraming?.update(now);}else{controls.enableZoom=true;controls.enablePan=true;}
   taskLog.record('framing.cpu',fitStarted,performance.now());
   const submitAt=performance.now();
-  try{renderer.render(scene,camera);}finally{const ended=performance.now();taskLog.record('render.cpu',cpuStarted,retargetStart);taskLog.record('render.submit',submitAt,ended);}
+  try{renderer.render(scene,camera);}finally{const ended=performance.now();taskLog.record('render.cpu',cpuStarted,retargetStart);taskLog.record('render.submit',submitAt,ended);adaptive.recordCPU(ended-cpuStarted);}
   renderCompletion?.capture(submitAt,performance.now());taskLog.point('render.frame');
 }
 document.addEventListener('visibilitychange', () => {
-  if(document.hidden)renderCompletion?.suspend();taskLog.setActive(!document.hidden);scheduler.setHidden(document.hidden);if(!document.hidden)startScene();
+  if(document.hidden)renderCompletion?.suspend();taskLog.setActive(!document.hidden);scheduler.setHidden(document.hidden);adaptive.setHidden(document.hidden);if(!document.hidden)startScene();
   lastFrame = 0;
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
@@ -304,15 +305,15 @@ setupFullscreen({document,window,onChange:active=>{fullscreenTools.setActive(act
 humanPanel=setupStudentPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
-posePanel = setupPosePanel({scheduler,onHintChange:()=>{hintDisplay?.refresh();voicePanel?.refreshHints?.();},onEvaluationTiming:(start,end)=>taskLog.record('evaluation.cpu',start,end),getCaps:()=>adaptive.caps,onSourceFrame:()=>taskLog.point('camera.frame'),onTiming:d=>{adaptive.observe(d);if(d.accepted)taskLog.point('vision.frame');let end=performance.now();for(const [key,kind] of [['maskMs','mask.cpu'],['portraitMs','portrait.cpu'],['poseMs','pose.cpu'],['copyMs','copy.cpu']]){const ms=d.timings[key];if(Number.isFinite(ms)&&ms>=0){taskLog.record(kind,end-ms,end);end-=ms;}}},onMemoryEvent:({phase,code})=>memoryLog.mark(phase==='error'?'error':'boundary',{module:'mediapipe',phase,code}),onObservation:(data,observation,stable)=>activityLog.pose(data,observation,stable),onRuntime:recordActivity, human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
-hintDisplay=setupHintDisplay({document,getHint:()=>posePanel.displayHint,getFrame:()=>courseFrame(state.time),isPlaying:()=>state.playing,isCameraActive:()=>posePanel.active,onEvent:(type,data)=>runtimeLog.record(type,data)});
+posePanel = setupPosePanel({scheduler,onHintChange:()=>{hintDisplay?.refresh();voicePanel?.refreshHints?.();},onEvaluationTiming:(start,end)=>taskLog.record('evaluation.cpu',start,end),getCaps:()=>adaptive.caps,onSourceFrame:()=>taskLog.point('camera.frame'),onTiming:d=>{if(d.durationMs>1000)adaptive.pressure('cpu','vision-latency');adaptive.recordCPU(['maskMs','portraitMs','poseMs','copyMs'].map(k=>d.timings?.[k]).filter(Number.isFinite).reduce((sum,ms)=>sum+Math.max(0,ms),0));if(d.accepted)taskLog.point('vision.frame');let end=performance.now();for(const [key,kind] of [['maskMs','mask.cpu'],['portraitMs','portrait.cpu'],['poseMs','pose.cpu'],['copyMs','copy.cpu']]){const ms=d.timings[key];if(Number.isFinite(ms)&&ms>=0){taskLog.record(kind,end-ms,end);end-=ms;}}},onMemoryEvent:({phase,code})=>memoryLog.mark(phase==='error'?'error':'boundary',{module:'mediapipe',phase,code}),onObservation:(data,observation,stable)=>activityLog.pose(data,observation,stable),onRuntime:recordActivity, human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
+hintDisplay=setupHintDisplay({document,getInterval:()=>adaptive.caps.hintMs,getHint:()=>posePanel.displayHint,getFrame:()=>courseFrame(state.time),isPlaying:()=>state.playing,isCameraActive:()=>posePanel.active,onEvent:(type,data)=>runtimeLog.record(type,data)});
 function getCoachContext(){
   const now=performance.now(),frame=courseFrame(state.time);
   if(state.ready&&pose)pose(frame.localTime,frame.lesson.id);
   coachStage?.updateWorldMatrix(true,true);
   return {capturedAtMs:now,human:posePanel?.aiContext,coach:coachContext(state.ready&&coachSkeletonSource?coachSkeletonSource():null,{now,names:COACH_JOINTS,lesson:frame.lesson.id,time:state.time,ready:state.ready})};
 }
-voicePanel = setupVoicePanel({getHint:()=>posePanel?.displayHint,publishHint:(hint,token)=>posePanel?.publishHint(hint,token),scheduler,onGPUCompletion:event=>{if(event?.clock!=='epoch-ms')return;for(const s of (event.samples||[]).slice(0,64)){const start=s.startMs-performance.timeOrigin,end=s.completedMs-performance.timeOrigin,submitted=s.submittedMs-performance.timeOrigin;taskLog.record('ai.gpu',start,end,{submittedMs:submitted,source:'webgpu-queue'});}},responseDeadlineMs:performancePreference.value.responseSeconds*1000,onMemoryEvent:({phase,code})=>{if(code==='LLM_RESPONSE_DEADLINE')adaptive.observe({deadline:true});memoryLog.mark(phase==='error'?'error':'boundary',{module:'webllm',phase,code});},getContext:getCoachContext, onMediaState:()=>defaultMedia?.refresh(),onRuntime:recordActivity, getState: () => state, dispatch, getPose: () => posePanel?.summary });
+voicePanel = setupVoicePanel({getBudget:()=>({...adaptive.caps,optionalLLM:adaptive.caps.optionalLLM&&!(renderCompletion?.diagnostics.pending>=2)}),getHint:()=>posePanel?.displayHint,publishHint:(hint,token)=>posePanel?.publishHint(hint,token),scheduler,onGPUCompletion:event=>{if(event?.clock!=='epoch-ms')return;for(const s of (event.samples||[]).slice(0,64)){const start=s.startMs-performance.timeOrigin,end=s.completedMs-performance.timeOrigin,submitted=s.submittedMs-performance.timeOrigin;adaptive.recordGPU({submittedMs:submitted,completedMs:end});taskLog.record('ai.gpu',start,end,{submittedMs:submitted,source:'webgpu-queue'});}},responseDeadlineMs:performancePreference.value.responseSeconds*1000,onMemoryEvent:({phase,code})=>{if(['LLM_RESPONSE_DEADLINE','GPU_MEMORY_ERROR','GPU_DEVICE_LOST'].includes(code))adaptive.pressure('gpu',code);memoryLog.mark(phase==='error'?'error':'boundary',{module:'webllm',phase,code});},getContext:getCoachContext, onMediaState:()=>defaultMedia?.refresh(),onRuntime:recordActivity, getState: () => state, dispatch, getPose: () => posePanel?.summary });
 setupReportPanel({onEvent:(type,data)=>{runtimeLog.record(type,data);memoryLog.mark(type.includes('error')?'error':'boundary',{module:'report',phase:type});},endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,memory:()=>{memoryLog.mark('boundary',{module:'report',phase:'capture-ready'});return memoryLog.diagnostics;},stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({taskPerformance:{...taskLog.exportTimeline(),gpuCompletion:gpuCompletionState()},scheduler:{...scheduler.diagnostics,preferences:performancePreference.value,adaptive:adaptive.diagnostics},runtime:runtimeLog.diagnostics,activity:activityLog.diagnostics,hintDisplay:hintDisplay?.diagnostics,autoFraming:$('auto-frame')?.checked?autoFraming?.diagnostics:{enabled:false},voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',student:'student-v1',pose:'pose_landmarker_lite/float16/1',segmentation:'disabled-default',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 startScene();
 defaultMedia=setupDefaultMedia({document,camera:posePanel,voice:voicePanel,onError:()=>{ $('media-start-status').textContent='自動啟用未完成，請點擊啟用相機與語音。'; }});
@@ -325,10 +326,16 @@ function startScene(){
   });
 }
 
-for(const [id,key] of [['render-fps','renderFPS'],['response-seconds','responseSeconds'],['auto-workload','auto']]){const input=$(id);if(key==='auto')input.checked=performancePreference.value.auto;else input.value=String(performancePreference.value[key]);input.addEventListener('change',()=>{const p=performancePreference.set({[key]:key==='auto'?input.checked:Number(input.value)});adaptive.setEnabled(p.auto);voicePanel?.setResponseDeadline(p.responseSeconds*1000);posePanel?.updatePolicy();updatePerformanceStatus();runtimeLog.record('workload-setting',{phase:key,code:String(p[key])});});}
-updatePerformanceStatus();
+for(const [id,key] of [['render-fps','renderFPS'],['response-seconds','responseSeconds'],['auto-workload','auto'],['cpu-factor','cpuFactor'],['gpu-factor','gpuFactor']]){const input=$(id);if(key==='auto')input.checked=performancePreference.value.auto;else input.value=String(performancePreference.value[key]);input.addEventListener('change',()=>{const p=performancePreference.set({[key]:key==='auto'?input.checked:Number(input.value)});adaptive.configure(p);voicePanel?.setResponseDeadline(p.responseSeconds*1000);posePanel?.updatePolicy();updatePerformanceStatus();runtimeLog.record('workload-setting',{phase:key,code:String(p[key])});});}
+adaptive.configure(performancePreference.value);
 
-taskPanel=setupTaskPerformancePanel({log:taskLog,getSettings:()=>({preferences:performancePreference.value,scheduler:scheduler.profile(),camera:posePanel?.diagnostics?.settings,effectiveCamera:posePanel?.diagnostics?.pipeline?.fps,level:adaptive.level,gpuCompletion:gpuCompletionState()})});
+// A bounded 1-second controller runs independently of rendering/vision/LLM.
+let budgetAt=performance.now();
+setInterval(()=>{const at=performance.now(),heap=performance.memory;adaptive.sample({loopDelayMs:Math.max(0,at-budgetAt-1000),renderBudgetMs:1000/Math.max(1,renderProfile().renderFPS),completion:renderCompletion?.diagnostics,memoryRatio:heap?.jsHeapSizeLimit>0?heap.usedJSHeapSize/heap.jsHeapSizeLimit:null});budgetAt=at;},1000);
+window.addEventListener('pagehide',()=>{adaptive.setHidden(true);});
+window.addEventListener('pageshow',()=>{adaptive.setHidden(document.hidden);budgetAt=performance.now();});
+
+taskPanel=setupTaskPerformancePanel({log:taskLog,getSettings:()=>({preferences:performancePreference.value,scheduler:renderProfile(),budget:adaptive.diagnostics,currentTask:scheduler.diagnostics.active,camera:posePanel?.diagnostics?.settings,effectiveCamera:posePanel?.diagnostics?.pipeline?.fps,gpuCompletion:gpuCompletionState()})});
 window.addEventListener('pagehide',()=>{renderCompletion?.suspend();taskPanel.stop();});
 
 window.addEventListener('pageshow',()=>taskPanel?.start());

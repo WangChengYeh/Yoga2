@@ -275,3 +275,9 @@ test('aggregated hint explanation uses cancellable guidance lane; a user questio
  const answer=h.ai.ask('如何呼吸？',{time:8});assert.equal(await explanation,null);const request=worker.messages.at(-1);assert.equal(request.kind,'reply');assert.notEqual(request.id,auto.id);
  worker.onmessage({data:{type:'reply',id:auto.id,text:'stale'}});assert.equal(h.ai.pending.id,request.id);worker.onmessage({data:{type:'reply',id:request.id,text:'保持自然呼吸。'}});assert.equal(await answer,'保持自然呼吸。');h.ai.disable();
 });
+
+test('queued automatic explanations expire before inference; explicit user questions retain their normal deadline',async()=>{
+ let time=0;const s=new WorkloadScheduler({now:()=>time,setTimer:()=>0,clearTimer:()=>{}}),h=harness({scheduler:s});await h.ai.enable();h.ready();const release=await s.acquire('vision-frame');
+ const p=h.ai.explainHint({message:'留意手肘。'},{samples:4},{time:8});assert.equal(s.diagnostics.queued[0].kind,'ai-guidance');time=1100;release();assert.equal(await p,null);assert.equal(h.workers[0].messages.some(m=>m.type==='ask'),false);assert.equal(h.ai.ready,true);
+ const answer=h.ai.ask('如何呼吸？',{time:8});await Promise.resolve();assert.equal(s.diagnostics.active.kind,'ai-inference');assert.equal(h.timers.has(8000),true);h.ai.disable();await answer;
+});
