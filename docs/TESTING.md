@@ -119,3 +119,12 @@ npm run test:portrait
 - `npm run build`: passed. Root Pages entry synchronized and release URLs stamped v0.9.27.
 - Browser ESM smoke test: **12/12 passed**, using the built evaluation module with synthetic landmarks (three exercises/four holds, deviations, mirror, occlusion, temporal confirmation, correction clearing and expiry). Reproduce with `node scripts/prepare-evaluation-qa.mjs`, then open `/m2-evaluation-qa.html` in the preview browser.
 - Tests do not establish real three-motion accuracy, iPhone Safari acceptance or sustained performance. #7/#9 remain open; scope and remaining work are in [POSE_EVALUATION.md](POSE_EVALUATION.md).
+
+## v0.9.28 — Natural camera preview, M2 software completion and M3 start
+
+- Owner policy: human/device acceptance is tracked in #11 and does not block implementation, release or later milestones. Known regressions and failed automated checks still require fixes.
+- `npm run check`: **439/439 passed**; `npm run build` passed.
+- New coverage: rig contract/aliases/hierarchy/skinning and fallback, world-reference calibration/timeout/retry, pelvis/spine/head/palm/foot mapping, rotation/rate bounds, source transform invariance, partial/degenerate data, bounded Hint priority/expiry/context generation, natural-aspect camera tile sizing and metadata/resize lifecycle.
+- Preview browser geometry: **36/36 passed**, including source-aspect tile fit, transparent rail and control separation. Actual Luna/student GLBs loaded and the production calibration button completed with controlled synthetic observations; fullscreen moves the same button/status into ⋯. The browser cannot create a WebGL context, so CPU bone/panel checks were used. GPU appearance has not been verified in this environment; this does not claim real-camera calibration quality.
+- Camera preview uses a transparent reserved rail and a source-aspect inner frame. A 300×600 rail with 1920×1080 video now produces a **300×168.75** image tile; the remaining space shows the studio background. Video and skeleton share the same frame and mirroring, with no source crop.
+- Reproduce browser checks with `node scripts/prepare-rig-qa.mjs` and `node scripts/prepare-debug-layout-qa.mjs` after build; open `/rig-qa.html` or `/debug-layout-qa.html` in the preview browser. QA pages are excluded from release builds unless explicitly generated afterward.
