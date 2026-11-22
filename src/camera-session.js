@@ -1,4 +1,4 @@
-import { CAMERA_FPS } from './camera-settings.js?v=0.9.25';
+import { CAMERA_FPS } from './camera-settings.js?v=0.9.26';
 export function cameraMessage(error) {
   const messages = {
     NotAllowedError: '未取得相機權限。請在瀏覽器允許相機，或繼續使用不開相機的帶練。',
