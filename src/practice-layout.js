@@ -1,8 +1,8 @@
 // Fixed framing uses Luna's fully raised hand-to-foot envelope: 1.9466 m.
-// Aim for 80% viewport height; preserve complete arm spans on narrow screens.
+// Aim for 87% viewport height; preserve complete arm spans on narrow screens.
 // Neither live mask width nor animation phase changes zoom or lane positions.
 export const RAISED_COACH_HEIGHT=1.9465994407528504;
-export const COACH_HEIGHT_FRACTION=.8;
+export const COACH_HEIGHT_FRACTION=.87;
 export function practiceLayout({aspect,paired=false,fov=35}) {
   if(!Number.isFinite(aspect)||aspect<=0)throw new Error('Invalid viewport aspect');
   const lane=1.0,width=paired?4.2:2.3,frameHeight=RAISED_COACH_HEIGHT/COACH_HEIGHT_FRACTION;

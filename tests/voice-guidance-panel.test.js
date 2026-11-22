@@ -2,14 +2,14 @@ import {reducePlayback} from '../src/course.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setupVoicePanel} from '../src/voice-panel.js';
-function harness(createAI,getPose=()=>null,getContext=()=>null,onRuntime=()=>{}){
+function harness(createAI,getPose=()=>null,getContext=()=>null,onRuntime=()=>{},extra={}){
  const oldDocument=globalThis.document,oldWindow=globalThis.window,elements=new Map(),spoken=[],primers=[],events={};let microphones=0,cancelled=0;const recognitions=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{id,checked:['guidance-toggle','voice-output'].includes(id),dataset:{},value:'',listeners:{},textContent:'',addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  globalThis.document={hidden:false,getElementById:element,querySelectorAll:()=>[],addEventListener:(type,fn)=>events[type]=fn};
  globalThis.window={SpeechRecognition:class{constructor(){microphones++;recognitions.push(this);}start(){this.onstart?.();}abort(){}},SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},speechSynthesis:{getVoices:()=>[{lang:'zh-TW',localService:true}],speak:u=>(u.volume===0?primers:spoken).push(u),cancel:()=>cancelled++},addEventListener:(type,fn)=>events[type]=fn};
  const state={ready:true,time:0,playing:false,speed:1};let panel;
  const dispatch=action=>{Object.assign(state,reducePlayback(state,action));panel.playbackChanged(action);};
- panel=setupVoicePanel({getState:()=>state,dispatch,getPose,getContext,onRuntime,...(createAI?{createAI}:{})});
+ panel=setupVoicePanel({getState:()=>state,dispatch,getPose,getContext,onRuntime,...extra,...(createAI?{createAI}:{})});
  return {state,panel,spoken,primers,element,events,dispatch,recognitions,get microphones(){return microphones;},get cancelled(){return cancelled;},close(){panel.silence();globalThis.document=oldDocument;globalThis.window=oldWindow;}};
 }
 test('playback wiring speaks movement names without microphone, pauses immediately and resumes current cue',()=>{
@@ -129,17 +129,11 @@ test('auto-pause preserves the fresh pre-pause observation for posture questions
  try{h.dispatch({type:'play'});ask(h,'我的姿勢如何');assert.equal(h.state.playing,false);assert.match(h.spoken.at(-1).text,/雙手已上舉/);h.spoken.at(-1).onend();assert.equal(h.state.playing,true);}finally{h.close();}
 });
 
-test('AI writes automatic coaching cues; a live question cancels cue generation and retains pause/resume behavior',async()=>{
- const requests=[];let pending;
- const ai={phase:'ready',diagnostics:{},get ready(){return this.phase==='ready';},get pending(){return pending;},guide(cue){this.phase='thinking';return new Promise(resolve=>{pending={kind:'guidance',resolve};requests.push({kind:'guidance',cue,resolve});});},ask(text){this.phase='thinking';return new Promise(resolve=>{pending={kind:'reply',resolve};requests.push({kind:'reply',text,resolve});});},cancelGuidance(){if(pending?.kind==='guidance'){pending.resolve(null);pending=null;this.phase='ready';}},disable(){pending?.resolve(null);pending=null;this.phase='off';}};
- const h=harness(()=>ai);
- try{
-  h.dispatch({type:'play'});assert.equal(requests[0].kind,'guidance');assert.equal(h.spoken.length,0);
-  ai.phase='ready';pending=null;requests[0].resolve('雙手輕輕舉高，肩膀放鬆。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'雙手輕輕舉高，肩膀放鬆。');assert.equal(h.panel.diagnostics.guidanceSource,'AI');
-  h.spoken.at(-1).onend();h.panel.update(100);assert.equal(requests.at(-1).cue.key,'reach:6');const stale=requests.at(-1);
-  ask(h,'關鍵要領');assert.equal(h.state.playing,false);assert.equal(requests.at(-1).kind,'reply');
-  stale.resolve('肩膀放鬆，保持自然呼吸。');const answer=requests.at(-1);ai.phase='ready';pending=null;answer.resolve('手臂放鬆，不必勉強。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'手臂放鬆，不必勉強。');assert.equal(h.state.playing,false);
-  h.spoken.at(-1).onend();assert.equal(h.state.playing,true);
+test('fixed course cues bypass AI; live questions still use AI and preserve pause/resume',async()=>{
+ let requests=0,resolve,guides=0;const ai={phase:'ready',ready:true,diagnostics:{},guide(){guides++;},ask(){requests++;return new Promise(r=>resolve=r);},disable(){}};
+ const h=harness(()=>ai);try{
+  h.dispatch({type:'play'});assert.match(h.spoken.at(-1).text,/站姿上舉伸展/);assert.equal(guides,0);assert.equal(h.panel.diagnostics.guidanceSource,'基本口令');
+  ask(h,'關鍵要領');assert.equal(h.state.playing,false);assert.equal(requests,1);resolve('手臂放鬆，不必勉強。');await new Promise(r=>setImmediate(r));assert.equal(h.spoken.at(-1).text,'手臂放鬆，不必勉強。');h.spoken.at(-1).onend();assert.equal(h.state.playing,true);assert.equal(guides,0);
  }finally{h.close();}
 });
 
@@ -287,7 +281,7 @@ test('coaching generation does not compete with pending welcome playback',async(
  let guides=0;const ai={phase:'ready',ready:true,disable(){},guide(){guides++;return Promise.resolve('雙手慢慢舉高。');},greet:async()=> '嗨，我是 Luna'};
  const h=harness(()=>ai);try{
   h.panel.welcome();await new Promise(r=>setImmediate(r));for(let i=0;i<5;i++)h.panel.update(i*100);assert.equal(guides,0);
-  h.spoken.at(-1).onstart();h.spoken.at(-1).onend();h.panel.update(1000);assert.equal(guides,1);
+  h.spoken.at(-1).onstart();h.spoken.at(-1).onend();h.panel.update(1000);assert.equal(guides,0);
  }finally{h.close();}
 });
 
@@ -327,5 +321,23 @@ test('context selection defaults to 4K and reloads selected mode while pausing m
   h.element('ai-context-window').value='16384';h.element('ai-context-window').listeners.change();assert.equal(h.state.playing,false);assert.equal(h.panel.mediaStatus.active,true);assert.equal(r.onresult!=null,true);assert.deepEqual(loads,[{contextWindow:16384}]);late();assert.equal(h.state.playing,false);
   assert.equal(h.panel.diagnostics.contextPreference.selected,16384);assert.ok(logs.some(e=>e.type==='ai-context'&&e.selected===16384&&e.active===4096));
   h.element('ai-context-window').value='4096';h.element('ai-context-window').listeners.change();assert.equal(loads.at(-1).contextWindow,4096);assert.equal(h.panel.mediaStatus.active,true);
+ }finally{h.close();}
+});
+
+test('shared correction uses TTS without AI; corrected pose or a user question cancels it',()=>{
+ let hint=null,guides=0;const ai={phase:'ready',ready:true,diagnostics:{},guide(){guides++;},disable(){}};
+ const h=harness(()=>ai,()=>null,()=>null,()=>{},{getHint:()=>hint});try{
+  h.state.time=8;h.dispatch({type:'play'});hint={id:'left-elbow-bent',code:'left-elbow-bent',kind:'hint',message:'留意手肘，維持舒適伸展。',timestamp:performance.now(),expiresAt:performance.now()+1500,context:{scope:'reach-hold:true',generation:1}};
+  h.panel.refreshHints();assert.equal(h.panel.diagnostics.kind,'correction');assert.equal(h.spoken.at(-1).text,hint.message);assert.equal(guides,0);h.spoken.at(-1).onstart();assert.equal(h.panel.diagnostics.hintSpeech.ttsPlayed,1);
+  hint=null;h.panel.refreshHints();assert.equal(h.panel.diagnostics.kind,null);assert.equal(h.state.playing,true);
+  h.state.time=10;h.dispatch({type:'tick'});assert.equal(h.panel.diagnostics.kind,'guidance');ask(h,'暫停');assert.equal(h.panel.diagnostics.kind,'reply');assert.equal(h.state.playing,false);
+ }finally{h.close();}
+});
+
+test('a failed correction is not replayable after the source pose is cleared',()=>{
+ let hint=null;const h=harness(undefined,()=>null,()=>null,()=>{},{getHint:()=>hint});try{
+  h.state.time=8;h.dispatch({type:'play'});hint={id:'left-elbow-bent',code:'left-elbow-bent',kind:'hint',message:'留意手肘。',timestamp:performance.now(),expiresAt:performance.now()+1500,context:{scope:'reach-hold:true',generation:1}};
+  h.panel.refreshHints();h.spoken.at(-1).onerror({error:'synthesis-failed'});assert.equal(h.panel.diagnostics.audioRetryAvailable,true);
+  hint=null;h.panel.refreshHints();assert.equal(h.panel.diagnostics.audioRetryAvailable,false);assert.equal(h.state.playing,true);
  }finally{h.close();}
 });

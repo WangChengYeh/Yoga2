@@ -7,6 +7,7 @@
 | [使用與開發入口](../README.md) | 現行版本、操作、預設值、建置與程式索引 |
 | [產品路線圖](PRODUCT_ROADMAP.md) | 雙 Avatar M1–M5 順序、分工與退出條件 |
 | [骨架映射與站姿校正](RETARGETING.md) | 22 骨架契約、方向推估、校正與 fallback |
+| [自動取景](AUTO_FRAMING.md) | 動態鏡頭、模型邊界與操作空間 |
 | [共用提示狀態](HINT_STATE.md) | M3 優先級、TTL、去重與語音分流介面 |
 | [姿勢評估](POSE_EVALUATION.md) | M2 角度／課程目標與信心限制 |
 | [雙 Avatar M1](DUAL_AVATAR.md) | 實作、來源與授權、測試、離線圖與待實機驗收 |

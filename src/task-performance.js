@@ -1,6 +1,7 @@
 export const TASKS={
  'monitor.cpu':{label:'效能面板更新',channel:'cpu-main'},
  'render.cpu':{label:'3D 更新／提交',channel:'cpu-main'},
+ 'framing.cpu':{label:'Avatar 自動取景',channel:'cpu-main'},
  'retarget.cpu':{label:'學員骨架映射',channel:'cpu-main'},
  'evaluation.cpu':{label:'姿勢角度評估',channel:'cpu-main'},
  'pose.cpu':{label:'骨架辨識',channel:'cpu-worker'},

@@ -112,15 +112,15 @@ body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #p
 
 /* Debug reserves space inside the studio; ResizeObserver reframes both avatars.
    Match canvas/video letterboxing so joints stay on the source image. */
-.studio:has(.camera-debug-visible:not([hidden])){--debug-width:clamp(150px,26%,300px);--debug-top:90px;--debug-bottom:90px}
-.studio:has(.camera-debug-visible:not([hidden])) #viewport{top:var(--debug-top);right:calc(var(--debug-width) + 24px);bottom:var(--debug-bottom)}
+.studio:has(.camera-debug-visible:not([hidden])){--debug-width:clamp(150px,22%,300px);--debug-top:90px;--debug-bottom:90px}
+.studio:has(.camera-debug-visible:not([hidden])) #viewport{top:0;right:calc(var(--debug-width) + 24px);bottom:var(--stage-footer,24px)}
 .studio:has(.camera-debug-visible:not([hidden])) .coach-tag,.studio:has(.camera-debug-visible:not([hidden])) .gesture-hint{display:none}
 .camera-source.camera-debug-visible:not([hidden]){position:absolute;top:var(--debug-top);bottom:var(--debug-bottom);left:auto;right:12px;width:var(--debug-width);height:auto;aspect-ratio:auto!important;opacity:1;clip-path:none;pointer-events:none;z-index:2;display:grid;place-items:center;background:transparent;overflow:hidden}
 .camera-source.camera-debug-visible video,.camera-source.camera-debug-visible canvas{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}
 @media(max-aspect-ratio:1/1){
  .studio:has(.camera-debug-visible:not([hidden])){--debug-height:min(28%,200px)}
- .studio:has(.camera-debug-visible:not([hidden])) #viewport{right:0;bottom:calc(var(--debug-height) + var(--debug-bottom) + 12px)}
- .camera-source.camera-debug-visible:not([hidden]){top:auto;bottom:var(--debug-bottom);right:12px;left:12px;width:auto;height:var(--debug-height)}
+ .studio:has(.camera-debug-visible:not([hidden])) #viewport{right:0;bottom:calc(var(--debug-height) + max(var(--debug-bottom),var(--stage-footer,0px)) + 12px)}
+ .camera-source.camera-debug-visible:not([hidden]){top:auto;bottom:max(var(--debug-bottom),var(--stage-footer,0px));right:12px;left:12px;width:auto;height:var(--debug-height)}
 }
 
 @media(max-width:760px){body:not(.practice-fullscreen) .studio:has(.camera-debug-visible:not([hidden])){--debug-top:160px}}
@@ -128,3 +128,22 @@ body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #p
 #student-calibration-controls{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}#human-calibration-status{font-size:14px;line-height:1.5;color:#526d61}#practice-settings #student-calibration-controls{flex-basis:100%}#human-calibrate{font-size:14px;padding:9px 12px;border:1px solid #c8d4c5;border-radius:10px;background:#edf5e9}
 
 .camera-debug-frame{position:relative;width:100%;height:100%;max-width:100%;max-height:100%;overflow:hidden;border-radius:12px;background:#e6eee5;box-shadow:0 4px 16px #173d3610}
+
+/* Shared coaching feedback has a reserved footer; it never covers the avatars. */
+.studio:has(.stage-hint:not([hidden])){--stage-footer:88px}
+.studio:has(.stage-hint:not([hidden])) #viewport{bottom:var(--stage-footer)}
+.studio:has(.stage-hint:not([hidden])) .coach-tag,.studio:has(.stage-hint:not([hidden])) .gesture-hint{display:none}
+.studio:has(.stage-hint:not([hidden])) .view-tools{bottom:calc(12px + var(--stage-footer))}
+.stage-hint{position:absolute;z-index:5;left:12px;bottom:12px;width:min(640px,calc(100% - 24px));padding:10px 14px;border:1px solid #d0dfd3;border-radius:14px;background:#fffffff0;color:#294d3e;pointer-events:none;font-size:14px;line-height:1.45;max-height:76px;overflow:hidden}
+.stage-hint[hidden]{display:none}#stage-hint-message{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}#stage-hint-values{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#526d61;font-variant-numeric:tabular-nums;margin-top:3px}#stage-hint-values:empty{display:none}
+.stage-hint[data-kind=hint]{background:#fff4df;border-color:#dbc89e;color:#654b20}.stage-hint[data-kind=observed]{background:#e7f3e8;border-color:#bad4be}.stage-hint[data-kind=setup]{background:#f1f4ef;color:#526358}
+body.practice-fullscreen .stage-hint{width:min(640px,calc(100% - 380px))}
+@media(max-width:760px) and (orientation:portrait){body.practice-fullscreen .studio:has(.stage-hint:not([hidden])){--stage-footer:166px}body.practice-fullscreen .stage-hint{bottom:80px;width:calc(100% - 24px)}}
+
+@media(max-width:900px) and (orientation:landscape){.studio:has(.camera-debug-visible:not([hidden])) #viewport{top:48px}}
+
+@media(max-aspect-ratio:1/1){.studio:has(.stage-hint:not([hidden])):has(.camera-debug-visible:not([hidden])) #viewport{top:0;bottom:calc(var(--debug-height) + max(var(--debug-bottom),var(--stage-footer)) + 12px)}}
+
+#auto-frame-control{display:flex;align-items:center;gap:7px;font-size:14px}#auto-frame{width:18px;height:18px;accent-color:#1d5145}#practice-settings #auto-frame-control{flex-basis:100%}
+
+body.practice-fullscreen .studio:has(.camera-debug-visible:not([hidden])):not(:has(.stage-hint:not([hidden]))){--stage-footer:88px}

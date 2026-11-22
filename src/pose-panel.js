@@ -1,14 +1,14 @@
-import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.28';
-import { HintManager } from './hint-manager.js?v=0.9.28';
-import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.28';
-import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.28';
-import { cameraPreferences } from './camera-settings.js?v=0.9.28';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.28';
-import { CameraSession } from './camera-session.js?v=0.9.28';
-import { createPoseEngine } from './pose-engine.js?v=0.9.28';
-import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.28';
+import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.29';
+import { HintManager } from './hint-manager.js?v=0.9.29';
+import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.29';
+import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.29';
+import { cameraPreferences } from './camera-settings.js?v=0.9.29';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.29';
+import { CameraSession } from './camera-session.js?v=0.9.29';
+import { createPoseEngine } from './pose-engine.js?v=0.9.29';
+import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.29';
 
-export function setupPosePanel({ scheduler=null,createSession=options=>new CameraSession(options),onEvaluationTiming=()=>{},now=()=>performance.now(),setTimer=(fn,ms)=>setTimeout(fn,ms),clearTimer=id=>clearTimeout(id),getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
+export function setupPosePanel({ scheduler=null,onHintChange=()=>{},createSession=options=>new CameraSession(options),onEvaluationTiming=()=>{},now=()=>performance.now(),setTimer=(fn,ms)=>setTimeout(fn,ms),clearTimer=id=>clearTimeout(id),getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const preference=cameraPreferences();$('camera-fps').value=String(preference.value.cameraFPS);$('analysis-fps').value=String(preference.value.analysisFPS);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
@@ -25,9 +25,9 @@ export function setupPosePanel({ scheduler=null,createSession=options=>new Camer
   const getKey = () => feedbackKey(getFrame(), isPlaying());
   const clear = () => debugOverlay.clear();
   function feedback(message, kind = 'info') {
-    summary = { valid: kind === 'observed' || kind === 'hint', message, updatedAt: now() };
+    summary = { kind,valid: kind === 'observed' || kind === 'hint', message, updatedAt: now() };
     if($('camera-feedback').textContent!==message)$('camera-feedback').textContent = message;
-    $('camera-feedback').dataset.kind = kind;
+    $('camera-feedback').dataset.kind = kind;onHintChange();
   }
   const config = document.documentElement.dataset;
   const sdkRoot = config.visionRoot || new URL('./vendor/mediapipe/', location.href).href;
@@ -102,6 +102,8 @@ export function setupPosePanel({ scheduler=null,createSession=options=>new Camer
     get mediaStatus(){return {phase:session.phase,open:Boolean(session.stream)};},
     get memoryStatus(){const settings=session.stream?.getVideoTracks?.()[0]?.getSettings?.()||{};return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),fps:session.fpsDiagnostics,phase:session.phase,video:{width:video.videoWidth,height:video.videoHeight,negotiatedFPS:settings.frameRate??null,oneRGBAFrameBytesEstimate:video.videoWidth*video.videoHeight*4,decoderBuffersBytes:null},pipeline:session.diagnostics};},
     get aiContext(){return humanContext(latestObservation,{now:performance.now(),phase:session.phase,lesson:getFrame().lesson.id,videoWidth:video.videoWidth,videoHeight:video.videoHeight});},
+    publishHint(hint,token){const accepted=hints.publish(hint,token);if(accepted)onHintChange();return accepted;},
+    get displayHint(){return hints.snapshot()||(summary.kind==='setup'?{id:'camera-state',code:'camera-state',source:'camera',kind:'setup',message:summary.message,timestamp:summary.updatedAt,expiresAt:Infinity,context:{scope:getKey(),generation:0}}:null);},
     get active() { return session.phase === 'active'; },
     get diagnostics(){return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},evaluation:evaluator.snapshot(now()),hints:hints.diagnostics,video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
     get summary() { return { ...summary,valid:summary.valid&&evaluator.snapshot(now()).valid, active: session.phase === 'active' }; },

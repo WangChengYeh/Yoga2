@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.25。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.29。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -14,7 +14,7 @@ npm run test:portrait
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 411 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 457 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
@@ -128,3 +128,10 @@ npm run test:portrait
 - Preview browser geometry: **36/36 passed**, including source-aspect tile fit, transparent rail and control separation. Actual Luna/student GLBs loaded and the production calibration button completed with controlled synthetic observations; fullscreen moves the same button/status into ⋯. The browser cannot create a WebGL context, so CPU bone/panel checks were used. GPU appearance has not been verified in this environment; this does not claim real-camera calibration quality.
 - Camera preview uses a transparent reserved rail and a source-aspect inner frame. A 300×600 rail with 1920×1080 video now produces a **300×168.75** image tile; the remaining space shows the studio background. Video and skeleton share the same frame and mirroring, with no source crop.
 - Reproduce browser checks with `node scripts/prepare-rig-qa.mjs` and `node scripts/prepare-debug-layout-qa.mjs` after build; open `/rig-qa.html` or `/debug-layout-qa.html` in the preview browser. QA pages are excluded from release builds unless explicitly generated afterward.
+
+## v0.9.29 回歸
+
+- `auto-framing.test.js`：實際 Luna／student 每個頂點包含於預算 envelope，展開／收回、相機旋轉、橫直向與 UI 邊界、空資料及 morph fallback。
+- `hint-display.test.js`、`hint-speech.test.js` 與語音／LocalAI 回歸：獨立顯示節奏、文字／數值、聚合／去重／冷卻、使用者插話、過期 LLM、取消與實際播放確認。
+- `node scripts/prepare-debug-layout-qa.mjs` 產生 72 種正式 DOM/CSS 組合（橫直向、全螢幕、Debug／關相機、3:4／16:9、提示顯示／隱藏），在瀏覽器讀取結果。
+- `node scripts/prepare-rig-qa.mjs` 使用實際 GLB、retarget 與自動取景，合成動作可在全螢幕 ⋯ 切換。此環境無法啟用 WebGL，改用明確標示的 CPU 骨架投影檢查；不能宣稱已驗證 GPU 材質或 MacBook 真實畫面。真人與持續練習驗證仍於 #11。
