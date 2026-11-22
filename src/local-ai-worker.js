@@ -1,6 +1,9 @@
-import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.19';
-import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.19';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.19';
+import { trackWebGPU } from './gpu-memory-tracker.js?v=0.9.20';
+import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.20';
+import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.20';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.20';
+const gpuMemory=trackWebGPU({onEvent:event=>{sendMemory();self.postMessage({type:'gpu-event',event});}});
+function sendMemory(){self.postMessage({type:'gpu-memory',snapshot:{at:new Date().toISOString(),stage,buffers:gpuMemory.snapshot,workerHeap:globalThis.performance?.memory?{usedBytes:performance.memory.usedJSHeapSize,totalBytes:performance.memory.totalJSHeapSize}:null}});}
 let engine,stage='worker',resource=null;const shardSizes=new Map();
 // WebLLM has one engine: serialize generations so an interrupted old turn cannot overlap a new one.
 let inferenceQueue=Promise.resolve(),activeInference=null;
@@ -28,6 +31,7 @@ if(globalThis.fetch){
 }
 self.onmessage=async({data})=>{
  let redactions=[];
+ if(data.type==='memory-snapshot'){sendMemory();return;}
  if(data.type==='cancel-guidance'||data.type==='cancel-reply'){
   if(Number.isInteger(data.id))cancelledInference.add(data.id);
   if(activeInference===data.id)try{engine?.interruptGenerate?.();}catch{/* Already finished */}
@@ -46,18 +50,18 @@ self.onmessage=async({data})=>{
    const contextWindow=normalizeContextWindow(data.contextWindow);
    const modelId=`Qwen2.5-0.5B-Instruct-${adapter.features.has('shader-f16')?'q4f16_1':'q4f32_1'}-MLC`;
    self.postMessage({type:'model-info',modelId,cacheBackend:'indexeddb',contextWindow});enter('model');
-   engine=await loadLocalModel(sdk,{modelId,contextWindow,reset:Boolean(data.reset),progress:report=>self.postMessage({type:'progress',progress:report.progress,detail:cleanAIText(report.text||'')}),recovery:info=>{
+   sendMemory();engine=await loadLocalModel(sdk,{modelId,contextWindow,reset:Boolean(data.reset),progress:report=>self.postMessage({type:'progress',progress:report.progress,detail:cleanAIText(report.text||'')}),recovery:info=>{
     resource=null;enter('repair');self.postMessage({type:'recovery',info:{...info,reason:cleanAIText(info.reason)}});
    }});
-   self.postMessage({type:'ready'});
+   sendMemory();self.postMessage({type:'ready'});
   }else if(data.type==='ask'&&engine){
    resource=null;redactions=(data.messages||[]).flatMap(m=>[m.content,String(m.content||'').split('使用者問題：')[1]]).filter(Boolean);enter('inference');
    const run=async()=>{
     if(cancelledInference.delete(data.id))return;
-    activeInference=data.id;
+    activeInference=data.id;sendMemory();
     try{
      const result=await engine.chat.completions.create({messages:data.messages,max_tokens:data.kind==='guidance'?64:160,temperature:.3,stream:false});
-     if(!cancelledInference.has(data.id))self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||''});
+     sendMemory();if(!cancelledInference.has(data.id))self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||'',usage:result.usage?{promptTokens:result.usage.prompt_tokens??null,completionTokens:result.usage.completion_tokens??null,totalTokens:result.usage.total_tokens??null}:null});
     }catch(error){
      if(!cancelledInference.has(data.id))throw error;
     }finally{activeInference=null;cancelledInference.delete(data.id);}

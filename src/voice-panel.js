@@ -1,13 +1,13 @@
-import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.19';
-import { APP_VERSION } from './release.js?v=0.9.19';
-import { AIGuidance } from './ai-guidance.js?v=0.9.19';
-import { LocalCoachAI } from './local-ai.js?v=0.9.19';
-import { CourseNarrator } from './guidance.js?v=0.9.19';
-import { VoiceSession } from './voice-session.js?v=0.9.19';
-import { respondToUtterance } from './voice-intents.js?v=0.9.19';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.19';
+import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.20';
+import { APP_VERSION } from './release.js?v=0.9.20';
+import { AIGuidance } from './ai-guidance.js?v=0.9.20';
+import { LocalCoachAI } from './local-ai.js?v=0.9.20';
+import { CourseNarrator } from './guidance.js?v=0.9.20';
+import { VoiceSession } from './voice-session.js?v=0.9.20';
+import { respondToUtterance } from './voice-intents.js?v=0.9.20';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.20';
 
-export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
+export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const preference=contextPreference();$('ai-context-window').value=String(preference.value);
   $('ai-context-status').textContent=`已選擇 ${contextLabel(preference.value)}，等待載入。`;
@@ -17,7 +17,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
   const aiStatus=$('local-ai-status');
   let welcomeAttempted=false,welcomeDelivered=false,welcomeCompleted=false,welcomeEngaged=false,welcomePreparing=false,welcomeSerial=0,welcomeTextReady='';
   const welcomeText='嗨，我是 Luna。今天想先聊聊，還是一起伸展？不用急，我會陪你慢慢來。';
-  const ai=createAI({onState:({phase,message})=>{
+  const ai=createAI({onMemoryEvent,onState:({phase,message})=>{
     onRuntime('ai',{selected:preference.value,loading:ai.diagnostics?.context?.loading,active:ai.diagnostics?.context?.active,phase,code:phase==='error'?ai.diagnostics?.failure?.code:'none',source:ai.diagnostics?.stage||phase});
     const context=ai.diagnostics?.context,mode=contextLabel(preference.value);
     $('ai-context-status').textContent=context?.active?`已啟用 ${contextLabel(context.active)}`:`已選擇 ${mode} · ${phase==='error'?'載入失敗':phase==='off'?'尚未啟用':'準備中'}`;
@@ -169,6 +169,8 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
       narrator.update(getState(),action);
     },
     silence(){cancelWelcome();narrator.suspend();aiGuidance.cancel();session.stop(false);onMediaState();},
+    requestMemory:()=>ai.requestMemory?.(),
+    get memoryStatus(){return ai.memoryStatus||null;},
     get contextState(){return {selected:preference.value,loading:ai.diagnostics?.context?.loading??null,active:ai.diagnostics?.context?.active??null,status:ai.diagnostics?.context?.status||ai.phase};},
     get diagnostics(){return {welcomeDelivered,welcomeCompleted,welcomePreparing,welcomeEngaged,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume),localAI:ai.phase,contextPreference:{selected:preference.value,persistent:preference.persistent},localAIDiagnostics:ai.diagnostics||null,lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,microphone:session.microphoneDiagnostics,audioNeedsGesture:Boolean(session.audioNeedsGesture),audioBlocked,audioEngine:session.lastAudioSnapshot||null,audioEvents:session.audioEvents||[],audioRetryAvailable:Boolean(session.failedSpeech),guidanceSource,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,recognitionAttached:Boolean(session.recognition),bargeInMode:'transcript-echo-filter',status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},
     attachModel(model){mouth=createMouthMotion(model);},

@@ -26,11 +26,12 @@ export function pairedFrame(snapshot, now) {
   if(!snapshot||now-snapshot.capturedAt>1500||now<snapshot.capturedAt)return null;
   return {inScene:Boolean(snapshot.inScene),id:snapshot.id,capturedAt:snapshot.capturedAt,completedAt:snapshot.completedAt,ageMs:now-snapshot.capturedAt,width:snapshot.frame.width,height:snapshot.frame.height,mirroredInput:false,mirroredScene:true};
 }
-export async function reportFiles(diagnostics, camera, scene) {
+export async function reportFiles(diagnostics, camera, scene,memory=null) {
   const entries=[{name:'diagnostics.json',blob:new Blob([JSON.stringify(diagnostics,null,2)],{type:'application/json'})}];
   if(camera)entries.push({name:'camera.png',blob:camera});
   if(scene)entries.push({name:'scene.png',blob:scene});
-  const zip=zipFiles(await Promise.all(entries.map(async f=>({name:f.name,bytes:new Uint8Array(await f.blob.arrayBuffer())}))));
+  const archived=memory?[...entries,{name:'memory-diagnostics.json',blob:new Blob([JSON.stringify(memory,null,2)],{type:'application/json'})}]:entries;
+  const zip=zipFiles(await Promise.all(archived.map(async f=>({name:f.name,bytes:new Uint8Array(await f.blob.arrayBuffer())}))));
   return [...entries,{name:'report.zip',blob:zip}];
 }
 export function trustedMessage(event, source, origin, id) {return event.source===source&&event.origin===origin&&event.data?.id===id;}

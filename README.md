@@ -3,7 +3,7 @@
 手機網頁的女性 3D 教練，結合三動作帶練、真人去背入場、AI 骨架與語音互動。
 
 - 網站：[GitHub Pages](https://wangchengyeh.github.io/Yoga2/)
-- 目前發布版本：**v0.9.19**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
+- 目前發布版本：**v0.9.20**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
 - 文件入口：[docs/README.md](docs/README.md)
 
 ## 使用方式
@@ -74,3 +74,7 @@ GitHub Pages 沿用 `main` 根目錄發布。`src/index.html` 為共用介面來
 | `tests/`、`scripts/` | 回歸測試、模型準備、建置與離線檢查 |
 
 角色為 CC0 素材衍生的 Luna；來源與授權見 [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md)。
+
+### 記憶體診斷
+
+完整及精簡除錯 ZIP 都包含 `memory-diagnostics.json`。前景每 5 秒採樣、最多 60 筆，保留最近 5 分鐘；模型載入／推論／釋放及錯誤另有快照。區分 JS heap（瀏覽器支援時）、攔截到的 WebGPU buffer 宣告容量、WebGL 資源估算、MediaPipe 與影格狀態及 KV 估算，不相加成實際 DRAM。iPhone 系統 RAM 無可用讀取 API 時記為未知。日誌不含照片、骨架座標或問答；前次狀態僅低頻保存數值摘要。詳見 [記憶體診斷](docs/MEMORY_DIAGNOSTICS.md) 與 [改善規劃](docs/IMPROVEMENT_PLAN.md)。

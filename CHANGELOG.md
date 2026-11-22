@@ -1,5 +1,11 @@
 # 版本變更日誌
 
+## v0.9.20
+
+- 新增五秒／五分鐘記憶體診斷、模型與推論任務快照、錯誤固定快照及前次工作階段摘要。
+- 記錄 WebGPU 宣告 buffer 容量／device lost、WebGL 資源估算、相機／MediaPipe 配置與可取得的 JS heap；實際系統 DRAM 仍標記未知。
+- 完整與精簡 ZIP 加入 memory-diagnostics.json，維持現有匿名上傳表單相容性。語音行為不變。
+
 ## v0.9.19
 
 - 新增 1K（1024 tokens）並設為預設，保留 4K／16K；升級後先重設為 1K，之後記住選擇。

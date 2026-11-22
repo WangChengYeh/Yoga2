@@ -1,6 +1,6 @@
-import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.9.19';
-import { CutoutSession } from './cutout-core.js?v=0.9.19';
-import { createHumanLayer } from './human-scene.js?v=0.9.19';
+import { aiSkeleton, skeletonFresh, createSkeletonLayer } from './skeleton.js?v=0.9.20';
+import { CutoutSession } from './cutout-core.js?v=0.9.20';
+import { createHumanLayer } from './human-scene.js?v=0.9.20';
 
 export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createHumanLayer, createSkeleton=createSkeletonLayer }) {
   const $=id=>document.getElementById(id);
@@ -41,6 +41,7 @@ export function setupHumanPanel({ document, onLayout=()=>{}, createLayer=createH
     attach(scene){clearBones();layer?.dispose();layer=createLayer({scene});session.setReady(true);enterIfReady();},
     get context(){return session.context;},
     get snapshot(){return reportFrame||latestSource;},
+    get memoryStatus(){const arrays=new Set([reportFrame?.frame?.rgba,latestSource?.frame?.rgba].filter(Boolean));return {retainedRGBABytes:Array.from(arrays).reduce((sum,a)=>sum+a.byteLength,0),retainedFrames:arrays.size,scope:'Known retained source RGBA arrays only; excludes canvas/textures/decoder buffers.'};},
     get diagnostics(){const m=layer?.mesh;return {calibration:layer?.calibration||null,bounds:layer?.bounds||null,cropMinY:layer?.cropMinY||0,transform:m?{position:m.position.toArray(),scale:m.scale.toArray(),rotation:m.rotation.toArray()}:null};},
     get bounds(){return layer?.bounds;},
     get calibration(){return layer?.calibration;},

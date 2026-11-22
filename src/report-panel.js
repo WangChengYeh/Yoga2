@@ -1,11 +1,11 @@
-import { APP_VERSION } from './release.js?v=0.9.19';
-import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.9.19';
+import { APP_VERSION } from './release.js?v=0.9.20';
+import { pairedFrame, viewportDiagnostics, reportFiles, trustedMessage } from './report-core.js?v=0.9.20';
 
 const toBlob=canvas=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('截圖編碼失敗')),'image/png'));
-export async function captureReport({stage, human, render, diagnostics, screenshot, win=window, doc=document, id=crypto.randomUUID(),images=true,fallbackReason=null}) {
+export async function captureReport({stage, human, render, diagnostics, screenshot, win=window, doc=document, id=crypto.randomUUID(),images=true,fallbackReason=null,memory=()=>null}) {
   if(!images){
     const data={schema:1,id,version:APP_VERSION,createdAt:new Date().toISOString(),captureMode:'diagnostics-only',page:{origin:win.location.origin,path:win.location.pathname},userAgent:win.navigator.userAgent,viewport:viewportDiagnostics(win,doc,stage,null),...diagnostics(),missingCamera:true,missingScene:true,captureErrors:[fallbackReason==='image-capture-failed'?'Full image capture failed; diagnostic-only fallback without renderer or screenshot.':'Images omitted by user; no renderer or screenshot invoked.']};
-    return {id,diagnostics:data,files:await reportFiles(data,null,null)};
+    return {id,diagnostics:data,files:await reportFiles(data,null,null,memory())};
   }
   const errors=[], stamp=performance.now(), snapshot=human?.snapshot, frame=pairedFrame(snapshot,stamp);
   // Everything up to screenshot()'s synchronous DOM clone uses one accepted
@@ -31,7 +31,7 @@ export async function captureReport({stage, human, render, diagnostics, screensh
   const encoded=await Promise.allSettled([input?toBlob(input):null,scene?toBlob(scene):null]);
   const [cameraBlob,sceneBlob]=encoded.map((r,i)=>{if(r.status==='fulfilled')return r.value;errors.push(`${i===0?'相機':'場景'}編碼失敗: ${r.reason?.message}`);return null;});
   data.missingCamera=!cameraBlob;data.missingScene=!sceneBlob;
-  return {id,diagnostics:data,files:await reportFiles(data,cameraBlob,sceneBlob)};
+  return {id,diagnostics:data,files:await reportFiles(data,cameraBlob,sceneBlob,memory())};
 }
 export function setupReportPanel({capture,endpoint,win=window,doc=document,onEvent=()=>{}}) {
   const download=doc.getElementById('report-download'),logs=doc.getElementById('report-logs'),link=doc.getElementById('report-local-link');

@@ -1,5 +1,5 @@
-import { portraitMask } from './portrait-mask.js?v=0.9.19';
-import { frameSize } from './cutout-core.js?v=0.9.19';
+import { portraitMask } from './portrait-mask.js?v=0.9.20';
+import { frameSize } from './cutout-core.js?v=0.9.20';
 
 // The same snapshot supplies pose, portrait segmentation and RGB, including when
 // there are no usable body landmarks. Frames never leave the browser.
@@ -8,7 +8,7 @@ export function createFrameProcessor({ detector, createCanvas, createSegmenter,o
   const enter=value=>{stage=value;try{onStage(value);}catch{/* diagnostics cannot stop processing */}};
   const releasePortrait=()=>{segmenter?.close();segmenter=null;if(canvas)canvas.width=canvas.height=1;canvas=ctx=null;};
   return {
-    get diagnostics(){return {stage,segmentationFailed};},
+    get diagnostics(){return {stage,segmentationFailed,portraitLoaded:Boolean(segmenter),portraitModelBytes:segmenter?.modelBytes??null,canvas:canvas?{width:canvas.width,height:canvas.height,rgbaBytesEstimate:canvas.width*canvas.height*4}:null,allocatorBytes:null};},
     async detect(source,timestamp,{segment=false}={}) {
       if(closed)throw new Error('Engine closed');
       if(!segment){releasePortrait();segmentationFailed=false;}

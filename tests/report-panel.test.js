@@ -68,3 +68,6 @@ test('scene clone hides report progress and closes menus without hiding normal c
  }});
  assert.equal(result.diagnostics.missingScene,false);assert.deepEqual(result.diagnostics.screenshot.omittedTransientUi,['download-menu','settings-menu','report-notice']);
 });
+test('compact capture includes memory diagnostics in ZIP without camera or GPU access',async()=>{
+ let read=0;const result=await captureReport({id,images:false,memory:()=>{read++;return {schema:1,samples:[{timeMs:123}]};},stage:{getBoundingClientRect:()=>({width:844,height:390})},human:{get snapshot(){throw Error('no images');}},render:()=>{throw Error('no render');},screenshot:()=>{throw Error('no screenshot');},diagnostics:()=>({}),doc:{body:{classList:{contains:()=>false}}},win:{screen:{},location:{},navigator:{}}});assert.equal(read,1);assert.match(await result.files.at(-1).blob.text(),/memory-diagnostics.json/);assert.doesNotMatch(await result.files.at(-1).blob.text(),/camera.png/);
+});

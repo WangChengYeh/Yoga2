@@ -53,3 +53,6 @@ test('capture reports rendering/screenshot failures without inventing camera or 
   const result=await captureReport({id,stage:{getBoundingClientRect:()=>({width:844,height:390})},human:{},render:()=>{throw Error('context lost');},diagnostics:()=>({}),screenshot:()=>{throw Error('screenshot failed');},doc:{getElementById:()=>null,body:{classList:{contains:()=>false}}},win:{screen:{},innerWidth:844,innerHeight:390,location:{},navigator:{}}});
   assert.equal(result.diagnostics.missingCamera,true);assert.equal(result.diagnostics.missingScene,true);assert.equal(result.diagnostics.captureErrors.length,2);assert.deepEqual(result.files.map(f=>f.name),['diagnostics.json','report.zip']);
 });
+test('memory time series is a separate ZIP entry without changing the deployed upload form contract',async()=>{
+ const memory={schema:1,samples:[{timeMs:5000,jsHeap:{available:false}}]},files=await reportFiles({schema:1,id,version:'0.9.20'},null,null,memory);assert.deepEqual(files.map(f=>f.name),['diagnostics.json','report.zip']);const bytes=await files.at(-1).blob.arrayBuffer();const text=new TextDecoder().decode(bytes);assert.match(text,/memory-diagnostics.json/);assert.match(text,/"timeMs": 5000/);assert.doesNotMatch(await files[0].blob.text(),/jsHeap/);
+});

@@ -22,5 +22,5 @@ export async function createPortraitSegmenter(config) {
   });
   const labels=task.getLabels();
   if(!['background','hair','body-skin','face-skin','clothes','others'].every(label=>labels.includes(label))){task.close();throw new Error('Unknown semantic segmentation labels');}
-  return {labels,segmentForVideo:(...args)=>task.segmentForVideo(...args),close:()=>task.close()};
+  return {labels,modelBytes:modelAssetBuffer.byteLength,segmentForVideo:(...args)=>task.segmentForVideo(...args),close:()=>task.close()};
 }

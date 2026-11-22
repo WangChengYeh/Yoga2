@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.19。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.20。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -80,3 +80,5 @@ npm run test:portrait
 - 上下文選項：預設／持久化／儲存被拒、4K 與 16K 傳入 model reload、切換終止舊 worker 與忽略晚到 ready、失敗不誤報 active、面板切換保留聆聽並暫停課程、持久化日誌還原模式值。
 
 - 1K 回歸：新預設與舊偏好遷移、兩種精度下三種 window reload、1K 摘要／完整來源分離、未知關節及輸入上限、1K 日誌跨工作階段保留。
+
+- 記憶體診斷：五秒計時／五分鐘淘汰／180 任務上限、錯誤保留及前次摘要、背景停止採樣、儲存／Heap／collector 拒絕不影響啟動、GPU buffer 與 device lost 追蹤、WebGL 資源去重、MediaPipe 載入邊界、AI 任務邊界及 ZIP 獨立檔。自動檢查不是 iPhone 三十分鐘穩定性驗收。

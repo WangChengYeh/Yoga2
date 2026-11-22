@@ -1,9 +1,10 @@
-import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.19';
-import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.19';
-import { guidanceMessages } from './ai-guidance.js?v=0.9.19';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.19';
-import { courseFrame } from './course.js?v=0.9.19';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.19';
+import { kvEstimate } from './memory-diagnostics.js?v=0.9.20';
+import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.20';
+import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.20';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.20';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.20';
+import { courseFrame } from './course.js?v=0.9.20';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.20';
 
 export function localAIMessages(text,state,history=[],context=null,contextWindow=DEFAULT_CONTEXT_WINDOW) {
   const frame=courseFrame(state.time);
@@ -18,25 +19,28 @@ export function localAIMessages(text,state,history=[],context=null,contextWindow
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.19',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
-    Object.assign(this,{gpu,createWorker,onState,setTimer,clearTimer});
+  constructor({onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.20',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+    Object.assign(this,{onMemoryEvent,gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[],context:{selected:DEFAULT_CONTEXT_WINDOW,loading:null,active:null,status:'off'}};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];this.contextWindow=DEFAULT_CONTEXT_WINDOW;
   }
   selectContextWindow(value){this.contextWindow=normalizeContextWindow(value);this.diagnostics.context.selected=this.contextWindow;}
+  memoryEvent(phase,code){try{this.onMemoryEvent({phase,code});}catch{/* diagnostics cannot affect inference */}}
+  requestMemory(){try{this.worker?.postMessage({type:'memory-snapshot'});}catch{/* Worker may be terminating. */}}
+  get memoryStatus(){const d=this.diagnostics;return {phase:this.phase,stage:d.stage,context:{...d.context},modelId:d.model?.id||null,downloadedShardBytes:d.downloadedShardBytes||0,gpu:d.gpuMemory||null,gpuSnapshotAgeMs:d.gpuMemory?.at?Math.max(0,Date.now()-Date.parse(d.gpuMemory.at)):null,usage:d.usage||null,kv:kvEstimate(d.context?.active||d.context?.loading,d.usage?.totalTokens),failureCode:d.failure?.code||null};}
   get ready(){return this.phase==='ready';}
   get enabled(){return this.phase!=='off'&&this.phase!=='error';}
   emit(phase,message){this.phase=phase;this.onState({phase,message});}
   clearPending(){if(this.timer)this.clearTimer(this.timer);this.timer=null;}
   disable(message='AI 對話已關閉；基本指令仍可使用。'){
     ++this.generation;this.history=[];this.cancelGPU?.();this.cancelGPU=null;this.clearPending();this.pending?.resolve(null);this.pending=null;
-    if(this.worker){this.worker.onmessage=this.worker.onerror=this.worker.onmessageerror=null;this.worker.terminate();this.worker=null;}
+    const hadWorker=Boolean(this.worker);if(this.worker){this.memoryEvent('worker-stop-before');this.worker.onmessage=this.worker.onerror=this.worker.onmessageerror=null;this.worker.terminate();this.worker=null;}
     if(this.diagnostics.context)this.diagnostics.context={...this.diagnostics.context,loading:null,active:null,status:'off'};
-    this.emit('off',message);
+    this.emit('off',message);if(hadWorker)this.memoryEvent('worker-stop-after');
   }
   record(stage,extra={}){this.diagnostics.stage=stage;Object.assign(this.diagnostics,extra);this.diagnostics.events.push({stage,at:new Date().toISOString()});this.diagnostics.events=this.diagnostics.events.slice(-16);}
   fail(code,error,stage=this.diagnostics.stage){
     const failure={code,stage,error:aiErrorDetail(error),resource:this.diagnostics.failedResource||null};
-    this.diagnostics.failure=failure;this.record(stage);this.disable();this.diagnostics.context.status='error';this.emit('error',aiFailureMessage(failure));
+    this.diagnostics.failure=failure;this.record(stage);this.memoryEvent('error',code);this.disable();this.diagnostics.context.status='error';this.emit('error',aiFailureMessage(failure));
   }
   async checkAdapter(){
     let timer,cancel;
@@ -49,7 +53,7 @@ export class LocalCoachAI {
   }
   async enable({reset=false,contextWindow=this.contextWindow}={}){
     this.disable();this.contextWindow=normalizeContextWindow(contextWindow);const generation=this.generation;
-    this.diagnostics={environment:aiEnvironment(),stage:'environment',events:[],context:{selected:this.contextWindow,loading:this.contextWindow,active:null,status:'loading'}};this.record('environment');
+    this.diagnostics={environment:aiEnvironment(),stage:'environment',events:[],context:{selected:this.contextWindow,loading:this.contextWindow,active:null,status:'loading'}};this.record('environment');this.memoryEvent('model-load-before');
     if(!this.gpu){this.fail(globalThis.isSecureContext===false?'INSECURE_CONTEXT':'WEBGPU_UNAVAILABLE',new Error('navigator.gpu is unavailable'),'environment');return;}
     this.emit('loading','正在檢查 WebGPU（最多 10 秒，尚未下載模型）。');
     this.timer=this.setTimer(()=>{if(generation===this.generation)this.fail('LOAD_TIMEOUT',new Error('Initialization exceeded 180000 ms'));},180000);
@@ -66,19 +70,22 @@ export class LocalCoachAI {
       worker.onmessageerror=()=>{if(current())this.fail('WORKER_MESSAGE_ERROR',new Error('Worker message could not be decoded'));};
       worker.onmessage=({data})=>{
         if(!current())return;
+        if(data.type==='gpu-memory')this.diagnostics.gpuMemory=data.snapshot;
+        if(data.type==='gpu-event')this.memoryEvent(data.event?.type==='device-lost'&&data.event?.code==='destroyed'?'device-destroyed':'error',data.event?.type==='device-lost'?'GPU_DEVICE_LOST':data.event?.code==='GPUOutOfMemoryError'?'GPU_OUT_OF_MEMORY':data.event?.type==='device-error'?'GPU_DEVICE_ERROR':'GPU_ALLOCATION_FAILURE');
         if(data.type==='stage'){this.record(data.stage);if(this.phase==='loading')this.emit('loading',`正在${AI_STAGE_NAMES[data.stage]||data.stage}…`);}
         if(data.type==='model-info')this.diagnostics.model={id:data.modelId,cacheBackend:data.cacheBackend,contextWindow:data.contextWindow};
-        if(data.type==='shard-check'){this.diagnostics.shardsChecked=(this.diagnostics.shardsChecked||0)+1;this.diagnostics.lastShard=data.result;}
+        if(data.type==='shard-check'){this.diagnostics.shardsChecked=(this.diagnostics.shardsChecked||0)+1;this.diagnostics.downloadedShardBytes=(this.diagnostics.downloadedShardBytes||0)+(data.result?.received||0);this.diagnostics.lastShard=data.result;}
         if(data.type==='recovery'){this.diagnostics.recovery=data.info;this.diagnostics.failedResource=null;}
         if(data.type==='resource-error')this.diagnostics.failedResource=data.resource;
         if(data.type==='progress'&&data.detail)this.diagnostics.lastProgress=data.detail;
         if(data.type==='progress'&&this.phase==='loading')this.emit('loading',`正在下載／載入本機 AI：${Math.round(Math.max(0,Math.min(1,Number(data.progress)||0))*100)}%`);
-        if(data.type==='ready'){this.diagnostics.context={selected:this.contextWindow,loading:null,active:this.diagnostics.model?.contextWindow||null,status:'ready'};this.record('ready');this.clearPending();this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');}
+        if(data.type==='ready'){this.diagnostics.context={selected:this.contextWindow,loading:null,active:this.diagnostics.model?.contextWindow||null,status:'ready'};this.record('ready');this.clearPending();this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');this.memoryEvent('model-load-after');}
         if(data.type==='error'){if(data.id&&data.id!==this.pending?.id)return;if(data.resource)this.diagnostics.failedResource=data.resource;this.fail(data.code||aiErrorCode(data.error,data.stage),data.error,data.stage||this.diagnostics.stage);return;}
         if(data.type==='reply'&&this.pending?.id===data.id){
           const pending=this.pending;this.pending=null;this.clearPending();
+          this.diagnostics.usage=data.usage||null;
           const text=String(data.text||'').trim().slice(0,240);
-          this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');pending.resolve(text||null);
+          this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');this.memoryEvent('inference-after');pending.resolve(text||null);
         }
       };
       worker.postMessage({type:'load',half:adapter.features.has('shader-f16'),contextWindow:this.contextWindow,...(reset?{reset:true}:{})});
@@ -117,7 +124,7 @@ export class LocalCoachAI {
     return new Promise(resolve=>{
       this.pending={id,resolve,kind};
       this.timer=this.setTimer(()=>this.fail('INFERENCE_TIMEOUT',new Error('Generation exceeded 45000 ms')),45000);
-      try{this.worker.postMessage({type:'ask',id,kind,messages});}catch(error){this.fail('WORKER_MESSAGE_ERROR',error);}
+      try{this.memoryEvent('inference-before');this.worker.postMessage({type:'ask',id,kind,messages});}catch(error){this.fail('WORKER_MESSAGE_ERROR',error);}
     });
   }
 }

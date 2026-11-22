@@ -1,9 +1,9 @@
-import { createFrameProcessor } from './pose-frame.js?v=0.9.19';
-import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.9.19';
+import { createFrameProcessor } from './pose-frame.js?v=0.9.20';
+import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.9.20';
 
-async function workerEngine(config) {
-  const worker = new Worker(new URL('./pose-worker.js?v=0.9.19', import.meta.url));
-  let nextId = 0, closed = false, portraitRequested=false,stage='initializing',lastError=null;
+async function workerEngine(config,observe=()=>{}) {
+  const worker = new Worker(new URL('./pose-worker.js?v=0.9.20', import.meta.url));
+  let nextId = 0, closed = false, portraitRequested=false,stage='initializing',lastError=null,resources=null;
   const pending = new Map();
   const fail = () => {
     for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(new Error('Pose worker unavailable')); }
@@ -12,9 +12,9 @@ async function workerEngine(config) {
   worker.onerror = (event) => { event.preventDefault(); fail(); };
   worker.onmessage = ({ data }) => {
     if(closed)return;
-    if(data.type==='pose-stage'){stage=data.stage;return;}
+    if(data.type==='pose-stage'){stage=data.stage;if(data.resources)resources=data.resources;observe(stage,resources);return;}
     const entry = pending.get(data.id); if (!entry) return;
-    pending.delete(data.id); clearTimeout(entry.timer);
+    pending.delete(data.id); clearTimeout(entry.timer);if(data.resources)resources=data.resources;
     if (data.error) entry.reject(new Error(data.error)); else entry.resolve(data);
   };
   function send(message, transfer = [], timeout = 10000) {
@@ -31,7 +31,7 @@ async function workerEngine(config) {
   try { await send({ type: 'init', config }, [], 45000); }
   catch (error) { close(); throw error; }
   return {
-    mode: 'worker', close,get diagnostics(){return {stage,lastError,pending:pending.size};},
+    mode: 'worker', close,get diagnostics(){return {stage,lastError,pending:pending.size,resources};},
     async detect(video, timestamp, options) {
       let bitmap;stage='capture-frame';
       try{
@@ -47,12 +47,16 @@ async function workerEngine(config) {
   };
 }
 
-export async function createPoseEngine(config) {
+export function portraitMemoryObserver(notify=()=>{}){
+ let loading=false;return (stage,resources)=>{try{if(stage==='portrait-loading'&&!loading){loading=true;notify({phase:'portrait-load-before'});}else if(stage==='closed')loading=false;else if(loading&&stage==='pose-inference'){loading=false;notify({phase:resources?.portraitLoaded?'portrait-load-after':'error',code:resources?.portraitLoaded?undefined:'PORTRAIT_LOAD_FAILED'});}}catch{/* Observation must not affect detection. */}};
+}
+export async function createPoseEngine(config,{onMemoryEvent=()=>{}}={}) {
+  const observe=portraitMemoryObserver(onMemoryEvent);
   if (typeof Worker !== 'undefined' && typeof createImageBitmap === 'function' && typeof OffscreenCanvas !== 'undefined') {
-    try { return await workerEngine(config); }
+    try { return await workerEngine(config,observe); }
     catch { /* Fall back once for browsers without worker/WASM canvas support. */ }
   }
   const detector = await createDetector(config);
-  const processor=createFrameProcessor({detector,createCanvas:()=>document.createElement('canvas'),createSegmenter:()=>createPortraitSegmenter(config)});
+  const processor=createFrameProcessor({detector,createCanvas:()=>document.createElement('canvas'),createSegmenter:()=>createPortraitSegmenter(config),onStage:stage=>observe(stage,processor?.diagnostics)});
   return {mode:'main',detect:(...args)=>processor.detect(...args),close:()=>processor.close(),get diagnostics(){return processor.diagnostics;}};
 }

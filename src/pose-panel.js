@@ -1,9 +1,9 @@
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.19';
-import { CameraSession } from './camera-session.js?v=0.9.19';
-import { createPoseEngine } from './pose-engine.js?v=0.9.19';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.19';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.20';
+import { CameraSession } from './camera-session.js?v=0.9.20';
+import { createPoseEngine } from './pose-engine.js?v=0.9.20';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.20';
 
-export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{} }) {
+export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
   const ctx = overlay.getContext('2d');
@@ -25,7 +25,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
   const segmentationModelUrl=config.segmentationModelUrl || new URL('./models/selfie_multiclass_256x256.tflite',location.href).href;
   const session = new CameraSession({
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
-    createEngine: () => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl }),
+    createEngine: () => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl },{onMemoryEvent}),
     minInterval: () => isPowerSaving() ? 350 : 180,
     getContext: () => ({ key: getKey(), frame: getFrame(), playing: isPlaying(), ...human?.context }),
     measureLight: () => {
@@ -84,6 +84,7 @@ export function setupPosePanel({ getFrame, isPlaying, isPowerSaving, human, onMe
   return {
     start:()=>session.start(),
     get mediaStatus(){return {phase:session.phase,open:Boolean(session.stream)};},
+    get memoryStatus(){const settings=session.stream?.getVideoTracks?.()[0]?.getSettings?.()||{};return {phase:session.phase,video:{width:video.videoWidth,height:video.videoHeight,negotiatedFPS:settings.frameRate??null,oneRGBAFrameBytesEstimate:video.videoWidth*video.videoHeight*4,decoderBuffersBytes:null},pipeline:session.diagnostics};},
     get aiContext(){return humanContext(latestObservation,{now:performance.now(),phase:session.phase,lesson:getFrame().lesson.id,videoWidth:video.videoWidth,videoHeight:video.videoHeight});},
     get active() { return session.phase === 'active'; },
     get diagnostics(){return {phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
