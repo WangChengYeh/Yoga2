@@ -1,8 +1,8 @@
-import { cameraPreferences } from './camera-settings.js?v=0.9.23';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.23';
-import { CameraSession } from './camera-session.js?v=0.9.23';
-import { createPoseEngine } from './pose-engine.js?v=0.9.23';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.23';
+import { cameraPreferences } from './camera-settings.js?v=0.9.24';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.24';
+import { CameraSession } from './camera-session.js?v=0.9.24';
+import { createPoseEngine } from './pose-engine.js?v=0.9.24';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.24';
 
 export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
@@ -57,7 +57,7 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
     },
     onStale: () => {latestObservation=null;onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
     onResult: (data, now) => {
-      human?.accept(data,now);
+      human?.accept({...data,aspect:video.videoWidth/video.videoHeight},now);
       if (!isFreshResult(data, getKey(), now)) { clear(); filter.reset(); return; }
       if (video.videoWidth && video.videoHeight) {
         preview.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
@@ -80,6 +80,7 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
       feedback(stable.message, stable.kind);
     },
   });
+  document.getElementById('camera-debug')?.addEventListener('change',event=>{preview.classList.toggle('camera-debug-visible',event.target.checked);preview.setAttribute('aria-hidden',String(!event.target.checked));});
   $('camera-fps').addEventListener('change',()=>{preference.set({cameraFPS:$('camera-fps').value});$('camera-fps').value=String(preference.value.cameraFPS);updatePolicy();});
   $('analysis-fps').addEventListener('change',()=>{preference.set({analysisFPS:$('analysis-fps').value});$('analysis-fps').value=String(preference.value.analysisFPS);fpsStatus();onRuntime('camera-fps',{phase:'analysis-updated',requestedFPS:preference.value.cameraFPS,negotiatedFPS:session.fpsDiagnostics.negotiated,analysisFPS:preference.value.analysisFPS});});
   fpsStatus();

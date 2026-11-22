@@ -1,6 +1,6 @@
 # Yoga2 — Product Goal & Milestone Roadmap
 
-Updated: 2026-11-22. Status: planning, not evidence of implementation.
+Updated: 2026-11-22. Status: M1 implementation delivered in v0.9.24; device and performance exit gates pending. Later milestones remain planned.
 
 ## Product Goal
 Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target yoga pose, the user's camera provides MediaPipe pose observations, a male student Avatar visualizes the user's motion, deterministic evaluation compares the observations to the course target, and timely visual/voice feedback helps the user correct the pose. Prioritize an effective **observe → evaluate → correct** loop over photorealism.
@@ -37,9 +37,15 @@ Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target
 - Measure camera→pose→evaluation→display latency, hint precision, frame timing, memory proxies, device heat, and GPU completion pending/latency.
 
 ## Existing repository baseline
-- README/package.json identify **v0.9.23**. Current scene uses Luna + camera-segmented human; dual Avatar and photo personalization are planned, not implemented.
+- v0.9.23 is the historical cutout baseline. v0.9.24 implements Luna + male student Avatar with minimal confidence-aware retarget; default segmentation/RGBA/CanvasTexture is removed from the active scene path. Personalization remains planned.
 - Existing README reports configurable FPS, task-performance timeline, GPU completion notification, local Qwen/WebLLM and browser TTS/STT. Actual iPhone 13 30-minute stability remains unverified in docs/IMPROVEMENT_PLAN.md.
-- [3D_Yoga_Web_Plan.md](../3D_Yoga_Web_Plan.md) still describes v0.9.14 and the cutout-human product goal; update that historical plan or mark it superseded when transitioning the product baseline.
+- [3D_Yoga_Web_Plan.md](../3D_Yoga_Web_Plan.md) is marked as historical and superseded by this roadmap.
 
 ## Release gates
 For each milestone: source changes + tests, representative screenshots/video, iPhone Safari check, before/after performance snapshot, regression of course and voice controls, documented limitations, and explicit pass/fail. Never equate simulated tests with device acceptance.
+
+## M1 implementation progress — v0.9.24
+- Implemented: licensed original male skinned GLB, Luna left/student right, local-quaternion arm/leg/spine mapping, mirror side swap, interpolation, confidence/occlusion/staleness handling, fixed root/scale, optional camera debug view.
+- Source observations still feed existing deterministic observation/LLM context; the displayed Avatar does not become the evaluator. No voice pipeline refactor.
+- Default app no longer instantiates the cutout layer or requests segmentation. Legacy cutout modules and regression fixtures remain for historical comparison.
+- Automated and offline visual checks: see [M1 evidence](DUAL_AVATAR.md). Not yet accepted: iPhone Safari, real three-motion capture, before/after benchmark and sustained practice. M1 is not signed off; M2–M5 remain pending.

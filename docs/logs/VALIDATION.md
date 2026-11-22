@@ -2,6 +2,12 @@
 
 日期採台灣時間；下表只記錄已有證據的執行結果。不將替身測試視為手機驗收，也不將本機通過視為已發布。
 
+## 2026-11-22 · v0.9.24（M1 實作，實機驗收待完成）
+
+- 路線圖 M1：Luna + 男性學員 GLB、最小 quaternion 映射、confidence/mirror/stale、固定站位比例、預設關閉去背、保留原始觀測及語音控制。
+- 本機 `npm run check`：407 項通過，0 失敗／跳過；`npm run build`、`git diff --check` 通過。四動作離線骨架視覺圖見 [M1 記錄](../DUAL_AVATAR.md)。
+- CI、Pages、全螢幕設定瀏覽器檢查：待發布後填入真實結果。iPhone Safari／真實相機三動作／前後效能／30 分鐘尚未驗收。
+
 ## 2026-11-22 · v0.9.23
 
 - GPU 區段結束改採 WebGL fence／WebGPU queue 完成通知，保留 API／SDK 往返另列。未知留空，容量／逾時／生命週期／來源與通知延遲進面板及 ZIP。

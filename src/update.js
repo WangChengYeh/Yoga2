@@ -1,4 +1,4 @@
-import { APP_VERSION } from './release.js?v=0.9.23';
+import { APP_VERSION } from './release.js?v=0.9.24';
 
 export function parseRelease(value) {
   if (!value || typeof value.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(value.version)) throw new Error('Invalid release metadata');

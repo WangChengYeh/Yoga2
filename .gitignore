@@ -9,3 +9,5 @@ public/models/*.task
 public/models/*.tflite
 test-results/
 .venv/
+
+!public/models/student-v1.glb

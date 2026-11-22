@@ -28,6 +28,8 @@ jobs:
       - run: npm run build
       - name: Verify Pages entry stays in sync
         run: git diff --exit-code -- index.html
+      - name: Fullscreen settings layout in Chromium
+        run: npm run test:settings-layout
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

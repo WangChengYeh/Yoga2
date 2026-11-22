@@ -1,5 +1,7 @@
 # 3D 虛擬瑜伽教練：開發計畫
 
+> 歷史規劃：以下里程碑編號屬舊版。v0.9.24 起以 [PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md) 的雙 Avatar M1–M5 為準；預設真人去背已由男性學員 Avatar 取代。
+
 更新：2026-11-21（台灣時間）。目前開發版本 v0.9.14；M1～M7 已實作，M8 前後端流程已實作但專用 App 安裝與匿名送出待驗收。測試通過與手機驗收分開追蹤，見 [TESTING](docs/TESTING.md)。
 
 ## 產品目標

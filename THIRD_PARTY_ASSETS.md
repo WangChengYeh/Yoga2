@@ -43,3 +43,10 @@
 
 - WebLLM 0.2.89 (Apache-2.0), loaded on explicit opt-in from https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm ; source/license: https://github.com/mlc-ai/web-llm .
 - Qwen2.5-0.5B-Instruct 4-bit MLC weights, from https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC (or q4f32_1 fallback). Model license: Apache-2.0; upstream: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct . Model libraries and weights are downloaded by WebLLM after opt-in.
+
+## Original Yoga2 male student
+
+- `public/models/student-v1.glb`: original procedural male avatar; no external character geometry, textures or animations.
+- 22-bone Humanoid naming contract; actual GLB skinning with rigid segment weights; joint blending/twist remain M2 work.
+- CC0-1.0 asset declaration: `public/models/student-v1.LICENSE.txt`.
+- Reproduce with `node scripts/prepare-student.mjs`; source `src/student-model.js`.

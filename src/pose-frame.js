@@ -1,5 +1,5 @@
-import { portraitMask } from './portrait-mask.js?v=0.9.23';
-import { frameSize } from './cutout-core.js?v=0.9.23';
+import { portraitMask } from './portrait-mask.js?v=0.9.24';
+import { frameSize } from './cutout-core.js?v=0.9.24';
 
 // The same snapshot supplies pose, portrait segmentation and RGB, including when
 // there are no usable body landmarks. Frames never leave the browser.
@@ -45,7 +45,7 @@ export function createFrameProcessor({ detector, createCanvas, createSegmenter,o
           }catch{segmentationFailed=true;segmentationError=true;}
           finally{portrait?.close();if(segmentationFailed)releasePortrait();}
         }
-        enter('idle');return {landmarks:result.landmarks,segmentation,segmentationError,timings};
+        enter('idle');return {landmarks:result.landmarks,worldLandmarks:result.worldLandmarks,segmentation,segmentationError,timings};
       }finally{result.close();}
     },
     close(){if(closed)return;closed=true;enter('closed');detector.close();releasePortrait();},

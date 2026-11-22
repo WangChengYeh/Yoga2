@@ -1,13 +1,14 @@
 {
   "name": "yoga2-studio",
-  "version": "0.9.23",
+  "version": "0.9.24",
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/prepare-release.mjs && node scripts/sync-pages.mjs && node scripts/prepare-model.mjs && node scripts/prepare-pose.mjs && node scripts/prepare-portrait.mjs",
+    "prebuild": "node scripts/prepare-release.mjs && node scripts/prepare-student.mjs && node scripts/sync-pages.mjs && node scripts/prepare-model.mjs && node scripts/prepare-pose.mjs && node scripts/prepare-portrait.mjs",
     "build": "node scripts/build.mjs",
     "test": "node scripts/prepare-model.mjs && node --test tests/*.test.js",
     "check": "node scripts/check-syntax.mjs && npm test",
+    "test:settings-layout": "node scripts/check-settings-layout.mjs",
     "test:portrait": "node scripts/prepare-pose.mjs && node scripts/prepare-portrait.mjs && python3 scripts/analyze-portrait.py --image tests/fixtures/half-body-portrait.jpg --output test-results/portrait && node --test tests/portrait.integration.mjs"
   },
   "dependencies": {

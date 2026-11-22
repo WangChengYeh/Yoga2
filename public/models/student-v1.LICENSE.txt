@@ -1,0 +1,7 @@
+Yoga2 student-v1
+Original procedural male practice avatar authored for Yoga2, 2026.
+Source: src/student-model.js; generator: scripts/prepare-student.mjs.
+This asset and its procedural geometry are dedicated to the public domain
+under CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+No third-party character mesh, texture, likeness or animation is included.
+This declaration covers student-v1 only, not other repository assets.
