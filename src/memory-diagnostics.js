@@ -1,4 +1,4 @@
-import { APP_VERSION } from './release.js?v=0.9.25';
+import { APP_VERSION } from './release.js?v=0.9.26';
 const summarizeSnapshot=(s,error)=>summary({at:s?.at,aiPhase:s?.webllm?.phase,aiStage:s?.webllm?.stage,selected:s?.webllm?.context?.selected,active:s?.webllm?.context?.active,heapUsedBytes:s?.jsHeap?.usedBytes,bufferOutstandingBytes:s?.webllm?.gpu?.buffers?.outstandingDeclaredBytes,webglTextures:s?.webgl?.rendererCounts?.textures,webglGeometries:s?.webgl?.rendererCounts?.geometries,textureEstimateBytes:s?.webgl?.textureBytesEstimate,lastErrorCode:error?.code});
 const KEY='yoga2.memory.v1',WINDOW=300000,PERIOD=5000,MAX_SAMPLES=60,MAX_EVENTS=180;
 const number=value=>Number.isFinite(value)&&value>=0?value:null;

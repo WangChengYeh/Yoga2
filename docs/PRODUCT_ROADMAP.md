@@ -49,3 +49,8 @@ For each milestone: source changes + tests, representative screenshots/video, iP
 - Source observations still feed existing deterministic observation/LLM context; the displayed Avatar does not become the evaluator. No voice pipeline refactor.
 - Default app no longer instantiates the cutout layer or requests segmentation. Legacy cutout modules and regression fixtures remain for historical comparison.
 - Automated and offline visual checks: see [M1 evidence](DUAL_AVATAR.md). Not yet accepted: iPhone Safari, real three-motion capture, before/after benchmark and sustained practice. M1 is not signed off; M2–M5 remain pending.
+
+## M1 follow-up — v0.9.26
+- Debug camera/skeleton occupies a separate right rail (landscape) or bottom strip (portrait), with reserved toolbar/playback space. Both avatars reframe through the existing viewport ResizeObserver.
+- Closing camera or disabling Debug restores the full viewport. Video and skeleton preserve the same letterboxing.
+- Browser layout checks cover debug on/off, hidden camera, fullscreen/embedded, orientation and camera aspect ratios. These do not replace pending device/three-motion/performance acceptance above.

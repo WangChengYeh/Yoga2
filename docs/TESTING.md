@@ -105,3 +105,10 @@ npm run test:portrait
 手機驗收仍待：Safari fence／GPUQueue hook 支援、完成延遲／略過比例、開啟監測額外成本與三十分鐘穩定。完成通知耗時不是純 GPU execution，與 v0.9.22 數值定義不同，不直接跨版比較 loading。
 
 原圖 Debug：`pose-debug.test.js` 覆蓋半身局部關節、原圖座標（CSS 單次鏡像）、低信心／多人／低光／過期、開關立即重畫與清除，不以課程有效性限制疊圖。
+
+## v0.9.26 — Debug layout
+
+- `npm run check`: 411/411 passed; static release build passed.
+- Preview browser geometry QA: **36/36 passed**. `node scripts/prepare-debug-layout-qa.mjs`, then open `/debug-layout-qa.html`. Uses production HTML/CSS and fullscreen control relocation; checks desktop/phone landscape/phone portrait, embedded/fullscreen, Debug enabled/disabled/camera hidden, 3:4/16:9 input. Checks geometry and matching video/canvas letterboxing without camera, microphone or AI initialization.
+- Existing `test:settings-layout` could not start local Chrome in this executor (`socket() Operation not permitted`); preview-browser QA used for this change. No iPhone Safari or sustained device performance acceptance claimed.
+- Runtime studio viewport is observed by the existing ResizeObserver, which reframes both Avatars when Debug becomes visible, is disabled, or camera closes.

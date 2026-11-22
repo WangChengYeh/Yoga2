@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { usableJoint, skeletonFresh } from './skeleton.js?v=0.9.25';
+import { usableJoint, skeletonFresh } from './skeleton.js?v=0.9.26';
 
 const PAIRS=[['LeftArm','LeftForeArm',11,13],['LeftForeArm','LeftHand',13,15],['RightArm','RightForeArm',12,14],['RightForeArm','RightHand',14,16],['LeftUpLeg','LeftLeg',23,25],['LeftLeg','LeftFoot',25,27],['RightUpLeg','RightLeg',24,26],['RightLeg','RightFoot',26,28]];
 const MIRROR=new Map([[11,12],[12,11],[13,14],[14,13],[15,16],[16,15],[23,24],[24,23],[25,26],[26,25],[27,28],[28,27]]);
