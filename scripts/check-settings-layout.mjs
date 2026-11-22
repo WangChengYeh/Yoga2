@@ -3,7 +3,7 @@
 import {readFileSync,writeFileSync,mkdirSync,mkdtempSync,rmSync} from 'node:fs';
 import {resolve,join} from 'node:path';import {pathToFileURL} from 'node:url';import {tmpdir} from 'node:os';import {execFileSync} from 'node:child_process';import assert from 'node:assert/strict';
 let chrome=process.env.CHROMIUM_BIN;
-if(!chrome)for(const candidate of ['chromium','chromium-browser','google-chrome','google-chrome-stable'])try{chrome=execFileSync('which',[candidate],{encoding:'utf8'}).trim();break;}catch{/* Next executable. */}
+if(!chrome)for(const candidate of ['google-chrome','google-chrome-stable','chromium','chromium-browser'])try{chrome=execFileSync('which',[candidate],{encoding:'utf8'}).trim();break;}catch{/* Next executable. */}
 if(!chrome)throw Error('Set CHROMIUM_BIN to an installed Chromium/Chrome executable.');
 const out=resolve('test-results/settings-layout');mkdirSync(out,{recursive:true});
 const production=readFileSync('src/index.html','utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/href="\.\/style\.css[^\"]*"/,`href="${pathToFileURL(resolve('src/style.css'))}"`);
@@ -18,7 +18,7 @@ for(const [name,width,height] of [['wide',1536,710],['landscape',844,390],['port
  const result=document.createElement('script');result.id='layout-result';result.type='application/json';result.textContent=JSON.stringify(metrics);document.body.appendChild(result);`;
  writeFileSync(fixture,production.replace('</body>',`<script>${script}</script></body>`));const profile=mkdtempSync(join(tmpdir(),'yoga-layout-'));
  try{
- const dom=execFileSync(chrome,['--headless','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--hide-scrollbars','--force-device-scale-factor=1',`--user-data-dir=${profile}`,`--window-size=${width},${height}`,'--virtual-time-budget=1000',`--screenshot=${join(out,`${label}.png`)}`,'--dump-dom',pathToFileURL(fixture).href],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:30000,maxBuffer:2e6});
+ const dom=execFileSync(chrome,['--headless','--no-sandbox','--disable-gpu','--disable-background-networking','--disable-dev-shm-usage','--no-proxy-server','--no-first-run','--hide-scrollbars','--force-device-scale-factor=1',`--user-data-dir=${profile}`,`--window-size=${width},${height}`,'--virtual-time-budget=1000',`--screenshot=${join(out,`${label}.png`)}`,'--dump-dom',pathToFileURL(fixture).href],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:60000,maxBuffer:2e6});
  const raw=dom.match(/<script id="layout-result" type="application\/json">(.*?)<\/script>/s);assert.ok(raw,`${label}: missing browser metrics`);const m=JSON.parse(raw[1]);writeFileSync(join(out,`${label}.json`),JSON.stringify(m,null,2));
  if(!recordOnly){assert.ok(m.heading.width>180,`${label}: title squeezed to ${m.heading.width}px`);assert.ok(m.heading.height<=40,`${label}: title wrapped to ${m.heading.height}px`);assert.ok(m.heading.fontSize<=16,`${label}: oversized title ${m.heading.fontSize}px`);assert.ok(m.heading.x>=m.menu.x&&m.heading.right<=m.menu.right,`${label}: title escaped menu`);assert.ok(m.menu.right<=m.viewport.width&&m.menu.x>=0,`${label}: menu outside viewport`);for(const r of m.others){const overlaps=Math.min(r.right,m.card.right)-Math.max(r.x,m.card.x)>1&&Math.min(r.bottom,m.card.bottom)-Math.max(r.y,m.card.y)>1;assert.equal(overlaps,false,`${label}: card overlaps another control`);}}
  console.log(`${label}: heading ${Math.round(m.heading.width)}×${Math.round(m.heading.height)}, ${m.heading.fontSize}px${recordOnly?' (record only)':' — passed'}`);
