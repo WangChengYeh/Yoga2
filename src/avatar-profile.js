@@ -13,7 +13,7 @@ export function validatePhoto(file){if(!file||!['image/jpeg','image/png','image/
 export function validateProfile(profile){
  if(profile?.schema===2){
   if(!AVATAR_VIEWS.every(k=>profile.views?.[k] instanceof Blob&&profile.views[k].type==='image/jpeg'&&profile.views[k].size>0&&profile.views[k].size<=1024*1024))throw new Error('請提供正面、側面與背面三張圖。');
-  return {schema:2,template:'luna-v1',referenceArmDeg:referenceAngle(profile.referenceArmDeg),views:Object.fromEntries(AVATAR_VIEWS.map(k=>[k,profile.views[k]]))};
+  return {schema:2,template:'luna-v1',referenceArmDeg:referenceAngle(profile.referenceArmDeg),views:Object.fromEntries(AVATAR_VIEWS.map(k=>[k,profile.views[k]])),viewRects:Object.fromEntries(AVATAR_VIEWS.map(k=>[k,normalizeViewRect(profile.viewRects?.[k])]))};
  }
  if(profile?.schema!==PROFILE_SCHEMA||!(profile.face instanceof Blob)||profile.face.type!=='image/jpeg'||profile.face.size<=0||profile.face.size>512*1024)throw new Error('個人 Avatar 資料無法使用，請重新建立。');
  return {schema:PROFILE_SCHEMA,appearance:normalizeAppearance(profile.appearance),face:profile.face};
@@ -44,5 +44,7 @@ export function findBodyBounds(canvas){
  const pad=Math.ceil(h*.007);left=Math.max(0,left-pad);top=Math.max(0,top-pad);return {x:left,y:top,width:Math.min(w,right+pad+1)-left,height:Math.min(h,bottom+pad+1)-top,assisted:true};
 }
 export function bodyCropRect(bounds,{zoom=1,x=.5,y=.5}={}){const z=clamp(zoom,1,2.5,1),width=bounds.width/z,height=bounds.height/z;return {x:bounds.x+clamp(x,0,1,.5)*(bounds.width-width),y:bounds.y+clamp(y,0,1,.5)*(bounds.height-height),width,height};}
-export function drawBodyCrop(source,canvas,bounds,settings){const r=bodyCropRect(bounds,settings);canvas.width=BODY_WIDTH;canvas.height=BODY_HEIGHT;const ctx=canvas.getContext('2d');ctx.fillStyle='#eee';ctx.fillRect(0,0,BODY_WIDTH,BODY_HEIGHT);ctx.drawImage(source,r.x,r.y,r.width,r.height,0,0,BODY_WIDTH,BODY_HEIGHT);return canvas;}
+export function normalizeViewRect(r){if(!r||!['x','y','width','height'].every(k=>Number.isFinite(r[k]))||r.x<0||r.y<0||r.width<=0||r.height<=0||r.x+r.width>1.000001||r.y+r.height>1.000001)return {x:0,y:0,width:1,height:1};return {x:r.x,y:r.y,width:r.width,height:r.height};}
+export function bodyFitRect(bounds,settings){const r=bodyCropRect(bounds,settings),scale=Math.min(BODY_WIDTH/r.width,BODY_HEIGHT/r.height),width=r.width*scale/BODY_WIDTH,height=r.height*scale/BODY_HEIGHT;return {x:(1-width)/2,y:(1-height)/2,width,height};}
+export function drawBodyCrop(source,canvas,bounds,settings){const r=bodyCropRect(bounds,settings);canvas.width=BODY_WIDTH;canvas.height=BODY_HEIGHT;const ctx=canvas.getContext('2d');ctx.fillStyle='#eee';ctx.fillRect(0,0,BODY_WIDTH,BODY_HEIGHT);const fit=bodyFitRect(bounds,settings);ctx.drawImage(source,r.x,r.y,r.width,r.height,fit.x*BODY_WIDTH,fit.y*BODY_HEIGHT,fit.width*BODY_WIDTH,fit.height*BODY_HEIGHT);return canvas;}
 export function bodyBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob&&blob.size<=1024*1024?resolve(blob):reject(new Error('視圖貼圖無法建立，請重試。')),'image/jpeg',.9));}
