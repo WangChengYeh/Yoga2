@@ -1,28 +1,28 @@
-import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.26';
-import { TaskPerformance } from './task-performance.js?v=0.9.26';
-import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.26';
-import { performancePreferences, AdaptiveWorkload } from './performance-policy.js?v=0.9.26';
-import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.26';
-import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.26';
-import { webglMemory } from './webgl-memory.js?v=0.9.26';
-import { coachContext } from './coach-context.js?v=0.9.26';
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.26';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.26';
-import { setupDefaultMedia } from './default-media.js?v=0.9.26';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.26';
+import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.27';
+import { TaskPerformance } from './task-performance.js?v=0.9.27';
+import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.27';
+import { performancePreferences, AdaptiveWorkload } from './performance-policy.js?v=0.9.27';
+import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.27';
+import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.27';
+import { webglMemory } from './webgl-memory.js?v=0.9.27';
+import { coachContext } from './coach-context.js?v=0.9.27';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.27';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.27';
+import { setupDefaultMedia } from './default-media.js?v=0.9.27';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.27';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.26';
-import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.26';
-import { practiceLayout } from './practice-layout.js?v=0.9.26';
-import { setupFullscreen } from './fullscreen.js?v=0.9.26';
-import { setupStudentPanel } from './student-panel.js?v=0.9.26';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.27';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.27';
+import { practiceLayout } from './practice-layout.js?v=0.9.27';
+import { setupFullscreen } from './fullscreen.js?v=0.9.27';
+import { setupStudentPanel } from './student-panel.js?v=0.9.27';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.26';
-import { prepareStandingCoach } from './rig.js?v=0.9.26';
-import { setupPosePanel } from './pose-panel.js?v=0.9.26';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.26';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.27';
+import { prepareStandingCoach } from './rig.js?v=0.9.27';
+import { setupPosePanel } from './pose-panel.js?v=0.9.27';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.27';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -296,7 +296,7 @@ setupFullscreen({document,window,onChange:active=>{fullscreenTools.setActive(act
 humanPanel=setupStudentPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
 // Keep the empty layer reusable when Safari restores this page from bfcache.
 window.addEventListener('pagehide',()=>humanPanel.cameraState(false));
-posePanel = setupPosePanel({scheduler,getCaps:()=>adaptive.caps,onSourceFrame:()=>taskLog.point('camera.frame'),onTiming:d=>{adaptive.observe(d);if(d.accepted)taskLog.point('vision.frame');let end=performance.now();for(const [key,kind] of [['maskMs','mask.cpu'],['portraitMs','portrait.cpu'],['poseMs','pose.cpu'],['copyMs','copy.cpu']]){const ms=d.timings[key];if(Number.isFinite(ms)&&ms>=0){taskLog.record(kind,end-ms,end);end-=ms;}}},onMemoryEvent:({phase,code})=>memoryLog.mark(phase==='error'?'error':'boundary',{module:'mediapipe',phase,code}),onObservation:(data,observation,stable)=>activityLog.pose(data,observation,stable),onRuntime:recordActivity, human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
+posePanel = setupPosePanel({scheduler,onEvaluationTiming:(start,end)=>taskLog.record('evaluation.cpu',start,end),getCaps:()=>adaptive.caps,onSourceFrame:()=>taskLog.point('camera.frame'),onTiming:d=>{adaptive.observe(d);if(d.accepted)taskLog.point('vision.frame');let end=performance.now();for(const [key,kind] of [['maskMs','mask.cpu'],['portraitMs','portrait.cpu'],['poseMs','pose.cpu'],['copyMs','copy.cpu']]){const ms=d.timings[key];if(Number.isFinite(ms)&&ms>=0){taskLog.record(kind,end-ms,end);end-=ms;}}},onMemoryEvent:({phase,code})=>memoryLog.mark(phase==='error'?'error':'boundary',{module:'mediapipe',phase,code}),onObservation:(data,observation,stable)=>activityLog.pose(data,observation,stable),onRuntime:recordActivity, human:humanPanel, onMediaState:()=>defaultMedia?.refresh(), getFrame: () => courseFrame(state.time), isPlaying: () => state.playing, isPowerSaving: () => state.powerSaving });
 function getCoachContext(){
   const now=performance.now(),frame=courseFrame(state.time);
   if(state.ready&&pose)pose(frame.localTime,frame.lesson.id);
