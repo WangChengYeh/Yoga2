@@ -1,10 +1,10 @@
-import { kvEstimate } from './memory-diagnostics.js?v=0.9.20';
-import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.20';
-import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.20';
-import { guidanceMessages } from './ai-guidance.js?v=0.9.20';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.20';
-import { courseFrame } from './course.js?v=0.9.20';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.20';
+import { kvEstimate } from './memory-diagnostics.js?v=0.9.21';
+import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.21';
+import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.21';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.21';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.21';
+import { courseFrame } from './course.js?v=0.9.21';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.21';
 
 export function localAIMessages(text,state,history=[],context=null,contextWindow=DEFAULT_CONTEXT_WINDOW) {
   const frame=courseFrame(state.time);
@@ -19,21 +19,24 @@ export function localAIMessages(text,state,history=[],context=null,contextWindow
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.20',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
-    Object.assign(this,{onMemoryEvent,gpu,createWorker,onState,setTimer,clearTimer});
-    this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[],context:{selected:DEFAULT_CONTEXT_WINDOW,loading:null,active:null,status:'off'}};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];this.contextWindow=DEFAULT_CONTEXT_WINDOW;
+  constructor({responseDeadlineMs=8000,scheduler=null,onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.21',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+    Object.assign(this,{scheduler,onMemoryEvent,gpu,createWorker,onState,setTimer,clearTimer});
+    this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[],context:{selected:DEFAULT_CONTEXT_WINDOW,loading:null,active:null,status:'off'}};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];this.contextWindow=DEFAULT_CONTEXT_WINDOW;this.inferenceLeases=new Map();this.retireTimers=new Map();this.setResponseDeadline(responseDeadlineMs);
   }
+  setResponseDeadline(ms){this.responseDeadlineMs=[3000,5000,8000,10000,15000,30000].includes(Number(ms))?Number(ms):8000;}
+  retire(pending){if(!pending.sent||pending.nativeDone)return;this.retireTimers.set(pending.id,this.setTimer(()=>{this.fail('INFERENCE_CANCEL_TIMEOUT',new Error('Cancelled inference did not settle within 5000 ms'));},5000));}
   selectContextWindow(value){this.contextWindow=normalizeContextWindow(value);this.diagnostics.context.selected=this.contextWindow;}
   memoryEvent(phase,code){try{this.onMemoryEvent({phase,code});}catch{/* diagnostics cannot affect inference */}}
   requestMemory(){try{this.worker?.postMessage({type:'memory-snapshot'});}catch{/* Worker may be terminating. */}}
-  get memoryStatus(){const d=this.diagnostics;return {phase:this.phase,stage:d.stage,context:{...d.context},modelId:d.model?.id||null,downloadedShardBytes:d.downloadedShardBytes||0,gpu:d.gpuMemory||null,gpuSnapshotAgeMs:d.gpuMemory?.at?Math.max(0,Date.now()-Date.parse(d.gpuMemory.at)):null,usage:d.usage||null,kv:kvEstimate(d.context?.active||d.context?.loading,d.usage?.totalTokens),failureCode:d.failure?.code||null};}
+  get memoryStatus(){const d=this.diagnostics;return {phase:this.phase,stage:d.stage,context:{...d.context},modelId:d.model?.id||null,downloadedShardBytes:d.downloadedShardBytes||0,gpu:d.gpuMemory||null,gpuSnapshotAgeMs:d.gpuMemory?.at?Math.max(0,Date.now()-Date.parse(d.gpuMemory.at)):null,usage:d.usage||null,kv:kvEstimate(d.context?.active||d.context?.loading,d.usage?.totalTokens),responseDeadlineMs:this.responseDeadlineMs,response:d.response||null,failureCode:d.failure?.code||null};}
   get ready(){return this.phase==='ready';}
   get enabled(){return this.phase!=='off'&&this.phase!=='error';}
   emit(phase,message){this.phase=phase;this.onState({phase,message});}
-  clearPending(){if(this.timer)this.clearTimer(this.timer);this.timer=null;}
+  clearPending(){if(this.pending?.responseTimer)this.clearTimer(this.pending.responseTimer);if(this.timer)this.clearTimer(this.timer);this.timer=null;}
   disable(message='AI 對話已關閉；基本指令仍可使用。'){
-    ++this.generation;this.history=[];this.cancelGPU?.();this.cancelGPU=null;this.clearPending();this.pending?.resolve(null);this.pending=null;
+    ++this.generation;this.loadAbort?.abort();this.loadAbort=null;this.pending?.queueAbort?.abort();this.history=[];this.cancelGPU?.();this.cancelGPU=null;this.clearPending();this.pending?.resolve(null);this.pending=null;
     const hadWorker=Boolean(this.worker);if(this.worker){this.memoryEvent('worker-stop-before');this.worker.onmessage=this.worker.onerror=this.worker.onmessageerror=null;this.worker.terminate();this.worker=null;}
+    this.loadRelease?.();this.loadRelease=null;for(const release of this.inferenceLeases.values())release();this.inferenceLeases.clear();for(const timer of this.retireTimers.values())this.clearTimer(timer);this.retireTimers.clear();
     if(this.diagnostics.context)this.diagnostics.context={...this.diagnostics.context,loading:null,active:null,status:'off'};
     this.emit('off',message);if(hadWorker)this.memoryEvent('worker-stop-after');
   }
@@ -63,6 +66,7 @@ export class LocalCoachAI {
       if(generation!==this.generation)return;
       if(!adapter){this.fail('GPU_ADAPTER_NULL',new Error('navigator.gpu.requestAdapter() returned null'),'adapter');return;}
       this.diagnostics.gpu={features:Array.from(adapter.features||[]),limits:{maxBufferSize:adapter.limits?.maxBufferSize??null,maxStorageBufferBindingSize:adapter.limits?.maxStorageBufferBindingSize??null}};
+      if(this.scheduler){this.record('scheduler-wait');this.emit('loading','等待其他運算完成，再載入 AI。');const controller=this.loadAbort=new AbortController();const release=await this.scheduler.acquire('ai-load',{signal:controller.signal});if(generation!==this.generation){release();return;}this.loadRelease=release;this.clearPending();this.timer=this.setTimer(()=>this.fail('LOAD_TIMEOUT',new Error('Model load exceeded 180000 ms')),180000);}
       this.record('worker');this.emit('loading','GPU 檢查通過，正在啟動 AI 背景執行緒。');
       const worker=this.createWorker();this.worker=worker;
       const current=()=>generation===this.generation&&this.worker===worker;
@@ -70,6 +74,7 @@ export class LocalCoachAI {
       worker.onmessageerror=()=>{if(current())this.fail('WORKER_MESSAGE_ERROR',new Error('Worker message could not be decoded'));};
       worker.onmessage=({data})=>{
         if(!current())return;
+        if(data.type==='inference-done'){if(this.pending?.id===data.id)this.pending.nativeDone=true;const timer=this.retireTimers.get(data.id);if(timer)this.clearTimer(timer);this.retireTimers.delete(data.id);this.inferenceLeases.get(data.id)?.();this.inferenceLeases.delete(data.id);}
         if(data.type==='gpu-memory')this.diagnostics.gpuMemory=data.snapshot;
         if(data.type==='gpu-event')this.memoryEvent(data.event?.type==='device-lost'&&data.event?.code==='destroyed'?'device-destroyed':'error',data.event?.type==='device-lost'?'GPU_DEVICE_LOST':data.event?.code==='GPUOutOfMemoryError'?'GPU_OUT_OF_MEMORY':data.event?.type==='device-error'?'GPU_DEVICE_ERROR':'GPU_ALLOCATION_FAILURE');
         if(data.type==='stage'){this.record(data.stage);if(this.phase==='loading')this.emit('loading',`正在${AI_STAGE_NAMES[data.stage]||data.stage}…`);}
@@ -79,52 +84,59 @@ export class LocalCoachAI {
         if(data.type==='resource-error')this.diagnostics.failedResource=data.resource;
         if(data.type==='progress'&&data.detail)this.diagnostics.lastProgress=data.detail;
         if(data.type==='progress'&&this.phase==='loading')this.emit('loading',`正在下載／載入本機 AI：${Math.round(Math.max(0,Math.min(1,Number(data.progress)||0))*100)}%`);
-        if(data.type==='ready'){this.diagnostics.context={selected:this.contextWindow,loading:null,active:this.diagnostics.model?.contextWindow||null,status:'ready'};this.record('ready');this.clearPending();this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');this.memoryEvent('model-load-after');}
+        if(data.type==='ready'){this.loadRelease?.();this.loadRelease=null;this.loadAbort=null;this.diagnostics.context={selected:this.contextWindow,loading:null,active:this.diagnostics.model?.contextWindow||null,status:'ready'};this.record('ready');this.clearPending();this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');this.memoryEvent('model-load-after');}
         if(data.type==='error'){if(data.id&&data.id!==this.pending?.id)return;if(data.resource)this.diagnostics.failedResource=data.resource;this.fail(data.code||aiErrorCode(data.error,data.stage),data.error,data.stage||this.diagnostics.stage);return;}
         if(data.type==='reply'&&this.pending?.id===data.id){
-          const pending=this.pending;this.pending=null;this.clearPending();
+          const pending=this.pending;this.clearPending();this.pending=null;this.diagnostics.response={...this.diagnostics.response,outcome:'reply',elapsedMs:Date.now()-pending.startedAt};
           this.diagnostics.usage=data.usage||null;
           const text=String(data.text||'').trim().slice(0,240);
           this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');this.memoryEvent('inference-after');pending.resolve(text||null);
         }
       };
       worker.postMessage({type:'load',half:adapter.features.has('shader-f16'),contextWindow:this.contextWindow,...(reset?{reset:true}:{})});
-    }catch(error){if(generation===this.generation)this.fail(aiErrorCode(error,this.diagnostics.stage),error);}
+    }catch(error){if(generation===this.generation){if(error.name==='AbortError')this.disable();else this.fail(aiErrorCode(error,this.diagnostics.stage),error);}}
   }
-  cancelReply(){
+  cancelReply(reason='cancelled'){
     if(this.pending?.kind!=='reply')return;
-    const pending=this.pending;this.pending=null;this.clearPending();pending.resolve(null);
-    try{this.worker?.postMessage({type:'cancel-reply',id:pending.id});}catch{/* stale worker */}
+    const pending=this.pending;this.clearPending();this.pending=null;pending.queueAbort?.abort();this.diagnostics.response={...this.diagnostics.response,outcome:reason,elapsedMs:Date.now()-pending.startedAt};this.retire(pending);pending.resolve(null);
+    if(pending.sent)try{this.worker?.postMessage({type:'cancel-reply',id:pending.id});}catch{/* stale worker */}
     this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');
   }
-  cancelGuidance(){
+  cancelGuidance(reason='cancelled'){
     if(this.pending?.kind!=='guidance')return;
-    const pending=this.pending;this.pending=null;this.clearPending();pending.resolve(null);
-    try{this.worker?.postMessage({type:'cancel-guidance',id:pending.id});}catch{/* stale worker */}
+    const pending=this.pending;this.clearPending();this.pending=null;pending.queueAbort?.abort();this.diagnostics.response={...this.diagnostics.response,outcome:reason,elapsedMs:Date.now()-pending.startedAt};this.retire(pending);pending.resolve(null);
+    if(pending.sent)try{this.worker?.postMessage({type:'cancel-guidance',id:pending.id});}catch{/* stale worker */}
     this.emit('ready','AI 對話已開啟 · 手機本機 0.5B');
   }
-  greet(state,context=null){
+  greet(state,context=null,refreshContext=null){
     this.cancelGuidance();
-    return this.request(localAIMessages('請主動向剛進來的使用者打招呼：簡短自我介紹是 Luna，問想先聊聊還是伸展，等待回答，不要指示開始動作。',state,[],context,this.contextWindow),'reply',context);
+    return this.request(localAIMessages('請主動向剛進來的使用者打招呼：簡短自我介紹是 Luna，問想先聊聊還是伸展，等待回答，不要指示開始動作。',state,[],context,this.contextWindow),'reply',context,refreshContext,c=>localAIMessages('請主動向剛進來的使用者打招呼：簡短自我介紹是 Luna，問想先聊聊還是伸展，等待回答，不要指示開始動作。',state,[],c,this.contextWindow));
   }
-  ask(text,state,context=null){
+  ask(text,state,context=null,refreshContext=null){
     this.cancelGuidance();const generation=this.generation;
-    return this.request(localAIMessages(text,state,this.history,context,this.contextWindow),'reply',context).then(reply=>{
+    return this.request(localAIMessages(text,state,this.history,context,this.contextWindow),'reply',context,refreshContext,c=>localAIMessages(text,state,this.history,c,this.contextWindow)).then(reply=>{
       if(reply&&generation===this.generation)this.history=this.history.concat([{role:'user',content:String(text).slice(0,300)},{role:'assistant',content:reply.slice(0,512)}]).slice(-12);
       return reply;
     });
   }
-  guide(cue,state,context=null){return this.request(guidanceMessages(cue,state,context,this.contextWindow),'guidance',context);}
-  request(messages,kind,context=null){
+  guide(cue,state,context=null,refreshContext=null){return this.request(guidanceMessages(cue,state,context,this.contextWindow),'guidance',context,refreshContext,c=>guidanceMessages(cue,state,c,this.contextWindow));}
+  request(messages,kind,context=null,refreshContext=null,buildMessages=null){
     if(!this.ready||this.pending)return Promise.resolve(null);
-    this.diagnostics.sensors=modelSensorContext(context,this.contextWindow);
-    if(this.contextWindow===1024)this.diagnostics.sourceSensors=sensorContext(context);else delete this.diagnostics.sourceSensors;
-    const id=++this.serial;this.diagnostics.sensorsRequest={id,kind,at:new Date().toISOString()};this.record('inference');this.diagnostics.failedResource=null;
-    this.emit('thinking',kind==='guidance'?'AI 正在準備帶練口令。':'AI 正在想，基本控制仍可使用。');
+    const id=++this.serial,generation=this.generation;this.record('inference');this.diagnostics.failedResource=null;
+    this.emit('thinking',this.scheduler?'等待運算排程，正在準備教練回覆。':kind==='guidance'?'AI 正在準備帶練口令。':'AI 正在想，基本控制仍可使用。');
     return new Promise(resolve=>{
-      this.pending={id,resolve,kind};
-      this.timer=this.setTimer(()=>this.fail('INFERENCE_TIMEOUT',new Error('Generation exceeded 45000 ms')),45000);
-      try{this.memoryEvent('inference-before');this.worker.postMessage({type:'ask',id,kind,messages});}catch(error){this.fail('WORKER_MESSAGE_ERROR',error);}
+      const pending={id,resolve,kind,startedAt:Date.now(),queueAbort:new AbortController()};this.pending=pending;this.diagnostics.response={id,limitMs:this.responseDeadlineMs,outcome:'waiting'};pending.responseTimer=this.setTimer(()=>{if(this.pending!==pending)return;if(kind==='guidance')this.cancelGuidance('deadline');else this.cancelReply('deadline');this.memoryEvent('response-deadline','LLM_RESPONSE_DEADLINE');},this.responseDeadlineMs);
+      const send=release=>{
+        if(this.pending!==pending||generation!==this.generation){release?.();return;}
+        if(release)this.inferenceLeases.set(id,release);
+        if(refreshContext&&buildMessages){try{context=refreshContext();}catch{context=null;}try{messages=buildMessages(context);}catch(error){this.fail('CONTEXT_ERROR',error);return;}}
+        this.diagnostics.sensors=modelSensorContext(context,this.contextWindow);
+        if(this.contextWindow===1024)this.diagnostics.sourceSensors=sensorContext(context);else delete this.diagnostics.sourceSensors;
+        this.diagnostics.sensorsRequest={id,kind,at:new Date().toISOString()};
+        this.timer=this.setTimer(()=>this.fail('INFERENCE_TIMEOUT',new Error('Generation exceeded 45000 ms')),45000);
+        try{this.memoryEvent('inference-before');pending.sent=true;this.worker.postMessage({type:'ask',id,kind,messages});}catch(error){this.fail('WORKER_MESSAGE_ERROR',error);}
+      };
+      if(this.scheduler)this.scheduler.acquire('ai-inference',{signal:pending.queueAbort.signal}).then(send,error=>{if(this.pending!==pending)return;this.clearPending();this.pending=null;resolve(null);if(error.name==='AbortError')this.emit('ready','運算排程已取消。');else this.fail('SCHEDULER_ERROR',error);});else send();
     });
   }
 }

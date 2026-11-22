@@ -5,18 +5,18 @@ import { CameraSession, cameraMessage } from '../src/camera-session.js';
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b; }); return { promise, resolve, reject }; };
 function harness(overrides = {}) {
   let time = 0, next = 0, stopped = 0, closed = 0, calls = 0, stale = 0;
-  const frames = new Map(), timers = new Map(), states = [], results = [];
+  const frames = new Map(), timers = new Map(), states = [], results = [],requests=[];
   const listeners = {};
   const track = { stop: () => stopped++, addEventListener: (type, fn) => { listeners[type] = fn; } };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   const video = { readyState:2, currentTime:0, play:async () => {}, pause:() => {}, srcObject:null };
   const engine = { detect:async () => ({ landmarks:[] }), close:() => closed++ };
-  const session = new CameraSession({ video, mediaDevices: { getUserMedia:async (constraints) => { calls++; assert.equal(constraints.audio,false); assert.equal(constraints.video.facingMode.ideal,'user'); return stream; } }, createEngine:async () => engine,
+  const session = new CameraSession({ video, mediaDevices: { getUserMedia:async (constraints) => { calls++; requests.push(constraints); assert.equal(constraints.audio,false); assert.equal(constraints.video.facingMode.ideal,'user'); return stream; } }, createEngine:async () => engine,
     onState:(state) => states.push(state), onResult:(value) => results.push(value), onStale:() => stale++,
     now:() => time, requestFrame:(fn) => { frames.set(++next,fn); return next; }, cancelFrame:(id) => frames.delete(id),
     setTimer:(fn) => { timers.set(++next,fn); return next; }, clearTimer:(id) => timers.delete(id),
     getContext:() => ({ key:'reach-hold:true' }), ...overrides });
-  return { session, stream, engine, video, states, results, frames, timers, trackEnded: () => listeners.ended(),
+  return { session, stream, engine, video, states, results, frames, timers, requests,setTime:t=>time=t, trackEnded: () => listeners.ended(),
     get stopped(){return stopped;}, get closed(){return closed;}, get calls(){return calls;}, get stale(){return stale;},
     async frame(ms = 250, advance = true) { time += ms; if(advance)video.currentTime += .2; const [id,fn] = frames.entries().next().value; frames.delete(id); await fn(); },
   };
@@ -103,4 +103,16 @@ test('camera diagnostics distinguish an in-flight first inference from video tha
 });
 test('camera failure has a stable error code and stopped inference cannot modify later session counters',async()=>{
  const h=harness();h.engine.detect=async()=>{throw Object.assign(new Error('not persisted'),{code:'POSE_REQUEST_TIMEOUT'});};await h.session.start();await h.frame();assert.equal(h.session.diagnostics.lastError,'POSE_REQUEST_TIMEOUT');assert.equal(h.session.diagnostics.inFlight,false);assert.doesNotMatch(JSON.stringify(h.session.diagnostics),/not persisted/);h.session.stop();
+});
+test('queued camera captures after admission, so waiting for AI does not invalidate the new frame',async()=>{
+ const {WorkloadScheduler}=await import('../src/workload-scheduler.js');const s=new WorkloadScheduler(),h=harness({scheduler:s});await h.session.start();const held=await s.acquire('ai-inference'),frame=h.frame(200);await Promise.resolve();assert.equal(h.session.diagnostics.waitingForSchedule,true);h.setTime(5000);h.video.currentTime=5;held();await frame;assert.equal(h.results.length,1);assert.equal(h.results[0].capturedAt,5000);assert.equal(h.session.diagnostics.lastScheduleWaitMs,4800);assert.equal(h.session.diagnostics.waitingForSchedule,false);h.session.stop();
+});
+test('stopping a queued camera does not reopen it or release another active workload',async()=>{
+ const {WorkloadScheduler}=await import('../src/workload-scheduler.js');const s=new WorkloadScheduler(),h=harness({scheduler:s});await h.session.start();const held=await s.acquire('ai-inference'),frame=h.frame();h.session.stop();await frame;assert.equal(s.diagnostics.queued.length,0);assert.equal(s.diagnostics.active.kind,'ai-inference');assert.equal(h.results.length,0);held();assert.equal(h.calls,1);
+});
+test('FPS preference affects initial stream constraints and live apply records negotiated hardware limits',async()=>{
+ const h=harness();await h.session.setFPS(5);await h.session.start();assert.equal(h.requests[0].video.frameRate.max,5);let rate=5;const track=h.stream.getVideoTracks()[0];track.getSettings=()=>({frameRate:rate});track.applyConstraints=async c=>{rate=Math.min(c.frameRate.ideal,24);};await h.session.setFPS(60);assert.equal(h.session.fpsDiagnostics.requested,60);assert.equal(h.session.fpsDiagnostics.negotiated,24);assert.equal(h.calls,1);assert.equal(h.session.phase,'active');h.session.stop();
+});
+test('FPS apply failure leaves the stream active and a rapid later selection wins after earlier apply settles',async()=>{
+ const h=harness();await h.session.start();const track=h.stream.getVideoTracks()[0];track.applyConstraints=async()=>{throw Object.assign(Error(),{name:'OverconstrainedError'});};assert.equal(await h.session.setFPS(30),false);assert.equal(h.session.fpsDiagnostics.error,'OverconstrainedError');assert.equal(h.session.phase,'active');const gate=deferred();let actual=15;track.getSettings=()=>({frameRate:actual});track.applyConstraints=async c=>{if(c.frameRate.ideal===30)await gate.promise;actual=c.frameRate.ideal;};const first=h.session.setFPS(30);await Promise.resolve();await Promise.resolve();const last=h.session.setFPS(5);gate.resolve();await Promise.all([first,last]);assert.equal(actual,5);assert.equal(h.session.fpsDiagnostics.negotiated,5);h.session.stop();
 });

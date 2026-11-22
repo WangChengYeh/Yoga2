@@ -1,6 +1,6 @@
-import { sensorText } from './coach-context.js?v=0.9.20';
-import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.20';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.20';
+import { sensorText } from './coach-context.js?v=0.9.21';
+import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.21';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.21';
 const cues=LESSONS.flatMap((lesson,index)=>GUIDANCE[lesson.id].map(([time])=>guidanceAt(lessonStart(index)+time))).concat(guidanceAt(COURSE_DURATION));
 export const nextGuidance=time=>cues.find(cue=>cue.at>time);
 export function guidanceMessages(cue,state,context=null,contextWindow=4096){
@@ -40,7 +40,7 @@ export class AIGuidance {
   if(this.flight||!this.ai.ready||this.cache.has(cue.key)||this.attempted.has(cue.key))return;
   this.attempted.add(cue.key);
   const flight={key:cue.key,serial:this.serial};this.flight=flight;
-  let result;try{result=this.ai.guide(cue,this.getState(),this.getContext());}catch{this.flight=null;return;}
+  let result;try{result=this.ai.guide(cue,this.getState(),this.getContext(),this.getContext);}catch{this.flight=null;return;}
   Promise.resolve(result).then(text=>{
    if(this.flight!==flight||flight.serial!==this.serial)return;
    const sentence=validGuidance(text,cue);if(sentence)this.cache.set(cue.key,sentence);

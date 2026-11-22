@@ -1,5 +1,5 @@
-import { portraitMask } from './portrait-mask.js?v=0.9.20';
-import { frameSize } from './cutout-core.js?v=0.9.20';
+import { portraitMask } from './portrait-mask.js?v=0.9.21';
+import { frameSize } from './cutout-core.js?v=0.9.21';
 
 // The same snapshot supplies pose, portrait segmentation and RGB, including when
 // there are no usable body landmarks. Frames never leave the browser.
@@ -9,7 +9,7 @@ export function createFrameProcessor({ detector, createCanvas, createSegmenter,o
   const releasePortrait=()=>{segmenter?.close();segmenter=null;if(canvas)canvas.width=canvas.height=1;canvas=ctx=null;};
   return {
     get diagnostics(){return {stage,segmentationFailed,portraitLoaded:Boolean(segmenter),portraitModelBytes:segmenter?.modelBytes??null,canvas:canvas?{width:canvas.width,height:canvas.height,rgbaBytesEstimate:canvas.width*canvas.height*4}:null,allocatorBytes:null};},
-    async detect(source,timestamp,{segment=false}={}) {
+    async detect(source,timestamp,{segment=false,maxSide=512}={}) {
       if(closed)throw new Error('Engine closed');
       if(!segment){releasePortrait();segmentationFailed=false;}
       if(segment&&!segmentationFailed&&!segmenter) {
@@ -22,7 +22,7 @@ export function createFrameProcessor({ detector, createCanvas, createSegmenter,o
       let input=source;
       if(segment&&!segmentationFailed) {
         try {
-          enter('frame-copy');const {width,height}=frameSize(source.videoWidth||source.width,source.videoHeight||source.height);
+          enter('frame-copy');const {width,height}=frameSize(source.videoWidth||source.width,source.videoHeight||source.height,maxSide);
           canvas ||= createCanvas();ctx ||= canvas.getContext('2d',{willReadFrequently:true});
           if(!ctx)throw new Error('Canvas unavailable');
           if(canvas.width!==width)canvas.width=width;if(canvas.height!==height)canvas.height=height;

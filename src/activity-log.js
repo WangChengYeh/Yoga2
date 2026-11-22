@@ -1,5 +1,5 @@
 // Bounded, in-memory diagnostic timeline. No audio, images or user text.
-import { feedbackWindow } from './pose-rules.js?v=0.9.20';
+import { feedbackWindow } from './pose-rules.js?v=0.9.21';
 const token=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,80}$/.test(value)?value:'unknown';
 const round=value=>Number.isFinite(value)?Math.round(value*1000)/1000:null;
 const JOINTS=[11,12,13,14,15,16,23,24,25,26,27,28,31,32];
@@ -7,7 +7,7 @@ export function createActivityLog({now=()=>new Date().toISOString(),clock=()=>pe
  let events=[],poses=[],sequence=0,lastSample=-Infinity,lastPhase='';
  const context=()=>{const state=getState();return {courseTime:round(state.time),playing:Boolean(state.playing),speed:round(state.speed)};};
  const stamp=()=>({sequence:++sequence,at:now(),elapsedMs:round(clock()),...context()});
- function record(type,data={}){const event={...stamp(),type:token(type)};for(const key of ['phase','code','source','control','value','lesson'])if(data[key]!=null)event[key]=token(String(data[key]));for(const key of ['selected','loading','active'])if([1024,4096,16384].includes(data[key]))event[key]=data[key];events.push(event);if(events.length>256)events.shift();}
+ function record(type,data={}){const event={...stamp(),type:token(type)};for(const key of ['phase','code','source','control','value','lesson'])if(data[key]!=null)event[key]=token(String(data[key]));for(const key of ['selected','loading','active'])if([1024,4096,16384].includes(data[key]))event[key]=data[key];for(const key of ['requestedFPS','negotiatedFPS','analysisFPS'])if(Number.isFinite(data[key])&&data[key]>=0&&data[key]<=240)event[key]=data[key];events.push(event);if(events.length>256)events.shift();}
  function course(frame){const phase=`${frame.lesson.id}:${feedbackWindow(frame)}`;if(phase===lastPhase)return;lastPhase=phase;record('course-phase',{lesson:frame.lesson.id,phase:feedbackWindow(frame)});}
  function pose(data,observation,stable){const time=clock();if(time-lastSample<1000)return;lastSample=time;
   // Only visible body joints; exclude facial landmarks and never invent hidden joints.
@@ -17,7 +17,7 @@ export function createActivityLog({now=()=>new Date().toISOString(),clock=()=>pe
  }
  return {record,course,pose,get diagnostics(){return {schema:1,sampleIntervalMs:1000,limits:{events:256,poses:120},storage:'memory-only',note:'Recent sampled image-space body joints, not video or a safety assessment. Missing joints are unknown. UTC timestamps and elapsedMs align with voice logs; camera-off/stale events mark gaps. Cleared on reload.',events:structuredClone(events),poses:structuredClone(poses)};}};
 }
-const CONTROLS=new Set(['camera-toggle','stage-play','play','restart','seek','quality','reset-view','ai-skeleton-toggle','coach-skeleton-toggle','voice-toggle','voice-output','voice-stop','media-start','coach-hello','audio-retry','local-ai-retry','local-ai-redownload','guidance-toggle','ai-context-window','fullscreen-toggle']);
+const CONTROLS=new Set(['camera-toggle','stage-play','play','restart','seek','quality','reset-view','ai-skeleton-toggle','coach-skeleton-toggle','voice-toggle','voice-output','voice-stop','media-start','coach-hello','audio-retry','local-ai-retry','local-ai-redownload','guidance-toggle','ai-context-window','render-fps','response-seconds','auto-workload','camera-fps','analysis-fps','fullscreen-toggle']);
 export function trackActivityControls({doc=document,log}){
  const handle=event=>{const el=event.target?.closest?.('button,input,select');if(!el||el.disabled)return;
   if(event.type==='click'&&el.tagName!=='BUTTON')return;if(event.type==='change'&&el.tagName==='BUTTON')return;
@@ -28,7 +28,7 @@ export function trackActivityControls({doc=document,log}){
   else if(el.dataset?.lessonIndex){control='lesson';value=el.dataset.lessonIndex;}
   else if(!CONTROLS.has(control))return;
   if(el.type==='checkbox')value=String(Boolean(el.checked));
-  else if(control==='ai-context-window')value=String(Number(el.value));
+  else if(['ai-context-window','render-fps','response-seconds','auto-workload','camera-fps','analysis-fps'].includes(control))value=String(Number(el.value));
   else if(control==='seek')value=String(Number(el.value));
   log.record('control',{control,value});
  };doc.addEventListener('click',handle,true);doc.addEventListener('change',handle,true);

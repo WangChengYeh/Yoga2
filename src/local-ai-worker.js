@@ -1,7 +1,7 @@
-import { trackWebGPU } from './gpu-memory-tracker.js?v=0.9.20';
-import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.20';
-import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.20';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.20';
+import { trackWebGPU } from './gpu-memory-tracker.js?v=0.9.21';
+import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.21';
+import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.21';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.21';
 const gpuMemory=trackWebGPU({onEvent:event=>{sendMemory();self.postMessage({type:'gpu-event',event});}});
 function sendMemory(){self.postMessage({type:'gpu-memory',snapshot:{at:new Date().toISOString(),stage,buffers:gpuMemory.snapshot,workerHeap:globalThis.performance?.memory?{usedBytes:performance.memory.usedJSHeapSize,totalBytes:performance.memory.totalJSHeapSize}:null}});}
 let engine,stage='worker',resource=null;const shardSizes=new Map();
@@ -57,14 +57,14 @@ self.onmessage=async({data})=>{
   }else if(data.type==='ask'&&engine){
    resource=null;redactions=(data.messages||[]).flatMap(m=>[m.content,String(m.content||'').split('使用者問題：')[1]]).filter(Boolean);enter('inference');
    const run=async()=>{
-    if(cancelledInference.delete(data.id))return;
-    activeInference=data.id;sendMemory();
+    if(cancelledInference.delete(data.id)){self.postMessage({type:'inference-done',id:data.id});return;}
+    activeInference=data.id;let finished=false;sendMemory();
     try{
      const result=await engine.chat.completions.create({messages:data.messages,max_tokens:data.kind==='guidance'?64:160,temperature:.3,stream:false});
-     sendMemory();if(!cancelledInference.has(data.id))self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||'',usage:result.usage?{promptTokens:result.usage.prompt_tokens??null,completionTokens:result.usage.completion_tokens??null,totalTokens:result.usage.total_tokens??null}:null});
+     sendMemory();self.postMessage({type:'inference-done',id:data.id});finished=true;if(!cancelledInference.has(data.id))self.postMessage({type:'reply',id:data.id,text:result.choices[0]?.message?.content||'',usage:result.usage?{promptTokens:result.usage.prompt_tokens??null,completionTokens:result.usage.completion_tokens??null,totalTokens:result.usage.total_tokens??null}:null});
     }catch(error){
      if(!cancelledInference.has(data.id))throw error;
-    }finally{activeInference=null;cancelledInference.delete(data.id);}
+    }finally{if(!finished)self.postMessage({type:'inference-done',id:data.id});activeInference=null;cancelledInference.delete(data.id);}
    };
    const next=inferenceQueue.then(run);
    inferenceQueue=next.catch(()=>{});

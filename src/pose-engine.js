@@ -1,8 +1,9 @@
-import { createFrameProcessor } from './pose-frame.js?v=0.9.20';
-import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.9.20';
+import { createFrameProcessor } from './pose-frame.js?v=0.9.21';
+import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.9.21';
 
-async function workerEngine(config,observe=()=>{}) {
-  const worker = new Worker(new URL('./pose-worker.js?v=0.9.20', import.meta.url));
+async function workerEngine(config,observe=()=>{},signal) {
+  if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{name:'AbortError'});
+  const worker = new Worker(new URL('./pose-worker.js?v=0.9.21', import.meta.url));
   let nextId = 0, closed = false, portraitRequested=false,stage='initializing',lastError=null,resources=null;
   const pending = new Map();
   const fail = () => {
@@ -27,7 +28,8 @@ async function workerEngine(config,observe=()=>{}) {
       catch (error) { clearTimeout(timer); pending.delete(id); reject(error); }
     });
   }
-  const close = () => { if (!closed) { closed = true;stage='closed'; worker.terminate(); fail(); } };
+  const close = () => { if (!closed) { closed = true;stage='closed';signal?.removeEventListener('abort',close); worker.terminate(); fail(); } };
+  signal?.addEventListener('abort',close,{once:true});
   try { await send({ type: 'init', config }, [], 45000); }
   catch (error) { close(); throw error; }
   return {
@@ -50,13 +52,15 @@ async function workerEngine(config,observe=()=>{}) {
 export function portraitMemoryObserver(notify=()=>{}){
  let loading=false;return (stage,resources)=>{try{if(stage==='portrait-loading'&&!loading){loading=true;notify({phase:'portrait-load-before'});}else if(stage==='closed')loading=false;else if(loading&&stage==='pose-inference'){loading=false;notify({phase:resources?.portraitLoaded?'portrait-load-after':'error',code:resources?.portraitLoaded?undefined:'PORTRAIT_LOAD_FAILED'});}}catch{/* Observation must not affect detection. */}};
 }
-export async function createPoseEngine(config,{onMemoryEvent=()=>{}}={}) {
+export async function createPoseEngine(config,{onMemoryEvent=()=>{},signal}={}) {
   const observe=portraitMemoryObserver(onMemoryEvent);
   if (typeof Worker !== 'undefined' && typeof createImageBitmap === 'function' && typeof OffscreenCanvas !== 'undefined') {
-    try { return await workerEngine(config,observe); }
-    catch { /* Fall back once for browsers without worker/WASM canvas support. */ }
+    try { return await workerEngine(config,observe,signal); }
+    catch { if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{name:'AbortError'}); /* Fall back once for browsers without worker/WASM canvas support. */ }
   }
+  if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{name:'AbortError'});
   const detector = await createDetector(config);
+  if(signal?.aborted){detector.close();throw Object.assign(new Error('Cancelled'),{name:'AbortError'});}
   const processor=createFrameProcessor({detector,createCanvas:()=>document.createElement('canvas'),createSegmenter:()=>createPortraitSegmenter(config),onStage:stage=>observe(stage,processor?.diagnostics)});
   return {mode:'main',detect:(...args)=>processor.detect(...args),close:()=>processor.close(),get diagnostics(){return processor.diagnostics;}};
 }

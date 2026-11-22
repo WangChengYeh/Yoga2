@@ -1,13 +1,13 @@
-import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.20';
-import { APP_VERSION } from './release.js?v=0.9.20';
-import { AIGuidance } from './ai-guidance.js?v=0.9.20';
-import { LocalCoachAI } from './local-ai.js?v=0.9.20';
-import { CourseNarrator } from './guidance.js?v=0.9.20';
-import { VoiceSession } from './voice-session.js?v=0.9.20';
-import { respondToUtterance } from './voice-intents.js?v=0.9.20';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.20';
+import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.21';
+import { APP_VERSION } from './release.js?v=0.9.21';
+import { AIGuidance } from './ai-guidance.js?v=0.9.21';
+import { LocalCoachAI } from './local-ai.js?v=0.9.21';
+import { CourseNarrator } from './guidance.js?v=0.9.21';
+import { VoiceSession } from './voice-session.js?v=0.9.21';
+import { respondToUtterance } from './voice-intents.js?v=0.9.21';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.21';
 
-export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
+export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, scheduler=null, responseDeadlineMs=8000, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const preference=contextPreference();$('ai-context-window').value=String(preference.value);
   $('ai-context-status').textContent=`已選擇 ${contextLabel(preference.value)}，等待載入。`;
@@ -17,7 +17,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
   const aiStatus=$('local-ai-status');
   let welcomeAttempted=false,welcomeDelivered=false,welcomeCompleted=false,welcomeEngaged=false,welcomePreparing=false,welcomeSerial=0,welcomeTextReady='';
   const welcomeText='嗨，我是 Luna。今天想先聊聊，還是一起伸展？不用急，我會陪你慢慢來。';
-  const ai=createAI({onMemoryEvent,onState:({phase,message})=>{
+  const ai=createAI({scheduler,responseDeadlineMs,onMemoryEvent,onState:({phase,message})=>{
     onRuntime('ai',{selected:preference.value,loading:ai.diagnostics?.context?.loading,active:ai.diagnostics?.context?.active,phase,code:phase==='error'?ai.diagnostics?.failure?.code:'none',source:ai.diagnostics?.stage||phase});
     const context=ai.diagnostics?.context,mode=contextLabel(preference.value);
     $('ai-context-status').textContent=context?.active?`已啟用 ${contextLabel(context.active)}`:`已選擇 ${mode} · ${phase==='error'?'載入失敗':phase==='off'?'尚未啟用':'準備中'}`;
@@ -71,7 +71,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
         }else conversationDispatch(response.action);
       }
       if(['unknown','how','tips','hello','pose'].includes(response.intent)&&ai.ready&&typeof ai.ask==='function'){
-        return ai.ask(text,getState(),currentContext()).then(reply=>reply||response.reply);
+        return ai.ask(text,getState(),currentContext(),currentContext).then(reply=>reply||response.reply);
       }
       if(response.intent==='unknown'&&!ai.ready)return ['off','error'].includes(ai.phase)?'我在這裡。目前可以陪你練習這三個動作，也可以問我動作要領；完整對話暫時還沒準備好。':'我還在準備，先慢慢來。你可以先問今天的動作，準備好時再說開始。';
       return response.reply;}finally{answering=false;}
@@ -133,7 +133,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
     // Download/activation must finish before an AI-generated greeting is requested.
     Promise.resolve().then(()=>{
       if(serial!==welcomeSerial||!welcomeEligible())return null;
-      return ai.greet?.(getState(),currentContext())||Promise.resolve(welcomeText);
+      return ai.greet?.(getState(),currentContext(),currentContext)||Promise.resolve(welcomeText);
     }).then(text=>{
       if(serial!==welcomeSerial)return;
       welcomePreparing=false;
@@ -155,6 +155,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
   window.addEventListener('pageshow',event=>{if(event.persisted&&!document.hidden)startAI();});
   window.addEventListener('pagehide',()=>{cancelWelcome();narrator.suspend();session.stop();aiGuidance.cancel({clearCache:true});ai.disable();});
   return {
+    setResponseDeadline:ms=>ai.setResponseDeadline?.(ms),
     prepareAudio(){session.primeAudio();},
     primeAudio:activateAudio,
     welcome,
@@ -170,6 +171,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
     },
     silence(){cancelWelcome();narrator.suspend();aiGuidance.cancel();session.stop(false);onMediaState();},
     requestMemory:()=>ai.requestMemory?.(),
+    stopAI(){cancelWelcome();aiGuidance.cancel();ai.disable();},
     get memoryStatus(){return ai.memoryStatus||null;},
     get contextState(){return {selected:preference.value,loading:ai.diagnostics?.context?.loading??null,active:ai.diagnostics?.context?.active??null,status:ai.diagnostics?.context?.status||ai.phase};},
     get diagnostics(){return {welcomeDelivered,welcomeCompleted,welcomePreparing,welcomeEngaged,conversationPaused:Boolean(conversation),resumeAfterReply:Boolean(conversation?.resume),localAI:ai.phase,contextPreference:{selected:preference.value,persistent:preference.persistent},localAIDiagnostics:ai.diagnostics||null,lastAudioError:session.lastAudioError||null,lastRecognitionError:session.lastRecognitionError||null,microphone:session.microphoneDiagnostics,audioNeedsGesture:Boolean(session.audioNeedsGesture),audioBlocked,audioEngine:session.lastAudioSnapshot||null,audioEvents:session.audioEvents||[],audioRetryAvailable:Boolean(session.failedSpeech),guidanceSource,guidanceEnabled:guidanceToggle.checked,lastCue:narrator.lastKey,speaking,kind:session.speechKind||null,listening:session.wanted,recognitionAttached:Boolean(session.recognition),bargeInMode:'transcript-echo-filter',status:$('voice-status').textContent,guidanceStatus:guidanceStatus.textContent};},

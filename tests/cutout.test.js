@@ -173,3 +173,6 @@ test('frame processor exposes portrait load stage without retaining frames or hi
  let resolve;const stages=[];const processor=createFrameProcessor({detector:{close(){}},createCanvas:()=>{},createSegmenter:()=>new Promise(r=>resolve=r),onStage:s=>stages.push(s)});
  const pending=processor.detect({},1,{segment:true});assert.equal(processor.diagnostics.stage,'portrait-loading');assert.deepEqual(Object.keys(processor.diagnostics).sort(),['allocatorBytes','canvas','portraitLoaded','portraitModelBytes','segmentationFailed','stage']);processor.close();assert.equal(processor.diagnostics.stage,'closed');resolve({close(){}});await assert.rejects(pending,/closed/);assert.deepEqual(stages,['portrait-loading','closed']);
 });
+test('adaptive input resolution keeps portrait and pose on the same undistorted snapshot',async()=>{
+ const h=processorHarness();await h.processor.detect({width:1080,height:1920},100,{segment:true,maxSide:256});assert.equal(h.canvas.height,256);assert.equal(h.canvas.width,144);assert.equal(h.poseInputs[0],h.portraitInputs[0]);assert.deepEqual(frameSize(1080,1920,384),{width:216,height:384});h.processor.close();
+});

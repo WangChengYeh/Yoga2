@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.20。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.21。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -13,7 +13,7 @@ npm run test:portrait
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 308 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 374 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
@@ -82,3 +82,9 @@ npm run test:portrait
 - 1K 回歸：新預設與舊偏好遷移、兩種精度下三種 window reload、1K 摘要／完整來源分離、未知關節及輸入上限、1K 日誌跨工作階段保留。
 
 - 記憶體診斷：五秒計時／五分鐘淘汰／180 任務上限、錯誤保留及前次摘要、背景停止採樣、儲存／Heap／collector 拒絕不影響啟動、GPU buffer 與 device lost 追蹤、WebGL 資源去重、MediaPipe 載入邊界、AI 任務邊界及 ZIP 獨立檔。自動檢查不是 iPhone 三十分鐘穩定性驗收。
+
+## v0.9.21 排程驗收
+
+自動測試涵蓋：獨占重任務／AI 優先、背景取消、原生完成後才放行、取消卡死終止 worker、含排隊的可調回覆期限、入場後重取感知、相機 FPS 協商／失敗／競態、三級降規與逐級恢復、FPS 偏好、縮圖比例及全螢幕設定搬移。見 `workload-scheduler`、`performance-policy`、`camera-settings`、`camera-session`、`local-ai`、`cutout`、`fullscreen-tools` 測試。
+
+手機待驗收：預設 30／20 設定、實際協商 FPS、長時間忙碌時降規、穩定後恢復、連續插話／逾時回覆與背景恢復。以 ZIP 的 scheduler／camera／webllm 欄位核對；替身測試不能證明真實 GPU 記憶體或三十分鐘穩定。

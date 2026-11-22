@@ -1,3 +1,4 @@
+import { WorkloadScheduler } from '../src/workload-scheduler.js';
 import { trackWebGPU } from '../src/gpu-memory-tracker.js';
 import { normalizeContextWindow } from '../src/ai-context-settings.js';
 import {loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW} from '../src/local-ai-model.js';
@@ -5,9 +6,9 @@ import { aiErrorDetail, aiErrorCode, cleanAIText, aiFailureMessage } from '../sr
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {LocalCoachAI,localAIMessages} from '../src/local-ai.js';
-function harness({supported=true,adapter=true}={}){
+function harness({supported=true,adapter=true,scheduler=null,responseDeadlineMs=8000}={}){
   const workers=[],states=[],timers=new Map();let gpuCalls=0;
-  const ai=new LocalCoachAI({gpu:supported?{async requestAdapter(){gpuCalls++;return adapter?{features:new Set(['shader-f16'])}:null;}}:null,
+  const ai=new LocalCoachAI({scheduler,responseDeadlineMs,gpu:supported?{async requestAdapter(){gpuCalls++;return adapter?{features:new Set(['shader-f16'])}:null;}}:null,
     createWorker:()=>{const w={messages:[],postMessage(m){this.messages.push(m);},terminate(){this.terminated=true;}};workers.push(w);return w;},
     onState:s=>states.push(s),setTimer:(fn,ms)=>{timers.set(ms,fn);return ms;},clearTimer:id=>timers.delete(id)});
   return {ai,workers,states,timers,get gpuCalls(){return gpuCalls;},ready(){workers.at(-1).onmessage({data:{type:'ready'}});}};
@@ -68,7 +69,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.20');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.21');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -249,4 +250,17 @@ test('1K worker receives summary but debug report retains full source bones sepa
 test('memory task hooks bracket model and inference, retain GPU samples, and observe cleanup without altering replies',async()=>{
  const h=harness(),events=[];h.ai.onMemoryEvent=e=>events.push({...e,state:h.ai.memoryStatus});await h.ai.enable();const w=h.workers[0];w.onmessage({data:{type:'model-info',modelId:'qwen',contextWindow:1024}});h.ready();assert.equal(events.find(e=>e.phase==='model-load-after').state.phase,'ready');
  w.onmessage({data:{type:'gpu-memory',snapshot:{at:new Date().toISOString(),buffers:{outstandingDeclaredBytes:1234}}}});const p=h.ai.ask('你好',{time:0}),id=w.messages.at(-1).id;assert.equal(events.at(-1).phase,'inference-before');w.onmessage({data:{type:'reply',id,text:'你好',usage:{totalTokens:200}}});assert.equal(await p,'你好');assert.equal(events.at(-1).phase,'inference-after');assert.equal(h.ai.memoryStatus.gpu.buffers.outstandingDeclaredBytes,1234);assert.equal(h.ai.memoryStatus.kv.tokens,200);h.ai.requestMemory();assert.equal(w.messages.at(-1).type,'memory-snapshot');h.ai.disable();assert.equal(events.at(-1).phase,'worker-stop-after');assert.equal(events.at(-1).state.context.active,null);
+});
+
+test('response deadline includes queue wait, cancels unsent job and preserves working model',async()=>{
+ const scheduler=new WorkloadScheduler(),h=harness({scheduler});await h.ai.enable();h.ready();const release=await scheduler.acquire('vision-frame');const p=h.ai.ask('hello',{time:0});assert.equal(scheduler.diagnostics.queued.length,1);h.timers.get(8000)();assert.equal(await p,null);await Promise.resolve();assert.equal(h.ai.diagnostics.response.outcome,'deadline');assert.equal(scheduler.diagnostics.queued.length,0);assert.equal(h.workers[0].messages.filter(m=>m.type==='ask'||m.type==='cancel-reply').length,0);assert.equal(h.ai.ready,true);release();h.ai.disable();assert.equal(h.timers.size,0);
+});
+test('deadline resolves fallback but holds active lane until native completion acknowledgement',async()=>{
+ const scheduler=new WorkloadScheduler(),h=harness({scheduler});await h.ai.enable();h.ready();const p=h.ai.ask('hello',{time:0});await Promise.resolve();const w=h.workers[0],id=w.messages.at(-1).id;h.timers.get(8000)();assert.equal(await p,null);assert.equal(scheduler.diagnostics.active.kind,'ai-inference');assert.equal(h.timers.has(5000),true);let admitted=false;const next=scheduler.acquire('vision-frame').then(r=>{admitted=true;return r;});await Promise.resolve();assert.equal(admitted,false);w.onmessage({data:{type:'reply',id,text:'late'}});assert.equal(h.ai.diagnostics.response.outcome,'deadline');w.onmessage({data:{type:'inference-done',id}});const release=await next;assert.equal(h.timers.has(5000),false);release();h.ai.disable();
+});
+test('native cancellation that never acknowledges terminates worker before releasing lane',async()=>{
+ const scheduler=new WorkloadScheduler(),h=harness({scheduler,responseDeadlineMs:3000});await h.ai.enable();h.ready();const p=h.ai.ask('hello',{time:0});await Promise.resolve();h.timers.get(3000)();await p;assert.equal(scheduler.diagnostics.active.kind,'ai-inference');h.timers.get(5000)();assert.equal(h.workers[0].terminated,true);assert.equal(scheduler.diagnostics.active,null);assert.equal(h.ai.diagnostics.failure.code,'INFERENCE_CANCEL_TIMEOUT');assert.equal(h.timers.size,0);
+});
+test('successful replies clear deadline, use fresh context after admission, and future limits are configurable',async()=>{
+ const scheduler=new WorkloadScheduler(),h=harness({scheduler});await h.ai.enable();h.ready();const release=await scheduler.acquire('vision-frame');let refreshed=0;const p=h.ai.ask('hello',{time:0},null,()=>{refreshed++;return null;});h.ai.setResponseDeadline(15000);assert.equal(h.timers.has(8000),true);assert.equal(refreshed,0);release();await Promise.resolve();assert.equal(refreshed,1);const w=h.workers[0],id=w.messages.at(-1).id;w.onmessage({data:{type:'inference-done',id}});w.onmessage({data:{type:'reply',id,text:'hello'}});assert.equal(await p,'hello');assert.equal(h.timers.size,0);const next=h.ai.ask('next',{time:0});assert.equal(h.timers.has(15000),true);h.ai.disable();await next;assert.equal(h.timers.size,0);
 });

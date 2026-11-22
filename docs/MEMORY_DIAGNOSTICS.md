@@ -34,3 +34,6 @@ WebGPU 統計在 worker 回報並於前景五秒採樣時要求更新。`gpu.at`
 ## 實機驗證
 
 同一台手機、相同場景／相機位置，分別測 1K／4K／16K。確認 selected 與 active 一致才開始比較；先下載精簡 ZIP，避免圖片打包本身的額外負擔。iPhone 13 連續三十分鐘不崩潰仍是待驗收目標；單元測試通過不代表已達標。此版僅加入診斷，不調整 FPS、人物比例或自動降級。
+
+
+v0.9.21：每份記憶體快照另含 `scheduler`，記錄排程 active／queued、renderFPS、設定偏好與 adaptive 級別／原因／最近辨識與畫面延遲。`webllm.response` 記錄等待上限、結果及耗時；`camera.effective` 與 `pipeline.fps` 分開記錄選擇／生效／協商值。詳見 [排程與效能](PERFORMANCE.md)。

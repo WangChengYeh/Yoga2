@@ -2,9 +2,9 @@
 // in the scene texture; mask and RGB always describe the same captured frame.
 export const MAX_FRAME_EDGE = 512;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-export function frameSize(width, height) {
+export function frameSize(width, height, maxSide=MAX_FRAME_EDGE) {
   if (![width, height].every(v => Number.isFinite(v) && v > 0)) throw new Error('Invalid frame size');
-  const scale = Math.min(1, MAX_FRAME_EDGE / Math.max(width, height));
+  const scale = Math.min(1, Math.min(MAX_FRAME_EDGE,Math.max(128,Number(maxSide)||MAX_FRAME_EDGE)) / Math.max(width, height));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 export function validSegmentation(value) {
