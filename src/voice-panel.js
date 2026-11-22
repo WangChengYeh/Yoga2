@@ -1,11 +1,11 @@
-import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.31';
-import { APP_VERSION } from './release.js?v=0.9.31';
-import { HintSpeechRouter, hintSpeechPreferences } from './hint-speech.js?v=0.9.31';
-import { LocalCoachAI } from './local-ai.js?v=0.9.31';
-import { CourseNarrator } from './guidance.js?v=0.9.31';
-import { VoiceSession } from './voice-session.js?v=0.9.31';
-import { respondToUtterance } from './voice-intents.js?v=0.9.31';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.31';
+import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.32';
+import { APP_VERSION } from './release.js?v=0.9.32';
+import { HintSpeechRouter, hintSpeechPreferences } from './hint-speech.js?v=0.9.32';
+import { LocalCoachAI } from './local-ai.js?v=0.9.32';
+import { CourseNarrator } from './guidance.js?v=0.9.32';
+import { VoiceSession } from './voice-session.js?v=0.9.32';
+import { respondToUtterance } from './voice-intents.js?v=0.9.32';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.32';
 
 export function setupVoicePanel({ getState, dispatch, getPose, getHint=()=>null,getBudget=()=>({optionalLLM:true,cooldownScale:1}),publishHint=()=>false, getContext=()=>null, scheduler=null, onGPUCompletion=()=>{}, responseDeadlineMs=8000, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);

@@ -9,8 +9,12 @@ export function cropRect(width,height,{zoom=1,x=.5,y=.5}={}){
  const z=clamp(zoom,1,5,1),size=Math.min(width,height)/z;
  return {x:clamp(x,0,1,.5)*(width-size),y:clamp(y,0,1,.5)*(height-size),size};
 }
-export function validatePhoto(file){if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size<=0||file.size>MAX_PHOTO_BYTES)throw new Error('請選擇 12 MB 以內的 JPEG、PNG 或 WebP 正面照。');}
+export function validatePhoto(file){if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size<=0||file.size>MAX_PHOTO_BYTES)throw new Error('請選擇 12 MB 以內的 JPEG、PNG 或 WebP 照片。');}
 export function validateProfile(profile){
+ if(profile?.schema===2){
+  if(!AVATAR_VIEWS.every(k=>profile.views?.[k] instanceof Blob&&profile.views[k].type==='image/jpeg'&&profile.views[k].size>0&&profile.views[k].size<=1024*1024))throw new Error('請提供正面、側面與背面三張圖。');
+  return {schema:2,template:'luna-v1',referenceArmDeg:referenceAngle(profile.referenceArmDeg),views:Object.fromEntries(AVATAR_VIEWS.map(k=>[k,profile.views[k]]))};
+ }
  if(profile?.schema!==PROFILE_SCHEMA||!(profile.face instanceof Blob)||profile.face.type!=='image/jpeg'||profile.face.size<=0||profile.face.size>512*1024)throw new Error('個人 Avatar 資料無法使用，請重新建立。');
  return {schema:PROFILE_SCHEMA,appearance:normalizeAppearance(profile.appearance),face:profile.face};
 }
@@ -27,3 +31,18 @@ export async function decodeAvatarPhoto(blob,{document=globalThis.document,URL=g
 }
 export function drawFaceCrop(source,canvas,crop){const r=cropRect(source.width,source.height,crop),ctx=canvas.getContext('2d');canvas.width=canvas.height=FACE_SIZE;ctx.fillStyle='#ddd';ctx.fillRect(0,0,FACE_SIZE,FACE_SIZE);ctx.drawImage(source,r.x,r.y,r.size,r.size,0,0,FACE_SIZE,FACE_SIZE);return canvas;}
 export function faceBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob&&blob.size<=512*1024?resolve(blob):reject(new Error('臉部貼圖無法建立，請重試。')),'image/jpeg',.88));}
+
+export const AVATAR_VIEWS=['front','side','back'],BODY_WIDTH=512,BODY_HEIGHT=1024;
+export function referenceAngle(value=30){return clamp(value,0,60,30);}
+// Plain-background assistance only. Keep manual crop available for other scenes.
+export function findBodyBounds(canvas){
+ const ctx=canvas.getContext('2d',{willReadFrequently:true}),{width:w,height:h}=canvas,{data}=ctx.getImageData(0,0,w,h),corners=[[2,2],[w-3,2],[2,h-3],[w-3,h-3]].map(([x,y])=>Array.from(data.slice((y*w+x)*4,(y*w+x)*4+3))),bg=[0,1,2].map(k=>corners.reduce((s,c)=>s+c[k],0)/4);
+ if(corners.some(c=>Math.hypot(...c.map((v,k)=>v-bg[k]))>24))return {x:0,y:0,width:w,height:h,assisted:false};
+ let left=w,right=-1,top=h,bottom=-1;
+ for(let y=0;y<h;y++){let count=0,min=w,max=-1;for(let x=0;x<w;x++){const i=(y*w+x)*4;if(Math.hypot(data[i]-bg[0],data[i+1]-bg[1],data[i+2]-bg[2])>42){count++;min=Math.min(min,x);max=Math.max(max,x);}}if(count>=Math.max(3,w*.006)){left=Math.min(left,min);right=Math.max(right,max);top=Math.min(top,y);bottom=y;}}
+ if(right<=left||bottom-top<h*.35)return {x:0,y:0,width:w,height:h,assisted:false};
+ const pad=Math.ceil(h*.007);left=Math.max(0,left-pad);top=Math.max(0,top-pad);return {x:left,y:top,width:Math.min(w,right+pad+1)-left,height:Math.min(h,bottom+pad+1)-top,assisted:true};
+}
+export function bodyCropRect(bounds,{zoom=1,x=.5,y=.5}={}){const z=clamp(zoom,1,2.5,1),width=bounds.width/z,height=bounds.height/z;return {x:bounds.x+clamp(x,0,1,.5)*(bounds.width-width),y:bounds.y+clamp(y,0,1,.5)*(bounds.height-height),width,height};}
+export function drawBodyCrop(source,canvas,bounds,settings){const r=bodyCropRect(bounds,settings);canvas.width=BODY_WIDTH;canvas.height=BODY_HEIGHT;const ctx=canvas.getContext('2d');ctx.fillStyle='#eee';ctx.fillRect(0,0,BODY_WIDTH,BODY_HEIGHT);ctx.drawImage(source,r.x,r.y,r.width,r.height,0,0,BODY_WIDTH,BODY_HEIGHT);return canvas;}
+export function bodyBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob&&blob.size<=1024*1024?resolve(blob):reject(new Error('視圖貼圖無法建立，請重試。')),'image/jpeg',.9));}

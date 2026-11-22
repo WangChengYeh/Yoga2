@@ -26,3 +26,7 @@ test('user reply outranks vision and optional explanation; elapsed TTL checked e
  let now=0;const s=new WorkloadScheduler({now:()=>now,setTimer:()=>0,clearTimer:()=>{}}),r=await s.acquire('scene-load');
  const expired=s.acquire('ai-guidance',{ttlMs:1000}),rejected=assert.rejects(expired,{code:'WORK_EXPIRED'});const v=s.acquire('vision-frame'),a=s.acquire('ai-inference');now=2000;r();const ar=await a;ar();const vr=await v;vr();await rejected;assert.equal(s.diagnostics.active,null);
 });
+
+test('avatar generation serializes behind user replies and pauses vision during the build',async()=>{
+ const s=new WorkloadScheduler(),r=await s.acquire('scene-load'),b=s.acquire('avatar-build'),a=s.acquire('ai-inference'),v=s.acquire('vision-frame');r();const ar=await a;ar();const br=await b;assert.equal(s.profile().mode,'avatar-building');assert.equal(s.profile().visionPaused,true);br();const vr=await v;vr();
+});

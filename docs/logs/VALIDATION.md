@@ -164,3 +164,11 @@
 - 實際 GLB 下載 793620 bytes、5 skins × 22 joints、一張 PNG、Head 個人網格；重新解析後 inspectHumanoidRig compatible。只記錄結構／數量，不提交個人模型或新照片。
 - 靜態 geometry 比較見 benchmarks/avatar-resources.json；它不是手機 FPS／記憶體／發熱基準。此瀏覽器無 WebGL，GPU 外觀與 iPhone Safari／真人相似度／30 分鐘裝置驗證尚未完成，留 #11。
 - 發布 CI／合併以 v0.9.31 PR 實際結果為準。
+
+## 2026-11-22 · v0.9.32
+
+- `npm run check`：489 tests passed；`npm run build`：passed。
+- 實際三張私人全身照片：生成／暫時預覽／IndexedDB 保存／重載／重新編輯／GLB 下載完成。輸出骨架可回讀；照片與生成檔案未公開。
+- Blender CPU 三視角渲染完成：模型不再因透明背景造成肢體缺損，但仍有接縫／腿部貼圖拉伸與模板比例差異。非精確重建。
+- 瀏覽器 WebGL 不可用；本項不宣稱實際 GPU／iPhone Safari／長時間效能通過。品質與裝置驗證保持 #11／#18 非阻擋追蹤。
+- 72/72 瀏覽器 Debug／Hint 版面組合通過（零失敗）。

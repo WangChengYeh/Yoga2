@@ -54,3 +54,7 @@
 ## Personal Avatar (v0.9.31)
 
 The parametric male body/head and skin construction are original Yoga2 geometry. Photo personalization uses the already bundled Three.js / GLTFExporter (MIT, vendor/THREE-LICENSE.txt). No Face Landmarker or third-party reconstruction model is bundled for this feature. User-provided face photos/textures retain their own rights; the geometry CC0 declaration is not a license grant for a user's appearance. Profiles stay local unless the user separately exports or shares an image/model/report.
+
+## Three-view Avatar (v0.9.32)
+
+New schema 2 avatars reuse the already bundled Luna CC0 geometry/rig (see public/models/LUNA-LICENSE.txt), with original Yoga2 three-view UV projection code and existing Three.js/GLTFExporter MIT runtime. Geometry is a fixed template, not a reconstructed scan. User-provided photos and derived textures retain their own rights; CC0 does not grant rights to personal appearance. Original and generated private test assets are excluded from this repository. Schema 1 keeps the prior original male template.

@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.31。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.32。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -147,3 +147,7 @@ npm run test:portrait
 `personal-avatar.test.js`／`avatar-panel.test.js` 覆蓋資料上限、Head 蒙皮與 rig、retarget／取景、保存／刪除／配額／遲到工作／取消與同意；瀏覽器 rig QA 加入正式個人化模組，使用 repo 測試照驗證 IndexedDB 保存後重載、GLB 產出及刪除後還原。下載的實際 GLB 可重新解析為相容骨架。72 種版面組合保持通過。靜態模型資源可用 `node scripts/benchmark-avatar.mjs` 重製。
 
 此環境不支援 WebGL；未宣稱已驗證 GPU 臉部材質、Safari 照片方向或外部 GLB viewer。上述非阻擋裝置項目留 #11。
+
+## v0.9.32 回歸
+
+`npm run check`：489/489 通過；`npm run build` 通過。三圖必填、裁切／背景邊界、補色防破洞、實際模板三視圖 UV 分區／原始蒙皮／retarget／取景與生成排程優先權均有覆蓋。私人三張實際照片完成瀏覽器預覽、保存、重新載入與 GLB 匯出；CPU 離線渲染檢查三方向。不是 GPU、Safari 或精細重建驗收。72 組 Debug／Hint 幾何版面獨立驗證。
