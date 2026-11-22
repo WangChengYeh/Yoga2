@@ -1,6 +1,6 @@
 # Yoga2 — Product Goal & Milestone Roadmap
 
-Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 software implemented (v0.9.28); M3 software implemented (v0.9.29). Manual/device validation is non-blocking and tracked by #11. M4 software implemented (v0.9.30); M5 planned.
+Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 software implemented (v0.9.28); M3 software implemented (v0.9.29). Manual/device validation is non-blocking and tracked by #11. M4 software implemented (v0.9.30); M5 first software release implemented (v0.9.31).
 
 ## Product Goal
 Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target yoga pose, the user's camera provides MediaPipe pose observations, a male student Avatar visualizes the user's motion, deterministic evaluation compares the observations to the course target, and timely visual/voice feedback helps the user correct the pose. Prioritize an effective **observe → evaluate → correct** loop over photorealism.
@@ -21,7 +21,7 @@ Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target
 | M2 — Pose Accuracy (software implemented) | Complete Humanoid retargeting and independent Pose Evaluation Engine | [#7](https://github.com/WangChengYeh/Yoga2/issues/7), [#9](https://github.com/WangChengYeh/Yoga2/issues/9) | Deterministic, confidence-aware correction signals for three exercises; unknown/occluded poses not treated as errors |
 | M3 — Coaching Feedback (software implemented) | Shared Hint manager, instant visual feedback, then speech/LLM routing | [#5](https://github.com/WangChengYeh/Yoga2/issues/5), [#4](https://github.com/WangChengYeh/Yoga2/issues/4) | Wrong pose→visible Hint→correction clears; speech deduplicated, nonblocking, stale responses discarded |
 | M4 — Performance & Reliability (software implemented; device validation open) | CPU/GPU factor, latest-wins scheduling, benchmarks and sustained mobile validation | [#10](https://github.com/WangChengYeh/Yoga2/issues/10), [#11](https://github.com/WangChengYeh/Yoga2/issues/11) | iPhone 13 30-minute practice without crash or serious stalls; measured baselines and fallback behavior documented |
-| M5 — Personalized Avatar | Free, phone-side JS photo personalization, shared Humanoid Rig, IndexedDB | [#8](https://github.com/WangChengYeh/Yoga2/issues/8) | Preview, local storage/delete, reliable rig integration, default Avatar fallback; library/license and Safari PoC verified |
+| M5 — Personalized Avatar (first software release) | Free, phone-side JS photo personalization, shared Humanoid Rig, IndexedDB | [#8](https://github.com/WangChengYeh/Yoga2/issues/8) | Preview, local storage/delete, reliable rig integration, default Avatar fallback; library/license and Safari PoC verified |
 
 ## Task boundaries
 - **#6** delivers minimal retarget for visible motion; **#7** hardens calibration, bind pose, local quaternion, twist, pelvis/spine, confidence and rig compatibility. Do not block #6 on all of #7.
@@ -79,3 +79,9 @@ Per owner direction on 2026-11-22, software implementation and human/device vali
 - Scheduler keys/TTL implement queued latest-wins and expiry; automatic explanation is below vision priority. Expired camera jobs retry with a fresh frame; active native inference never releases its lane before completion/termination acknowledgement.
 - Live factor diagnostics and baselines, GPU pending age, automated overload/recovery and a reproducible synthetic 30-minute replay are implemented. See [policy and evidence](PERFORMANCE.md).
 - #10 software scope is complete. #11 stays open for actual iPhone/MacBook baselines, heat/memory, latency/precision and 30-minute stability. Synthetic tests are not device acceptance and do not close #11. Per owner direction these checks do not block M5 personalization, the next milestone.
+
+## M5 first software release — v0.9.31
+- #8: one-photo, local JS, manual alignment and bounded parametric head/appearance on the unchanged 22-bone male Humanoid. Photo-textured head skin follows the existing Head bone; default-body retarget remains independent.
+- Consent, derived-crop preview, session-only apply, explicit IndexedDB save/restore/edit/delete, default fallback and rigged/textured GLB export are implemented. Original files/EXIF are not stored or automatically transmitted. Practice does not regenerate appearance.
+- This release selects manual face-texture/parametric-head personalization, not automatic Face Landmark/Blendshape or photorealistic full-head reconstruction. Candidate library/model license and automatic fitting remain optional research; they are not represented as integrated.
+- Functional browser persistence/export and static resource evidence are in [PERSONAL_AVATAR.md](PERSONAL_AVATAR.md). Real iPhone Safari, GPU appearance, similarity/side-view quality and sustained device benchmarks remain non-blocking in #11. M1–M5 now have software releases; device quality work continues in #11.

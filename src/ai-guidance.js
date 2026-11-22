@@ -1,6 +1,6 @@
-import { sensorText } from './coach-context.js?v=0.9.30';
-import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.30';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.30';
+import { sensorText } from './coach-context.js?v=0.9.31';
+import { GUIDANCE, guidanceAt } from './guidance.js?v=0.9.31';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.31';
 const cues=LESSONS.flatMap((lesson,index)=>GUIDANCE[lesson.id].map(([time])=>guidanceAt(lessonStart(index)+time))).concat(guidanceAt(COURSE_DURATION));
 export const nextGuidance=time=>cues.find(cue=>cue.at>time);
 export function guidanceMessages(cue,state,context=null,contextWindow=4096){

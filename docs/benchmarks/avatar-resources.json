@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "scope": "Static original/generated model geometry counts; texture estimate excludes mipmaps, driver allocation, canvas/source images and decoder buffers. Not measured FPS, device RAM or GPU memory.",
+  "default": {
+    "meshes": 6,
+    "vertices": 3159,
+    "triangles": 4536,
+    "faceTextureRGBABytesEstimate": 0
+  },
+  "personal": {
+    "meshes": 5,
+    "vertices": 3182,
+    "triangles": 4872,
+    "faceTextureRGBABytesEstimate": 1048576
+  }
+}

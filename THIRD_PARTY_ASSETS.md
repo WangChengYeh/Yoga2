@@ -50,3 +50,7 @@
 - 22-bone Humanoid naming contract; actual GLB skinning with rigid segment weights; joint blending/twist remain M2 work.
 - CC0-1.0 asset declaration: `public/models/student-v1.LICENSE.txt`.
 - Reproduce with `node scripts/prepare-student.mjs`; source `src/student-model.js`.
+
+## Personal Avatar (v0.9.31)
+
+The parametric male body/head and skin construction are original Yoga2 geometry. Photo personalization uses the already bundled Three.js / GLTFExporter (MIT, vendor/THREE-LICENSE.txt). No Face Landmarker or third-party reconstruction model is bundled for this feature. User-provided face photos/textures retain their own rights; the geometry CC0 declaration is not a license grant for a user's appearance. Profiles stay local unless the user separately exports or shares an image/model/report.

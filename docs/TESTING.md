@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.30。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.31。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -14,7 +14,7 @@ npm run test:portrait
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 472 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 483 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
@@ -141,3 +141,9 @@ npm run test:portrait
 `workload-budget.test.js` 覆蓋雙資源獨立降載、5 秒冷卻／30 秒恢復、缺少 GPU 證據、手動上限、背景與 1800 窗口重播；排程／相機／LocalAI 回歸驗證 latest-wins、延遲 timer 的 TTL、相機逾時重取及使用者提問優先。Hint 與語音整合驗證低 factor 下糾正／控制可用，數值節流不延遲語意變更。可用 `node scripts/benchmark-workload.mjs` 重製合成需求基準，`node scripts/prepare-workload-qa.mjs` 產生正式控制／模組的合成 UI 測試頁。
 
 472 Node 測試、建置與 72 種版面組合屬軟體證據；未將合成 30 分鐘運作誤列為裝置驗收。
+
+## v0.9.31 回歸
+
+`personal-avatar.test.js`／`avatar-panel.test.js` 覆蓋資料上限、Head 蒙皮與 rig、retarget／取景、保存／刪除／配額／遲到工作／取消與同意；瀏覽器 rig QA 加入正式個人化模組，使用 repo 測試照驗證 IndexedDB 保存後重載、GLB 產出及刪除後還原。下載的實際 GLB 可重新解析為相容骨架。72 種版面組合保持通過。靜態模型資源可用 `node scripts/benchmark-avatar.mjs` 重製。
+
+此環境不支援 WebGL；未宣稱已驗證 GPU 臉部材質、Safari 照片方向或外部 GLB viewer。上述非阻擋裝置項目留 #11。

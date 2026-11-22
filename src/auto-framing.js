@@ -49,10 +49,10 @@ export function safeStageInsets(viewport,overlays,padding=8){
  return result;
 }
 export function observeStageInsets({document,viewport,Observer=globalThis.ResizeObserver}){
- const overlays=[...document.querySelectorAll('.studio-actions,.studio-top > .pill,.stage-playback,.stage-hint,.view-tools,.skeleton-controls,.coach-hello')];let current={left:0,right:0,top:0,bottom:0},size={width:0,height:0};
+ const overlays=[...document.querySelectorAll('.studio-actions,.studio-top > .pill,.stage-playback,.stage-hint,.view-tools,.skeleton-controls,.coach-hello,.avatar-preview-banner')];let current={left:0,right:0,top:0,bottom:0},size={width:0,height:0};
  function refresh(){const v=viewport.getBoundingClientRect();if(v.width<=0||v.height<=0)return;size={width:v.width,height:v.height};current=safeStageInsets(v,overlays.filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect()));}
- const observer=Observer?new Observer(refresh):null;observer?.observe(viewport);overlays.forEach(e=>observer?.observe(e));refresh();
- return {refresh,get value(){return {...current};},get size(){return {...size};},dispose(){observer?.disconnect();}};
+ const observer=Observer?new Observer(refresh):null;observer?.observe(viewport);overlays.forEach(e=>observer?.observe(e));document.addEventListener?.('scroll',refresh,{capture:true,passive:true});refresh();
+ return {refresh,get value(){return {...current};},get size(){return {...size};},dispose(){observer?.disconnect();document.removeEventListener?.('scroll',refresh,true);}};
 }
 export function createAutoFraming({camera,controls,getPoints,getSize,getInsets=()=>({left:0,right:0,top:0,bottom:0}),fill=.92}){
  let initialized=false,last=null,frames=0,lastDistance=null,lastRequired=null,lastCount=0;

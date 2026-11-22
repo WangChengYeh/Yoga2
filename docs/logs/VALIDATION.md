@@ -156,3 +156,11 @@
 - 72/72 正式 DOM/CSS 版面幾何組合通過；合成 UI 成功載入正式 workload module，獨立 CPU／GPU 壓力分別產生 0.75 降載，手動 CPU 0.5 在停用自動後仍保留、GPU 回 1。
 - 合成 1800 秒控制器基準：三段過載，自動需求 44415 render frames vs 固定 54000，因子降至 .25 後恢復 1；課程 68 秒完成。這是模擬輸入下的需求總量，不是實際 FPS、效能／節電提升或裝置長時間測試。
 - iPhone／MacBook 真實幀率、發熱、記憶體與 30 分鐘穩定性尚未驗證，續追 #11，不阻擋後續工作；發布 CI／合併以 v0.9.30 PR 為準。
+
+## 2026-11-22 · v0.9.31 M5 首版
+
+- Node 新增個人化模型與 UI 回歸；最終測試數量 483。build／首頁同步檢查。
+- 72/72 瀏覽器幾何組合通過；正式 module／既有測試照片 JPEG decode、preview、IndexedDB transaction 完成後保存、重載恢復與刪除後重載還原均成功。另確認保存前立即重載不視為保存完成，介面以 transaction 完成訊息為準。
+- 實際 GLB 下載 793620 bytes、5 skins × 22 joints、一張 PNG、Head 個人網格；重新解析後 inspectHumanoidRig compatible。只記錄結構／數量，不提交個人模型或新照片。
+- 靜態 geometry 比較見 benchmarks/avatar-resources.json；它不是手機 FPS／記憶體／發熱基準。此瀏覽器無 WebGL，GPU 外觀與 iPhone Safari／真人相似度／30 分鐘裝置驗證尚未完成，留 #11。
+- 發布 CI／合併以 v0.9.31 PR 實際結果為準。
