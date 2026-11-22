@@ -6,7 +6,7 @@
 
 - 依使用者修正，採 task 起訖／CPU／GPU 歸類估算 loading：CPU 重疊累加，LLM 全歸 GPU task；GPU 區段去重、排隊另列。線上面板 1／5／15／30 分鐘、基準比較、觀測 FPS 與除錯包。
 - `npm run check`：387 項通過，0 失敗／跳過；`npm run build`、`git diff --check` 通過。含 CPU 200%、GPU 去重、背景／邊界／小於 1 ms、長時間容量、面板及相機／CPU 四階段回歸。
-- CI／Pages 發布待確認；手機三十分鐘與硬體使用率未驗收。此版不含獨立保留的防噪修改。
+- 實作提交 `872ab9d`；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44986229159)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44986228924) 均成功，含真實人像／骨架 CPU 回歸。正式 version.json HTTP 200 且為 0.9.22。手機三十分鐘與硬體使用率未驗收。此版不含獨立保留的防噪修改。
 
 ## 2026-11-22 · v0.9.21
 
