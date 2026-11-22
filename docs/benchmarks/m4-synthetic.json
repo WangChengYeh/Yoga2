@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "scope": "Synthetic 30-minute controller replay. Input task/notification durations are fixed test data, not measured device results; requested frames are demand estimates, not achieved FPS.",
+  "overloadWindowsSeconds": [
+    [
+      0,
+      90
+    ],
+    [
+      600,
+      690
+    ],
+    [
+      1200,
+      1290
+    ]
+  ],
+  "fixed": {
+    "auto": false,
+    "simulatedSeconds": 1800,
+    "syntheticRequestedFrames": 54000,
+    "minimumFactor": 1,
+    "finalFactors": {
+      "cpu": 1,
+      "gpu": 1
+    },
+    "courseSeconds": 68,
+    "retainedTransitions": 0,
+    "windows": 1800
+  },
+  "adaptive": {
+    "auto": true,
+    "simulatedSeconds": 1800,
+    "syntheticRequestedFrames": 44415,
+    "minimumFactor": 0.25,
+    "finalFactors": {
+      "cpu": 1,
+      "gpu": 1
+    },
+    "courseSeconds": 68,
+    "retainedTransitions": 32,
+    "windows": 1800
+  }
+}

@@ -15,3 +15,6 @@ Diagnostics count displayed/replaced/expired/suppressed hints and numeric update
 Diagnostics distinguish generated/merged/dropped, LLM triggered/skipped, TTS submitted/actually started/dropped and latency. A submission is not counted as playback until the speech service acknowledges start. Tests cover interruption, stale AI completion, expired pending speech and cancellation locks.
 
 #4/#5 software work is implemented. Human/device correction precision, real speech-service timing and sustained practice remain in #11 and do not block later milestones.
+
+## v0.9.30 workload budget
+Repeated-value display cadence is 250 ms / CPU factor (up to 1 second). Semantic changes and invalid states still refresh immediately. Optional LLM cooldown is divided by GPU factor; CPU/GPU below 0.5 or multiple pending 3D fences suppress new optional explanations. Local correction speech and user questions remain available. Queued automatic explanation expires after one second and has lower priority than fresh vision; existing semantic/TTL rejection still applies.

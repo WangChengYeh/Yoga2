@@ -1,5 +1,5 @@
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.29';
-import { LESSONS, COURSE_DURATION, courseFrame } from './course.js?v=0.9.29';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.30';
+import { LESSONS, COURSE_DURATION, courseFrame } from './course.js?v=0.9.30';
 
 const phrases = {
   slow: ['慢一點','慢一点','放慢','放慢一點','放慢一点','慢點','慢点','速度慢一點','速度慢一点'],

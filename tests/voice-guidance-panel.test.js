@@ -341,3 +341,11 @@ test('a failed correction is not replayable after the source pose is cleared',()
   hint=null;h.panel.refreshHints();assert.equal(h.panel.diagnostics.audioRetryAvailable,false);assert.equal(h.state.playing,true);
  }finally{h.close();}
 });
+
+test('low GPU budget preserves deterministic correction and user question routing',async()=>{
+ let hint=null,asks=0;const ai={phase:'ready',ready:true,disable(){},ask:async()=>{asks++;return '保持自然呼吸。';}};
+ const h=harness(()=>ai,()=>null,()=>null,()=>{},{getHint:()=>hint,getBudget:()=>({optionalLLM:false,cooldownScale:4})});try{
+  h.state.time=8;h.dispatch({type:'play'});hint={id:'elbow',code:'elbow',kind:'hint',message:'留意手肘。',timestamp:performance.now(),expiresAt:performance.now()+1500,context:{scope:'reach',generation:1}};
+  h.panel.refreshHints();assert.equal(h.panel.diagnostics.kind,'correction');assert.equal(h.panel.diagnostics.hintSpeech.policy.cooldownMs,80000);assert.equal(asks,0);ask(h,'如何呼吸？');await new Promise(r=>setImmediate(r));assert.equal(asks,1);assert.equal(h.spoken.at(-1).text,'保持自然呼吸。');
+ }finally{h.close();}
+});

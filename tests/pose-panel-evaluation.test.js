@@ -4,13 +4,13 @@ import { setupPosePanel } from '../src/pose-panel.js';
 import { courseFrame } from '../src/course.js';
 import { feedbackKey } from '../src/pose-rules.js';
 import { poseSample } from './helpers/pose-samples.js';
-function harness(){
+function harness(caps={camera:60,analysis:15,maxSide:512}){
  let time=0,courseTime=8,playing=true,options;const timers=new Map(),nodes=new Map(),saved={document:globalThis.document,window:globalThis.window};
  const context={clearRect(){}};
  const document={documentElement:{dataset:{visionRoot:"https://example.invalid/vision/",poseModelUrl:"https://example.invalid/pose.task",segmentationModelUrl:"https://example.invalid/mask.tflite"}},getElementById(id){if(!nodes.has(id))nodes.set(id,{value:'',checked:false,hidden:false,style:{},dataset:{},textContent:'',listeners:{},videoWidth:480,videoHeight:640,width:480,height:640,classList:{toggle(){}},setAttribute(){},getContext:()=>context,addEventListener(type,fn){this.listeners[type]=fn;}});return nodes.get(id);},createElement:()=>({getContext:()=>null}),querySelector:()=>({classList:{toggle(){}}}),addEventListener(){}};
  globalThis.document=document;globalThis.window={isSecureContext:true,addEventListener(){}};
  const session={phase:'active',stream:null,fpsDiagnostics:{requested:20,negotiated:20,status:'active'},diagnostics:{},setFPS(){},start(){},stop(){}};
- const panel=setupPosePanel({createSession:opts=>{options=opts;return session;},getFrame:()=>courseFrame(courseTime),isPlaying:()=>playing,isPowerSaving:()=>false,now:()=>time,setTimer:(fn,delay)=>{const id=Symbol();timers.set(id,{fn,at:time+delay});return id;},clearTimer:id=>timers.delete(id)});
+ const panel=setupPosePanel({getCaps:()=>caps,createSession:opts=>{options=opts;return session;},getFrame:()=>courseFrame(courseTime),isPlaying:()=>playing,isPowerSaving:()=>false,now:()=>time,setTimer:(fn,delay)=>{const id=Symbol();timers.set(id,{fn,at:time+delay});return id;},clearTimer:id=>timers.delete(id)});
  options.onState({phase:'active',message:'active',preview:true});
  return {panel,nodes,timers,options,setCourse(value){courseTime=value;panel.contextChanged();},pause(){playing=false;panel.contextChanged();},send(at,settings={}){time=at;const data=poseSample(courseTime,{...settings,capturedAt:at});data.context=options.getContext();options.onResult(data,time);},expire(at){time=at;for(const [id,timer] of [...timers])if(timer.at<=time){timers.delete(id);timer.fn();}},dispose(){globalThis.document=saved.document;globalThis.window=saved.window;}};
 }
@@ -32,4 +32,8 @@ test('a previous course result clears feedback; camera stale and off reset struc
   for(const t of [1300,1550,1800])h.send(t);h.options.onState({phase:'off',message:'off',preview:false});
   assert.equal(h.panel.summary.valid,false);assert.equal(h.timers.size,0);assert.deepEqual(h.panel.diagnostics.evaluation.hints,[]);
  }finally{h.dispose();}
+});
+
+test('CPU factor scales camera/pose budgets from user settings, including initial camera request',()=>{
+ const h=harness({camera:60,analysis:15,maxSide:256,cpuFactor:.25});try{assert.equal(h.options.requestedFPS,5);assert.equal(h.options.minInterval(),1000/.75);assert.equal(h.options.getContext().maxSide,256);assert.equal(h.panel.diagnostics.effective.analysis,.75);}finally{h.dispose();}
 });

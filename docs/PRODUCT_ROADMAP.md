@@ -1,6 +1,6 @@
 # Yoga2 — Product Goal & Milestone Roadmap
 
-Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 software implemented (v0.9.28); M3 software implemented (v0.9.29). Manual/device validation is non-blocking and tracked by #11. M4–M5 planned.
+Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 software implemented (v0.9.28); M3 software implemented (v0.9.29). Manual/device validation is non-blocking and tracked by #11. M4 software implemented (v0.9.30); M5 planned.
 
 ## Product Goal
 Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target yoga pose, the user's camera provides MediaPipe pose observations, a male student Avatar visualizes the user's motion, deterministic evaluation compares the observations to the course target, and timely visual/voice feedback helps the user correct the pose. Prioritize an effective **observe → evaluate → correct** loop over photorealism.
@@ -20,7 +20,7 @@ Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target
 | M1 — Dual Avatar MVP (accepted) | Luna left, default male Avatar right; camera→MediaPipe→minimal retarget; remove unneeded segmentation after dependency audit | [#6](https://github.com/WangChengYeh/Yoga2/issues/6), subset of [#7](https://github.com/WangChengYeh/Yoga2/issues/7) | All three existing yoga motions follow user sufficiently for MVP; baseline performance measured |
 | M2 — Pose Accuracy (software implemented) | Complete Humanoid retargeting and independent Pose Evaluation Engine | [#7](https://github.com/WangChengYeh/Yoga2/issues/7), [#9](https://github.com/WangChengYeh/Yoga2/issues/9) | Deterministic, confidence-aware correction signals for three exercises; unknown/occluded poses not treated as errors |
 | M3 — Coaching Feedback (software implemented) | Shared Hint manager, instant visual feedback, then speech/LLM routing | [#5](https://github.com/WangChengYeh/Yoga2/issues/5), [#4](https://github.com/WangChengYeh/Yoga2/issues/4) | Wrong pose→visible Hint→correction clears; speech deduplicated, nonblocking, stale responses discarded |
-| M4 — Performance & Reliability | CPU/GPU factor, latest-wins scheduling, benchmarks and sustained mobile validation | [#10](https://github.com/WangChengYeh/Yoga2/issues/10), [#11](https://github.com/WangChengYeh/Yoga2/issues/11) | iPhone 13 30-minute practice without crash or serious stalls; measured baselines and fallback behavior documented |
+| M4 — Performance & Reliability (software implemented; device validation open) | CPU/GPU factor, latest-wins scheduling, benchmarks and sustained mobile validation | [#10](https://github.com/WangChengYeh/Yoga2/issues/10), [#11](https://github.com/WangChengYeh/Yoga2/issues/11) | iPhone 13 30-minute practice without crash or serious stalls; measured baselines and fallback behavior documented |
 | M5 — Personalized Avatar | Free, phone-side JS photo personalization, shared Humanoid Rig, IndexedDB | [#8](https://github.com/WangChengYeh/Yoga2/issues/8) | Preview, local storage/delete, reliable rig integration, default Avatar fallback; library/license and Safari PoC verified |
 
 ## Task boundaries
@@ -73,3 +73,9 @@ Per owner direction on 2026-11-22, software implementation and human/device vali
 - #4: deterministic course cues and confirmed corrections use local TTS; persistent deviations aggregate distinct samples before one optional LLM explanation. Configurable minimum interval/cooldown, no request backlog, user-question priority, semantic generation/TTL rejection and played-vs-submitted diagnostics.
 - Current Avatar skin envelopes automatically fit the camera to both actors and visible UI boundaries. Expansion is immediate, contraction is smooth; the default auto-frame toggle can be disabled for manual zoom. This supersedes fixed framing as the runtime default; historical fixed-layout tests remain fallback coverage.
 - Automated/source/build and available browser checks are software evidence only. Device latency, correction precision, speech service behavior, GPU appearance and sustained practice remain unverified in #11. M4 is the next milestone.
+
+## M4 software implementation — v0.9.30
+- #10: independent CPU/GPU factors with manual ceilings, bounded adaptation and anti-oscillation. Render/retarget/framing, framebuffer pixels, camera/Pose/evaluation, repeated Hint values and optional LLM explanations follow explicit budgets. Course clock, commands and immediate invalid/semantic state remain authoritative.
+- Scheduler keys/TTL implement queued latest-wins and expiry; automatic explanation is below vision priority. Expired camera jobs retry with a fresh frame; active native inference never releases its lane before completion/termination acknowledgement.
+- Live factor diagnostics and baselines, GPU pending age, automated overload/recovery and a reproducible synthetic 30-minute replay are implemented. See [policy and evidence](PERFORMANCE.md).
+- #10 software scope is complete. #11 stays open for actual iPhone/MacBook baselines, heat/memory, latency/precision and 30-minute stability. Synthetic tests are not device acceptance and do not close #11. Per owner direction these checks do not block M5 personalization, the next milestone.

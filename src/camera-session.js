@@ -1,4 +1,4 @@
-import { CAMERA_FPS } from './camera-settings.js?v=0.9.29';
+import { CAMERA_FPS } from './camera-settings.js?v=0.9.30';
 export function cameraMessage(error) {
   const messages = {
     NotAllowedError: '未取得相機權限。請在瀏覽器允許相機，或繼續使用不開相機的帶練。',
@@ -51,8 +51,8 @@ export class CameraSession {
     const now=this.now();if(now-this.lastResult>1500&&!this.stale){this.stale=true;this.onStale();}if(this.video.readyState<2||this.video.currentTime===this.lastVideoTime||now<this.nextAt){this.schedule(token);return;}
     const controller=this.jobAbort;this.waitingSince=now;let release;
     const waitTimer=this.setTimer(()=>{if(token===this.epoch&&this.phase==='active'){this.stale=true;this.onStale();}},1500);
-    try{release=await this.scheduler.acquire('vision-frame',{signal:controller.signal});this.clearTimer(waitTimer);if(token===this.epoch){this.lastScheduleWaitMs=this.now()-this.waitingSince;this.waitingSince=null;}if(token===this.epoch&&this.phase==='active')await this.processFrame(token);}
-    catch(error){if(token===this.epoch&&this.phase==='active'){if(error.name==='AbortError')return;this.lastError=error.name;this.stop();this.emit('error',cameraMessage(error));}}
+    try{release=await this.scheduler.acquire('vision-frame',{signal:controller.signal,key:'latest-pose',ttlMs:1000});this.clearTimer(waitTimer);if(token===this.epoch){this.lastScheduleWaitMs=this.now()-this.waitingSince;this.waitingSince=null;}if(token===this.epoch&&this.phase==='active')await this.processFrame(token);}
+    catch(error){if(token===this.epoch&&this.phase==='active'){if(error.name==='AbortError'){if(error.code==='WORK_EXPIRED'||error.code==='WORK_REPLACED'){this.dropped=(this.dropped||0)+1;this.nextAt=this.now()+this.minInterval();this.schedule(token);}return;}this.lastError=error.name;this.stop();this.emit('error',cameraMessage(error));}}
     finally{this.clearTimer(waitTimer);if(token===this.epoch)this.waitingSince=null;release?.();}
   }
   async processFrame(token) {
@@ -83,7 +83,7 @@ export class CameraSession {
   }
   get diagnostics(){
     const stamp=this.now(),age=value=>Number.isFinite(value)?Math.max(0,stamp-value):null;
-    return {fps:this.fpsDiagnostics,waitingForSchedule:this.waitingSince!==null,scheduleWaitMs:age(this.waitingSince),lastScheduleWaitMs:this.lastScheduleWaitMs??null,attemptFPSAverage:age(this.activeAt)>=1000?Math.round(this.attempts*100000/age(this.activeAt))/100:null,acceptedFPSAverage:age(this.activeAt)>=1000?Math.round(this.accepted*100000/age(this.activeAt))/100:null,attempts:this.attempts,accepted:this.accepted,slow:this.slow,inFlight:this.inFlightSince!==null,inFlightAgeMs:age(this.inFlightSince),activeAgeMs:age(this.activeAt),lastAcceptedAgeMs:age(this.lastAcceptedAt),lastInferenceMs:this.lastInferenceMs??null,lastVideoTime:this.lastVideoTime??null,videoCurrentTime:Number.isFinite(this.video.currentTime)?this.video.currentTime:null,videoPaused:Boolean(this.video.paused),lastError:this.lastError,engine:this.engine?.diagnostics||null,tracks:this.stream?.getVideoTracks().map(t=>({readyState:t.readyState||null,muted:Boolean(t.muted),enabled:t.enabled??null}))||[]};
+    return {fps:this.fpsDiagnostics,waitingForSchedule:this.waitingSince!==null,scheduleWaitMs:age(this.waitingSince),lastScheduleWaitMs:this.lastScheduleWaitMs??null,attemptFPSAverage:age(this.activeAt)>=1000?Math.round(this.attempts*100000/age(this.activeAt))/100:null,acceptedFPSAverage:age(this.activeAt)>=1000?Math.round(this.accepted*100000/age(this.activeAt))/100:null,attempts:this.attempts,accepted:this.accepted,slow:this.slow,dropped:this.dropped||0,inFlight:this.inFlightSince!==null,inFlightAgeMs:age(this.inFlightSince),activeAgeMs:age(this.activeAt),lastAcceptedAgeMs:age(this.lastAcceptedAt),lastInferenceMs:this.lastInferenceMs??null,lastVideoTime:this.lastVideoTime??null,videoCurrentTime:Number.isFinite(this.video.currentTime)?this.video.currentTime:null,videoPaused:Boolean(this.video.paused),lastError:this.lastError,engine:this.engine?.diagnostics||null,tracks:this.stream?.getVideoTracks().map(t=>({readyState:t.readyState||null,muted:Boolean(t.muted),enabled:t.enabled??null}))||[]};
   }
   get fpsDiagnostics(){const track=this.stream?.getVideoTracks?.()[0];let settings={};try{settings=track?.getSettings?.()||{};}catch{/* unavailable */}return {requested:this.requestedFPS,negotiated:settings.frameRate??null,status:this.fpsStatus,error:this.fpsError||null};}
   setFPS(value){

@@ -1,4 +1,4 @@
-import { TASKS } from './task-performance.js?v=0.9.29';
+import { TASKS } from './task-performance.js?v=0.9.30';
 const number=(v,d=1)=>Number.isFinite(v)?v.toFixed(d):'未知';
 const groups={'cpu-main':'CPU 主緒','cpu-worker':'CPU 辨識','gpu':'GPU 計時','gpu-task':'GPU 完成通知','gpu-submit':'GPU 提交（另列）','gpu-wall':'GPU 往返（另列）','wall':'任務往返','wait':'排隊','counter':'更新率'};
 export function setupTaskPerformancePanel({log,getSettings=()=>({}),doc=document,setIntervalFn=(fn,ms)=>setInterval(fn,ms),clearIntervalFn=clearInterval,now=()=>performance.now()}={}){
@@ -13,14 +13,14 @@ export function setupTaskPerformancePanel({log,getSettings=()=>({}),doc=document
  function refresh(force=false){if(doc.hidden||!panel.open&&!force)return;const started=now(),summary=log.summary(windowMs),settings=getSettings(),baseline=log.baseline;
   $('task-fps').textContent=`近 5 秒：${stats(log.summary(5000))}；區間平均：${stats(summary)}`;
   $('task-loading').textContent=`前景觀測 ${(summary.foregroundMs/1000).toFixed(0)} 秒 · CPU task ${number(summary.loading.cpuPercent)}% · GPU 已確認 task ${number(summary.loading.gpuPercent)}%（loading 估算）`;
-  $('task-current').textContent=`設定 3D ${settings.preferences?.renderFPS??'未知'}／相機 ${settings.camera?.cameraFPS??'未知'} FPS；生效 3D ${settings.scheduler?.renderFPS??'未知'}／相機協商 ${settings.effectiveCamera?.negotiated??'未知'} FPS；降規 ${settings.level??0}/2。${settings.currentTask?`目前 ${settings.currentTask.kind} 已占用 ${number(settings.currentTask.runningMs/1000)} 秒。`:'目前沒有重任務占用通道。'}`;
+  $('task-current').textContent=`設定 3D ${settings.preferences?.renderFPS??'未知'}／相機 ${settings.camera?.cameraFPS??'未知'} FPS；生效 3D ${settings.scheduler?.renderFPS??'未知'}／相機協商 ${settings.effectiveCamera?.negotiated??'未知'} FPS；CPU factor ${number(settings.budget?.cpuFactor??1,2)}／GPU factor ${number(settings.budget?.gpuFactor??1,2)}。${settings.currentTask?`目前 ${settings.currentTask.kind} 已占用 ${number(settings.currentTask.runningMs/1000)} 秒。`:'目前沒有重任務占用通道。'}`;
   const completion=settings.gpuCompletion||{},status=s=>!s||s.status==='initializing'?'準備中':s.supported===false?'不支援，未知':`${s.status} · 待完成 ${s.pending||0} · 失敗 ${s.failed||0} · 略過 ${s.skipped||0}`;
   $('task-gpu-state').textContent=`3D fence：${status(completion.render)}；LLM queue：${status(completion.llm)}。GPU loading 只計收到完成通知的區間；提交 API／模型載入／回覆往返另外列出，不當作 GPU 完成。通知時間含排隊與回呼延遲，非純 GPU 運算時間。`;
   const rows=summary.tasks.filter(t=>t.channel!=='counter').map(t=>{const known=t.count>0||t.ms>0,base=baseline?.summary.tasks.find(b=>b.kind===t.kind),delta=known&&base?.averageMs!=null?t.averageMs-base.averageMs:null;return `<tr><td>${groups[t.channel]}<br>${t.label}</td><td>${known?number(t.foregroundPercent)+'%':'—'}</td><td>${known?number(t.ms/1000,2):'—'}</td><td>${known?number(t.averageMs):'—'}</td><td>${delta==null?'—':(delta>0?'+':'')+number(delta)}</td></tr>`;}).join('');
   $('task-rows').innerHTML=rows;
   const recent=log.recentSpans,seen=new Set(),latest=recent.filter(s=>{if(seen.has(s.kind))return false;seen.add(s.kind);return TASKS[s.kind].channel!=='counter';});
   $('task-spans').innerHTML=latest.map(s=>`<tr><td>${TASKS[s.kind].label}</td><td>${groups[TASKS[s.kind].channel]}</td><td>${number(s.startMs/1000,3)}</td><td>${number(s.submittedMs==null?null:s.submittedMs/1000,3)}</td><td>${number(s.endMs/1000,3)}</td><td>${number(s.durationMs)}</td><td>${number(s.completionLatencyMs)}</td></tr>`).join('');
-  $('task-baseline-status').textContent=baseline?`基準：CPU ${number(baseline.summary.loading.cpuPercent)}%／GPU ${number(baseline.summary.loading.gpuPercent)}%；${stats(baseline.summary)}；3D 設定 ${baseline.settings.preferences?.renderFPS??'未知'}／相機 ${baseline.settings.camera?.cameraFPS??'未知'} FPS。平均耗時差為本期減基準，負值代表每次較快。`:'先觀察一段時間，記錄基準，再調整上方 FPS；基準不會因調整而消失。';
+  $('task-baseline-status').textContent=baseline?`基準：CPU ${number(baseline.summary.loading.cpuPercent)}%／GPU ${number(baseline.summary.loading.gpuPercent)}%；${stats(baseline.summary)}；基準 CPU/GPU factor ${number(baseline.settings.budget?.cpuFactor??1,2)}／${number(baseline.settings.budget?.gpuFactor??1,2)}；3D 設定 ${baseline.settings.preferences?.renderFPS??'未知'}／相機 ${baseline.settings.camera?.cameraFPS??'未知'} FPS。平均耗時差為本期減基準，負值代表每次較快。`:'先觀察一段時間，記錄基準，再調整上方 FPS；基準不會因調整而消失。';
   if(now()-lastChart>=5000||force){chart(summary);lastChart=now();}log.record('monitor.cpu',started,now());
  }
  const start=()=>{if(timer==null)timer=setIntervalFn(()=>refresh(),1000);},stop=()=>{if(timer!=null)clearIntervalFn(timer);timer=null;};
