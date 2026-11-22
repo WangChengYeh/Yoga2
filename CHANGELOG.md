@@ -1,5 +1,11 @@
 # 版本變更日誌
 
+## v0.9.25 — 原始相機 Debug 骨架
+
+- 修正 Debug 疊圖被全身課程 observation.valid 擋住；半身可顯示可信肩膀／手肘／手腕等局部觀測，不要求課程姿勢有效。
+- 粗雙色骨線與關節圓點，保留原始影像，不啟用去背；相機與骨架在 CSS 同步鏡像一次。
+- 開啟 Debug 立即重畫最近新鮮關節，關閉／停止／追蹤過期清除；缺失關節不補畫。新增 4 項測試，完整 411 項 Node 測試。
+
 ## v0.9.24 — 雙 Avatar M1 實作
 
 - 依 PRODUCT_ROADMAP 順序實作：Luna 左、原創 CC0 男性學員右；22 骨 GLB 與最小 local quaternion retarget。

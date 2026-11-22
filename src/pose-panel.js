@@ -1,21 +1,22 @@
-import { cameraPreferences } from './camera-settings.js?v=0.9.24';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.24';
-import { CameraSession } from './camera-session.js?v=0.9.24';
-import { createPoseEngine } from './pose-engine.js?v=0.9.24';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.24';
+import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.25';
+import { cameraPreferences } from './camera-settings.js?v=0.9.25';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.25';
+import { CameraSession } from './camera-session.js?v=0.9.25';
+import { createPoseEngine } from './pose-engine.js?v=0.9.25';
+import { observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.25';
 
 export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const preference=cameraPreferences();$('camera-fps').value=String(preference.value.cameraFPS);$('analysis-fps').value=String(preference.value.analysisFPS);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
-  const ctx = overlay.getContext('2d');
+  const debugOverlay=createPoseDebugOverlay({canvas:overlay,enabled:()=>Boolean($('camera-debug')?.checked)});
   const lightCanvas = document.createElement('canvas'); lightCanvas.width = lightCanvas.height = 16;
   const lightContext = lightCanvas.getContext('2d', { willReadFrequently: true });
   const filter = new FeedbackFilter();
   let key = null,latestObservation=null;
   let summary = {valid:false,message:'',updatedAt:0};
   const getKey = () => feedbackKey(getFrame(), isPlaying());
-  const clear = () => ctx?.clearRect(0, 0, overlay.width, overlay.height);
+  const clear = () => debugOverlay.clear();
   function feedback(message, kind = 'info') {
     summary = { valid: kind === 'observed' || kind === 'hint', message, updatedAt: performance.now() };
     $('camera-feedback').textContent = message;
@@ -58,29 +59,20 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
     onStale: () => {latestObservation=null;onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
     onResult: (data, now) => {
       human?.accept({...data,aspect:video.videoWidth/video.videoHeight},now);
-      if (!isFreshResult(data, getKey(), now)) { clear(); filter.reset(); return; }
       if (video.videoWidth && video.videoHeight) {
         preview.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
         overlay.width = video.videoWidth; overlay.height = video.videoHeight;
       }
-      clear();
+      debugOverlay.update(data,now);
+      if (!isFreshResult(data, getKey(), now)) { filter.reset(); return; }
       const observation = observePose(data.landmarks, data.context.frame, { playing: data.context.playing, aspect: video.videoWidth / video.videoHeight, brightness: data.brightness });
-      if (observation.valid && data.landmarks?.length === 1 && ctx) {
-        const points = data.landmarks[0];
-        ctx.strokeStyle = '#bdf9c8'; ctx.lineWidth = Math.max(2, overlay.width / 160);
-        for (const [a, b] of CONNECTIONS) {
-          if (!visible(points[a]) || !visible(points[b])) continue;
-          ctx.beginPath(); ctx.moveTo(points[a].x * overlay.width, points[a].y * overlay.height);
-          ctx.lineTo(points[b].x * overlay.width, points[b].y * overlay.height); ctx.stroke();
-        }
-      }
       const stable = filter.update(observation, data.context.key, now);
       latestObservation=humanObservation(data,observation,stable);
       onObservation(data,observation,stable);
       feedback(stable.message, stable.kind);
     },
   });
-  document.getElementById('camera-debug')?.addEventListener('change',event=>{preview.classList.toggle('camera-debug-visible',event.target.checked);preview.setAttribute('aria-hidden',String(!event.target.checked));});
+  document.getElementById('camera-debug')?.addEventListener('change',event=>{preview.classList.toggle('camera-debug-visible',event.target.checked);preview.setAttribute('aria-hidden',String(!event.target.checked));debugOverlay.refresh();});
   $('camera-fps').addEventListener('change',()=>{preference.set({cameraFPS:$('camera-fps').value});$('camera-fps').value=String(preference.value.cameraFPS);updatePolicy();});
   $('analysis-fps').addEventListener('change',()=>{preference.set({analysisFPS:$('analysis-fps').value});$('analysis-fps').value=String(preference.value.analysisFPS);fpsStatus();onRuntime('camera-fps',{phase:'analysis-updated',requestedFPS:preference.value.cameraFPS,negotiatedFPS:session.fpsDiagnostics.negotiated,analysisFPS:preference.value.analysisFPS});});
   fpsStatus();

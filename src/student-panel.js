@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { createStudentModel } from './student-model.js?v=0.9.24';
-import { createStudentRetarget } from './student-retarget.js?v=0.9.24';
-import { prepareStandingCoach } from './rig.js?v=0.9.24';
-import { createSkeletonLayer, createCoachSkeletonSource, skeletonFresh } from './skeleton.js?v=0.9.24';
+import { createStudentModel } from './student-model.js?v=0.9.25';
+import { createStudentRetarget } from './student-retarget.js?v=0.9.25';
+import { prepareStandingCoach } from './rig.js?v=0.9.25';
+import { createSkeletonLayer, createCoachSkeletonSource, skeletonFresh } from './skeleton.js?v=0.9.25';
 
 export function setupStudentPanel({document,onLayout=()=>{}}){
   const $=id=>document.getElementById(id);

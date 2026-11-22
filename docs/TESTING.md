@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.24。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.25。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -14,7 +14,7 @@ npm run test:portrait
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 407 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 411 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
@@ -103,3 +103,5 @@ npm run test:portrait
 `gpu-completion` 驗證 fence 提交後才完成、零 timeout 輪詢、容量／逾時／失效／背景清除、WebGPU 原回傳與 receiver 保留、checkpoint 合併、批次通知、reject／遲到／清理、readonly 降級、queue 數量限制、upload 操作攔截與原方法還原。`task-performance` 驗證只計完成通知、提交／回覆不冒充、時間軸與通知延遲；`task-performance-panel` 驗證未知不畫零曲線與 pending／失敗狀態；`local-ai` 驗證 forwarding、不影響回覆與舊 worker 忽略。
 
 手機驗收仍待：Safari fence／GPUQueue hook 支援、完成延遲／略過比例、開啟監測額外成本與三十分鐘穩定。完成通知耗時不是純 GPU execution，與 v0.9.22 數值定義不同，不直接跨版比較 loading。
+
+原圖 Debug：`pose-debug.test.js` 覆蓋半身局部關節、原圖座標（CSS 單次鏡像）、低信心／多人／低光／過期、開關立即重畫與清除，不以課程有效性限制疊圖。
