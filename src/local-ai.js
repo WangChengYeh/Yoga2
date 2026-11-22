@@ -1,10 +1,10 @@
-import { kvEstimate } from './memory-diagnostics.js?v=0.9.33';
-import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.33';
-import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.33';
-import { guidanceMessages } from './ai-guidance.js?v=0.9.33';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.33';
-import { courseFrame } from './course.js?v=0.9.33';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.33';
+import { kvEstimate } from './memory-diagnostics.js?v=0.9.34';
+import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.34';
+import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.34';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.34';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.34';
+import { courseFrame } from './course.js?v=0.9.34';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.34';
 
 export function localAIMessages(text,state,history=[],context=null,contextWindow=DEFAULT_CONTEXT_WINDOW) {
   const frame=courseFrame(state.time);
@@ -19,7 +19,7 @@ export function localAIMessages(text,state,history=[],context=null,contextWindow
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({responseDeadlineMs=8000,scheduler=null,onGPUCompletion=()=>{},onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.33',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({responseDeadlineMs=8000,scheduler=null,onGPUCompletion=()=>{},onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.34',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{scheduler,onGPUCompletion,onMemoryEvent,gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[],context:{selected:DEFAULT_CONTEXT_WINDOW,loading:null,active:null,status:'off'}};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];this.contextWindow=DEFAULT_CONTEXT_WINDOW;this.inferenceLeases=new Map();this.retireTimers=new Map();this.setResponseDeadline(responseDeadlineMs);
   }

@@ -1,12 +1,12 @@
-import {createAvatarStore,validatePhoto,decodeAvatarPhoto,AVATAR_VIEWS,findBodyBounds,drawBodyCrop,bodyBlob,referenceAngle} from './avatar-profile.js?v=0.9.33';
-import {createPersonalAvatar,disposeAvatar,exportAvatarGLB} from './personal-avatar.js?v=0.9.33';
-import {createStudentModel} from './student-model.js?v=0.9.33';
+import {createAvatarStore,validatePhoto,decodeAvatarPhoto,AVATAR_VIEWS,findBodyBounds,drawBodyCrop,bodyBlob,referenceAngle} from './avatar-profile.js?v=0.9.34';
+import {createPersonalAvatar,disposeAvatar,exportAvatarGLB} from './personal-avatar.js?v=0.9.34';
+import {createStudentModel} from './student-model.js?v=0.9.34';
 const LABELS={front:'正面',side:'側面',back:'背面'};
 // Three bounded source canvases; persistence contains only derived view crops.
 export function setupAvatarPanel({document,window=globalThis.window,human,pause=()=>{},store=createAvatarStore(),decode=decodeAvatarPhoto,findBounds=findBodyBounds,build=createPersonalAvatar,exportGLB=exportAvatarGLB,now=()=>performance.now(),onPreview=()=>{}}={}){
  const $=id=>document.getElementById(id),editor=$('avatar-editor');let current=null,draft=null,serial=0,previewing=false,busy=false,stored=false,hasSaved=false,restoreDone=false,alive=true,downloadURL=null,cancelAfter=false;
  const sources={},bounds={},crops={},stats={builds:0,lastBuildMs:null,lastSaveBytes:0,lastExportBytes:0,errors:0};
- const message=text=>{$('avatar-status').textContent=text;},input=k=>$(k==='front'?'avatar-photo':'avatar-photo-'+k),selected=()=>AVATAR_VIEWS.includes($('avatar-view').value)?$('avatar-view').value:'front';
+ const message=text=>{for(const id of ['avatar-status','avatar-editor-status']){const el=$(id);if(el)el.textContent=text;}},input=k=>$(k==='front'?'avatar-photo':'avatar-photo-'+k),selected=()=>AVATAR_VIEWS.includes($('avatar-view').value)?$('avatar-view').value:'front';
  function clearSources(){for(const k of AVATAR_VIEWS){if(sources[k])sources[k].width=sources[k].height=0;delete sources[k];delete bounds[k];delete crops[k];input(k).value='';}}
  function controls(){const consent=$('avatar-consent').checked,count=AVATAR_VIEWS.filter(k=>sources[k]).length;for(const k of AVATAR_VIEWS){input(k).disabled=!consent||busy;$('avatar-ready-'+k).textContent=sources[k]?'已讀取':'尚未選擇';}$('avatar-preview').disabled=count!==3||busy||!consent;$('avatar-apply').disabled=!draft||busy||!consent;$('avatar-save').disabled=!draft||busy||!consent;$('avatar-export').disabled=!current||busy;for(const id of ['avatar-delete','avatar-cancel','avatar-edit','avatar-consent','avatar-view','avatar-zoom','avatar-x','avatar-y','avatar-reference-angle','avatar-side-mirror'])$(id).disabled=busy;$('avatar-return').hidden=!previewing;}
  function syncCrop(){const c=crops[selected()]||{zoom:1,x:.5,y:.5};for(const k of ['zoom','x','y'])$('avatar-'+k).value=String(c[k]);}
@@ -14,7 +14,7 @@ export function setupAvatarPanel({document,window=globalThis.window,human,pause=
  function invalidate(){serial++;draft=null;controls();}
  function releaseDownload(){if(downloadURL)URL.revokeObjectURL(downloadURL);downloadURL=null;$('avatar-download').hidden=true;$('avatar-download').removeAttribute('href');}
  async function replace(profile){const model=profile?await build(profile):createStudentModel();if(!human.replaceAvatar(model)){disposeAvatar(model);throw new Error('學員尚未載入。');}}
- async function run(fn){if(busy)return;busy=true;controls();try{await fn();}catch{stats.errors++;message('Avatar 未完成，現有學員仍可使用；請檢查三張圖或重試。');}finally{busy=false;controls();if(cancelAfter&&alive){cancelAfter=false;void cancelEdit();}}}
+ async function run(fn){if(busy)return;busy=true;controls();message('正在處理，請稍候…');try{await fn();}catch(error){stats.errors++;message(error?.code==='AVATAR_TEMPLATE_LOAD'?'無法載入 Avatar 基底模型，請確認網路後重試；已選照片仍保留。':'Avatar 未完成，現有學員仍可使用；請檢查三張圖或重試。');}finally{busy=false;controls();if(cancelAfter&&alive){cancelAfter=false;void cancelEdit();}}}
  async function restore(){if(restoreDone)return;restoreDone=true;const token=serial;try{const value=await store.load();if(!alive||token!==serial||!value)return;const model=await build(value);if(!alive||token!==serial){disposeAvatar(model);return;}if(!human.replaceAvatar(model)){disposeAvatar(model);return;}current=value;stored=hasSaved=true;stats.lastSaveBytes=value.schema===2?AVATAR_VIEWS.reduce((s,k)=>s+value.views[k].size,0):value.face.size;message(value.schema===2?'已載入此瀏覽器保存的三視圖 Avatar。':'已載入舊版單張照片 Avatar；重新建立時請提供三張全身圖。');controls();}catch{if(alive&&token===serial)message('未能讀取已存 Avatar，先使用預設學員，可重新建立或刪除。');}}
  async function cancelEdit(){return run(async()=>{serial++;let fallback=false;if(previewing)try{await replace(current);}catch{await replace(null);current=null;stored=false;fallback=true;}previewing=false;draft=null;clearSources();draw();editor.open=false;message(fallback?'暫時改用預設學員。':'已取消編輯，保留原本學員。');});}
  $('avatar-return').addEventListener('click',()=>{$('avatar-card').scrollIntoView?.({behavior:'smooth',block:'start'});});

@@ -42,3 +42,7 @@ test('all three input views are required before generation; editing saved profil
  const h=harness();h.el('consent').checked=true;h.el('consent').listeners.change();h.el('photo').files=[new Blob(['front'],{type:'image/jpeg'})];h.el('photo').listeners.change();await flush();assert.equal(h.panel.diagnostics.sourceCount,1);assert.equal(h.el('preview').disabled,true);assert.match(h.el('status').textContent,/1\/3/);h.dispose();
  const full=harness({stored:profile()});await full.panel.restore();await full.click('edit');assert.equal(full.panel.diagnostics.sourceCount,3);assert.equal(full.el('preview').disabled,false);full.dispose();
 });
+
+test('failed template generation keeps three photos and shows error beside the generate controls',async()=>{
+ const h=harness({build:async()=>{throw Object.assign(new Error('404'),{code:'AVATAR_TEMPLATE_LOAD'});}});await h.photo();await h.click('preview');assert.equal(h.panel.diagnostics.sourceCount,3);assert.equal(h.el('preview').disabled,false);assert.equal(h.el('save').disabled,true);assert.match(h.el('editor-status').textContent,/基底模型/);assert.equal(h.el('editor-status').textContent,h.el('status').textContent);h.dispose();
+});

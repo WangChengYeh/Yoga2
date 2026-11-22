@@ -1,12 +1,12 @@
-import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.33';
-import { HintManager } from './hint-manager.js?v=0.9.33';
-import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.33';
-import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.33';
-import { CAMERA_FPS, cameraPreferences } from './camera-settings.js?v=0.9.33';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.33';
-import { CameraSession } from './camera-session.js?v=0.9.33';
-import { createPoseEngine } from './pose-engine.js?v=0.9.33';
-import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.33';
+import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.34';
+import { HintManager } from './hint-manager.js?v=0.9.34';
+import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.34';
+import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.34';
+import { CAMERA_FPS, cameraPreferences } from './camera-settings.js?v=0.9.34';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.34';
+import { CameraSession } from './camera-session.js?v=0.9.34';
+import { createPoseEngine } from './pose-engine.js?v=0.9.34';
+import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.34';
 
 export function setupPosePanel({ scheduler=null,onHintChange=()=>{},createSession=options=>new CameraSession(options),onEvaluationTiming=()=>{},now=()=>performance.now(),setTimer=(fn,ms)=>setTimeout(fn,ms),clearTimer=id=>clearTimeout(id),getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
