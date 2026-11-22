@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.23。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.24。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -8,16 +8,19 @@
 npm ci
 npm run check
 npm run build
+npm run test:settings-layout
 npm run test:portrait
 ```
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 399 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 407 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
-以下檔名均位於 `tests/`。
+以下檔名均位於 `tests/`。舊功能表中的 M1–M8 為歷史編號；新版順序見 [產品路線圖](PRODUCT_ROADMAP.md)。
+
+新版 M1：`student.test.js` 覆蓋男性 GLB／實際 skin 位移、三動作、鏡像/world、遮擋與過期、根節點鎖定、相機 session 及預設不去背。6 種全螢幕設定版面另由 Chromium 檢查。實機退出條件見 [M1 驗收](DUAL_AVATAR.md)。
 
 | 功能 | 測試 | 驗證重點 |
 | --- | --- | --- |

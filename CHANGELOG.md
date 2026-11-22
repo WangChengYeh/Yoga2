@@ -1,5 +1,13 @@
 # 版本變更日誌
 
+## v0.9.24 — 雙 Avatar M1 實作
+
+- 依 PRODUCT_ROADMAP 順序實作：Luna 左、原創 CC0 男性學員右；22 骨 GLB 與最小 local quaternion retarget。
+- MediaPipe world 優先，2D 回退、左右鏡像、信心／遮擋／過期、平滑與固定根節點比例；預設不再去背或上傳人像貼圖。
+- 姿勢觀察／LLM 仍讀原始關節，保留原有課程與語音；相機除錯視窗為選用。回報包新增學員追蹤狀態，效能面板新增映射 CPU task。
+- 全螢幕「效能監測」標題不再受外層 summary 圓形按鈕樣式影響，CI 新增 6 種版面回歸。
+- 407 項 Node 測試通過；四姿勢離線視覺證據與限制見 docs/DUAL_AVATAR.md。手機、真相機、前後效能與 30 分鐘仍待驗收。M2–M5 尚未實作。
+
 ## v0.9.23
 
 - GPU task 結束改為完成通知：3D 使用 WebGL2 fence、零等待輪詢；LLM 使用 WebGPU queue.onSubmittedWorkDone checkpoints，涵蓋 submit／可攔截的 buffer、texture 上傳。

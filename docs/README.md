@@ -5,7 +5,9 @@
 | 文件 | 查閱用途 |
 | --- | --- |
 | [使用與開發入口](../README.md) | 現行版本、操作、預設值、建置與程式索引 |
-| [里程碑規劃](../3D_Yoga_Web_Plan.md) | 需求、架構、交付範圍與待驗收項目 |
+| [產品路線圖](PRODUCT_ROADMAP.md) | 雙 Avatar M1–M5 順序、分工與退出條件 |
+| [雙 Avatar M1](DUAL_AVATAR.md) | 實作、來源與授權、測試、離線圖與待實機驗收 |
+| [歷史里程碑規劃](../3D_Yoga_Web_Plan.md) | 舊版需求與 M1–M8 記錄 |
 | [版本變更日誌](../CHANGELOG.md) | 逐版設計、修正與行為變化 |
 | [測試與驗收](TESTING.md) | 可重現指令、測試對照、最新結果及手機清單 |
 | [CPU／GPU task 監測](TASK_PERFORMANCE.md) | loading 定義、CPU 平行累加、LLM 歸類、基準與時間線 |

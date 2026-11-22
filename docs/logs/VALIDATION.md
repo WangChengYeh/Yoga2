@@ -6,7 +6,8 @@
 
 - 路線圖 M1：Luna + 男性學員 GLB、最小 quaternion 映射、confidence/mirror/stale、固定站位比例、預設關閉去背、保留原始觀測及語音控制。
 - 本機 `npm run check`：407 項通過，0 失敗／跳過；`npm run build`、`git diff --check` 通過。四動作離線骨架視覺圖見 [M1 記錄](../DUAL_AVATAR.md)。
-- CI、Pages、全螢幕設定瀏覽器檢查：待發布後填入真實結果。iPhone Safari／真實相機三動作／前後效能／30 分鐘尚未驗收。
+- 實作提交 `d958b96`，測試啟動器修正 `1ac26fd`。[CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44999441028)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44999440421) 均成功：407 項 Node、6 個 Chromium 版面案例、獨立 5 項真實人像回歸。首輪 CI `44999285833` 因選用 Chromium 啟動逾時失敗，改優先用 Chrome 後通過。
+- 正式頁顯示 v0.9.24；雲端瀏覽器全螢幕設定標題量測為 235×24 px、14 px 字級。該瀏覽器沒有 WebGL，角色顯示僅以實際骨變換的離線圖驗證，不能視為手機驗收。iPhone Safari／真實相機三動作／前後效能／30 分鐘尚未驗收。
 
 ## 2026-11-22 · v0.9.23
 

@@ -18,7 +18,7 @@
 - `npm run check`：407 個自動測試；含原有課程、語音、排程回歸與新增 8 項 Avatar 測試。
 - 真 GLB 載入、skin 頂點位移、三動作、鏡像/world、遮擋、過期、root/骨長鎖定、無分割無 RGBA、相機 session 回歸。
 - 離線視覺檢查：`node scripts/export-dual-avatar-qa.mjs`，再 `blender -b -t 2 --python scripts/render-dual-avatar-qa.py`。四張圖在 `test-results/dual-avatar/`，使用實際 Three.js 骨變換；不等同手機瀏覽器截圖。Luna 在此離線工具不解碼貼圖，呈灰色。
-- UI：`npm run test:settings-layout` 檢查 3 種視窗 × 面板開合。此 executor 不允許 Chromium socket 啟動，由 GitHub CI 執行；雲端瀏覽器也無 WebGL，不能作為角色顯示的驗收。
+- UI：`npm run test:settings-layout` 檢查 3 種視窗 × 面板開合。此 executor 不允許 Chromium socket 啟動，GitHub CI 的 6 種版面案例已通過；雲端瀏覽器標題 235×24 px、14 px 字級。雲端瀏覽器無 WebGL，不能作為角色顯示的驗收。
 - 待驗收：iPhone Safari、實際相機三動作影片、M1 前後除錯包比較、30 分鐘穩定性。不可宣稱 M1 完成驗收或效能已達標。
 
 ## 限制與下一步
