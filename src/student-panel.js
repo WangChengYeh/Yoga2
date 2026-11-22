@@ -1,11 +1,11 @@
 import { disposeAvatar } from './personal-avatar.js';
-import { createAvatarEnvelope } from './auto-framing.js?v=0.9.35';
-import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.35';
+import { createAvatarEnvelope } from './auto-framing.js?v=0.9.36';
+import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.36';
 import * as THREE from 'three';
-import { createStudentModel } from './student-model.js?v=0.9.35';
-import { createStudentRetarget } from './student-retarget.js?v=0.9.35';
-import { prepareStandingCoach } from './rig.js?v=0.9.35';
-import { createSkeletonLayer, createCoachSkeletonSource, skeletonFresh } from './skeleton.js?v=0.9.35';
+import { createStudentModel } from './student-model.js?v=0.9.36';
+import { createStudentRetarget } from './student-retarget.js?v=0.9.36';
+import { prepareStandingCoach } from './rig.js?v=0.9.36';
+import { createSkeletonLayer, createCoachSkeletonSource, skeletonFresh } from './skeleton.js?v=0.9.36';
 
 export function setupStudentPanel({document,onLayout=()=>{}}){
   const $=id=>document.getElementById(id);

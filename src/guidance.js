@@ -1,4 +1,4 @@
-import { COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.35';
+import { COURSE_DURATION, courseFrame, lessonStart } from './course.js?v=0.9.36';
 
 // Keep cues brief; a newer phase replaces an older automatic cue. These describe the lesson,
 // never claim the camera verified a person's posture or safety.

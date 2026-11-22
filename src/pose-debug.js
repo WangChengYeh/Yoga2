@@ -1,4 +1,4 @@
-import { aiSkeleton, skeletonFresh } from './skeleton.js?v=0.9.35';
+import { aiSkeleton, skeletonFresh } from './skeleton.js?v=0.9.36';
 
 // Raw image observations, independent of full-body lesson validation/retarget.
 // CSS mirrors both the video and canvas once; draw in original image coordinates.

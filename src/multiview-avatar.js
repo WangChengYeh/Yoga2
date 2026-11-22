@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {prepareStandingCoach} from './rig.js?v=0.9.35';
-import {motionAt} from './course.js?v=0.9.35';
-import {inspectHumanoidRig} from './humanoid-rig.js?v=0.9.35';
-import {AVATAR_VIEWS,BODY_WIDTH,BODY_HEIGHT,decodeAvatarPhoto,validateProfile,normalizeViewRect} from './avatar-profile.js?v=0.9.35';
+import {prepareStandingCoach} from './rig.js?v=0.9.36';
+import {motionAt} from './course.js?v=0.9.36';
+import {inspectHumanoidRig} from './humanoid-rig.js?v=0.9.36';
+import {AVATAR_VIEWS,BODY_WIDTH,BODY_HEIGHT,decodeAvatarPhoto,validateProfile,normalizeViewRect} from './avatar-profile.js?v=0.9.36';
 // UVs are baked once in the reference pose. Mesh geometry/bones are a template,
 // not a photogrammetric reconstruction. One atlas keeps practice draw calls low.
 export function projectThreeViews(model,{referenceArmDeg=30,texture,viewRects={}}={}){
@@ -59,6 +59,6 @@ export function avatarTemplateURL({document=globalThis.document,baseURL=globalTh
 export async function createThreeViewAvatar(profile,{decode=decodeAvatarPhoto,loadTemplate=async()=>{const url=avatarTemplateURL({document});try{return (await new GLTFLoader().loadAsync(url)).scene;}catch(error){throw Object.assign(new Error('Avatar template could not load'),{code:'AVATAR_TEMPLATE_LOAD',cause:error});}},document=globalThis.document}={}){
  const value=validateProfile(profile),canvases={};let model,texture;
  try{for(const k of AVATAR_VIEWS){const c=await decode(value.views[k]);canvases[k]=c;if(c.width!==BODY_WIDTH||c.height!==BODY_HEIGHT)throw new Error('三視圖貼圖尺寸不相容。');}texture=makeThreeViewAtlas(canvases,{document});model=await loadTemplate();if(!inspectHumanoidRig(model).diagnostics.compatible)throw new Error('基底骨架不相容。');projectThreeViews(model,{texture,referenceArmDeg:value.referenceArmDeg,viewRects:value.viewRects});return model;}
- catch(error){texture?.dispose();if(texture?.image)texture.image.width=texture.image.height=0;if(model){const {disposeAvatar}=await import('./personal-avatar.js?v=0.9.35');disposeAvatar(model);}throw error;}
+ catch(error){texture?.dispose();if(texture?.image)texture.image.width=texture.image.height=0;if(model){const {disposeAvatar}=await import('./personal-avatar.js?v=0.9.36');disposeAvatar(model);}throw error;}
  finally{for(const c of Object.values(canvases))c.width=c.height=0;}
 }

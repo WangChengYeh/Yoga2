@@ -172,3 +172,9 @@
 - Blender CPU 三視角渲染完成：模型不再因透明背景造成肢體缺損，但仍有接縫／腿部貼圖拉伸與模板比例差異。非精確重建。
 - 瀏覽器 WebGL 不可用；本項不宣稱實際 GPU／iPhone Safari／長時間效能通過。品質與裝置驗證保持 #11／#18 非阻擋追蹤。
 - 72/72 瀏覽器 Debug／Hint 版面組合通過（零失敗）。
+
+## 2026-11-23 · v0.9.36 場景啟動
+
+私人 v0.9.34 除錯包顯示 scene-load 未開始、WebGL model-load-before 無紀錄、scheduler blockedReason=scene-error、相機後續 WORK_CANCELLED。不能據此斷言裝置不支援 WebGL 或記憶體不足。原始除錯包與圖片未公開。
+
+新增嚴格 Window 計時器 receiver 回歸：修正前 scene-load 在 clearTimeout 階段重現 TypeError、init 不執行；修正後場景 admission 及 TTL cleanup 可完成。修正 globalThis 呼叫並保留啟動階段／錯誤碼診斷。iPhone 實機恢復仍需觀察，不阻擋發布。v0.9.35 比例修正 PR #22 已在 CI 通過後合併。

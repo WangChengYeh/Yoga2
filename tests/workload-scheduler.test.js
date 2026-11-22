@@ -30,3 +30,11 @@ test('user reply outranks vision and optional explanation; elapsed TTL checked e
 test('avatar generation serializes behind user replies and pauses vision during the build',async()=>{
  const s=new WorkloadScheduler(),r=await s.acquire('scene-load'),b=s.acquire('avatar-build'),a=s.acquire('ai-inference'),v=s.acquire('vision-frame');r();const ar=await a;ar();const br=await b;assert.equal(s.profile().mode,'avatar-building');assert.equal(s.profile().visionPaused,true);br();const vr=await v;vr();
 });
+
+test('Window timer receiver remains global during scene admission and queued TTL cleanup',async()=>{
+ const {readFileSync}=await import('node:fs'),{runInNewContext}=await import('node:vm');
+ const context={performance:{now:()=>0}};
+ runInNewContext(`globalThis.setTimeout=function(){'use strict';if(this!==globalThis)throw new TypeError('Illegal timer receiver');return 1;};globalThis.clearTimeout=function(){'use strict';if(this!==globalThis)throw new TypeError('Illegal timer receiver');};${readFileSync('src/workload-scheduler.js','utf8').replace('export class','class')};globalThis.scheduler=new WorkloadScheduler();`,context);
+ let initialized=false;await context.scheduler.run('scene-load',()=>{initialized=true;});assert.equal(initialized,true);
+ const release=await context.scheduler.acquire('scene-load'),queued=context.scheduler.acquire('vision-frame',{ttlMs:1000});release();const vr=await queued;vr();assert.equal(context.scheduler.diagnostics.completed,3);
+});
