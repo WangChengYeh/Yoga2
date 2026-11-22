@@ -1,5 +1,5 @@
-import { motionAt } from './course.js?v=0.9.28';
-import { observePose, feedbackWindow, feedbackKey, REQUIRED_POINTS } from './pose-rules.js?v=0.9.28';
+import { motionAt } from './course.js?v=0.9.29';
+import { observePose, feedbackWindow, feedbackKey, REQUIRED_POINTS } from './pose-rules.js?v=0.9.29';
 
 // Deterministic frontal image-plane comparison against the same course motion
 // parameters that drive Luna. No rendered avatar, WebLLM or world-depth claims.

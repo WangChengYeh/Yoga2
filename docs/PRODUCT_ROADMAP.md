@@ -1,6 +1,6 @@
 # Yoga2 — Product Goal & Milestone Roadmap
 
-Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 software implemented (v0.9.28); M3 shared Hint state in progress. Manual/device validation is non-blocking and tracked by #11. M4–M5 planned.
+Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 software implemented (v0.9.28); M3 software implemented (v0.9.29). Manual/device validation is non-blocking and tracked by #11. M4–M5 planned.
 
 ## Product Goal
 Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target yoga pose, the user's camera provides MediaPipe pose observations, a male student Avatar visualizes the user's motion, deterministic evaluation compares the observations to the course target, and timely visual/voice feedback helps the user correct the pose. Prioritize an effective **observe → evaluate → correct** loop over photorealism.
@@ -19,7 +19,7 @@ Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target
 | --- | --- | --- | --- |
 | M1 — Dual Avatar MVP (accepted) | Luna left, default male Avatar right; camera→MediaPipe→minimal retarget; remove unneeded segmentation after dependency audit | [#6](https://github.com/WangChengYeh/Yoga2/issues/6), subset of [#7](https://github.com/WangChengYeh/Yoga2/issues/7) | All three existing yoga motions follow user sufficiently for MVP; baseline performance measured |
 | M2 — Pose Accuracy (software implemented) | Complete Humanoid retargeting and independent Pose Evaluation Engine | [#7](https://github.com/WangChengYeh/Yoga2/issues/7), [#9](https://github.com/WangChengYeh/Yoga2/issues/9) | Deterministic, confidence-aware correction signals for three exercises; unknown/occluded poses not treated as errors |
-| M3 — Coaching Feedback (in progress) | Shared Hint manager, instant visual feedback, then speech/LLM routing | [#5](https://github.com/WangChengYeh/Yoga2/issues/5), [#4](https://github.com/WangChengYeh/Yoga2/issues/4) | Wrong pose→visible Hint→correction clears; speech deduplicated, nonblocking, stale responses discarded |
+| M3 — Coaching Feedback (software implemented) | Shared Hint manager, instant visual feedback, then speech/LLM routing | [#5](https://github.com/WangChengYeh/Yoga2/issues/5), [#4](https://github.com/WangChengYeh/Yoga2/issues/4) | Wrong pose→visible Hint→correction clears; speech deduplicated, nonblocking, stale responses discarded |
 | M4 — Performance & Reliability | CPU/GPU factor, latest-wins scheduling, benchmarks and sustained mobile validation | [#10](https://github.com/WangChengYeh/Yoga2/issues/10), [#11](https://github.com/WangChengYeh/Yoga2/issues/11) | iPhone 13 30-minute practice without crash or serious stalls; measured baselines and fallback behavior documented |
 | M5 — Personalized Avatar | Free, phone-side JS photo personalization, shared Humanoid Rig, IndexedDB | [#8](https://github.com/WangChengYeh/Yoga2/issues/8) | Preview, local storage/delete, reliable rig integration, default Avatar fallback; library/license and Safari PoC verified |
 
@@ -67,3 +67,9 @@ Per owner direction on 2026-11-22, software implementation and human/device vali
 - #7 and #9 software scopes are implemented; their human/device checks continue under #11 without holding later development. Retarget is an estimate and no physical 3D accuracy claim is made.
 - M3 started: bounded shared Hint state, correction priority, stable text with independent values, TTL, scope/generation rejection for delayed suggestions, diagnostics and a speech-candidate interface. Existing camera feedback consumes it; full practice-screen presentation and speech cadence/LLM/TTS routing (#5/#4) continue next.
 - Contracts and limits: [retargeting](RETARGETING.md), [evaluation](POSE_EVALUATION.md), [shared Hint state](HINT_STATE.md).
+
+## M3 software completion — v0.9.29
+- #5: dedicated practice-screen Hint, independent 4 Hz refresh, stable text/separate numeric values, unknown/camera/error/pause states, capture-to-display and refresh latency diagnostics. Display does not wait for LLM/TTS.
+- #4: deterministic course cues and confirmed corrections use local TTS; persistent deviations aggregate distinct samples before one optional LLM explanation. Configurable minimum interval/cooldown, no request backlog, user-question priority, semantic generation/TTL rejection and played-vs-submitted diagnostics.
+- Current Avatar skin envelopes automatically fit the camera to both actors and visible UI boundaries. Expansion is immediate, contraction is smooth; the default auto-frame toggle can be disabled for manual zoom. This supersedes fixed framing as the runtime default; historical fixed-layout tests remain fallback coverage.
+- Automated/source/build and available browser checks are software evidence only. Device latency, correction precision, speech service behavior, GPU appearance and sustained practice remain unverified in #11. M4 is the next milestone.

@@ -1,10 +1,10 @@
-import { kvEstimate } from './memory-diagnostics.js?v=0.9.28';
-import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.28';
-import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.28';
-import { guidanceMessages } from './ai-guidance.js?v=0.9.28';
-import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.28';
-import { courseFrame } from './course.js?v=0.9.28';
-import { GUIDANCE_TIPS } from './guidance.js?v=0.9.28';
+import { kvEstimate } from './memory-diagnostics.js?v=0.9.29';
+import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.29';
+import { sensorText, sensorContext, modelSensorContext } from './coach-context.js?v=0.9.29';
+import { guidanceMessages } from './ai-guidance.js?v=0.9.29';
+import { aiEnvironment, aiErrorDetail, aiErrorCode, aiFailureMessage, AI_STAGE_NAMES } from './ai-diagnostics.js?v=0.9.29';
+import { courseFrame } from './course.js?v=0.9.29';
+import { GUIDANCE_TIPS } from './guidance.js?v=0.9.29';
 
 export function localAIMessages(text,state,history=[],context=null,contextWindow=DEFAULT_CONTEXT_WINDOW) {
   const frame=courseFrame(state.time);
@@ -19,7 +19,7 @@ export function localAIMessages(text,state,history=[],context=null,contextWindow
 // No worker, library, weights, GPU request or storage access before enable().
 // Terminating the dedicated worker cancels downloads/inference and releases its GPU resources.
 export class LocalCoachAI {
-  constructor({responseDeadlineMs=8000,scheduler=null,onGPUCompletion=()=>{},onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.28',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
+  constructor({responseDeadlineMs=8000,scheduler=null,onGPUCompletion=()=>{},onMemoryEvent=()=>{},gpu=globalThis.navigator?.gpu,createWorker=()=>{if(typeof Worker!=='function')throw Object.assign(new Error('Worker API is unavailable'),{code:'WORKER_UNAVAILABLE'});return new Worker(new URL('./local-ai-worker.js?v=0.9.29',import.meta.url),{type:'module'});},onState=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}) {
     Object.assign(this,{scheduler,onGPUCompletion,onMemoryEvent,gpu,createWorker,onState,setTimer,clearTimer});
     this.diagnostics={environment:aiEnvironment(),stage:'idle',events:[],context:{selected:DEFAULT_CONTEXT_WINDOW,loading:null,active:null,status:'off'}};this.phase='off';this.generation=0;this.serial=0;this.pending=null;this.worker=null;this.history=[];this.contextWindow=DEFAULT_CONTEXT_WINDOW;this.inferenceLeases=new Map();this.retireTimers=new Map();this.setResponseDeadline(responseDeadlineMs);
   }
@@ -120,6 +120,10 @@ export class LocalCoachAI {
       if(reply&&generation===this.generation)this.history=this.history.concat([{role:'user',content:String(text).slice(0,300)},{role:'assistant',content:reply.slice(0,512)}]).slice(-12);
       return reply;
     });
+  }
+  explainHint(hint,stats,state,context=null,refreshContext=null){
+    const build=c=>[{role:'system',content:'你是瑜伽教練 Luna。只用一句繁體中文說明既有影像觀察，最多 48 字。不新增動作、左右方向、角度數字，不宣稱姿勢正確或提供醫療建議。'}, {role:'user',content:`課程：${courseFrame(state.time).lesson.name}。已有提示：${String(hint.message).slice(0,120)}。合併觀察：${JSON.stringify(stats)}。請溫和說明這個觀察，不要更改動作。\n${sensorText(c,this.contextWindow)}`}];
+    return this.request(build(context),'guidance',context,refreshContext,build);
   }
   guide(cue,state,context=null,refreshContext=null){return this.request(guidanceMessages(cue,state,context,this.contextWindow),'guidance',context,refreshContext,c=>guidanceMessages(cue,state,c,this.contextWindow));}
   request(messages,kind,context=null,refreshContext=null,buildMessages=null){

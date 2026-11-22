@@ -14,7 +14,7 @@ for(const [name,aspect] of [['phone portrait',390/844],['phone landscape',844/39
     }
   });
 }
-test('stretching or wider masks cannot move either lane or change zoom; solo coach returns to center',()=>{
+test('fallback layout is deterministic regardless of source mask; solo coach returns to center',()=>{
   const a=practiceLayout({aspect:.6,paired:true,coachWidth:.7,humanWidth:.7});
   const b=practiceLayout({aspect:.6,paired:true,coachWidth:1.8,humanWidth:1.6});assert.deepEqual(a,b);
   assert.equal(practiceLayout({aspect:1.7}).coachX,0);assert.throws(()=>practiceLayout({aspect:0}));
@@ -54,7 +54,7 @@ test('camera input cannot introduce a clipping plane on the coach or coach skele
 });
 
 
-test('raised hands to feet occupy 80% of landscape viewport height, with fixed framing',async()=>{
+test('raised hands to feet occupy 87% of landscape viewport height when width permits, with fixed framing',async()=>{
   const THREE=await import('three');
   const {loadCharacter}=await import('./helpers/character.js');
   const {prepareStandingCoach}=await import('../src/rig.js');
@@ -67,7 +67,25 @@ test('raised hands to feet occupy 80% of landscape viewport height, with fixed f
     const foot=new THREE.Vector3(fit.coachX,box.min.y,box.max.z).project(camera);
     const hand=new THREE.Vector3(fit.coachX,box.max.y,box.max.z).project(camera);
     const fraction=(hand.y-foot.y)/2;
-    assert.ok(Math.abs(fraction-.8)<.005,`${aspect}, pair=${paired}: got ${fraction}`);
-    assert.ok(foot.y>-.82&&hand.y<.82,'retain top and bottom breathing room');
+    const expected=paired?Math.min(.87,1.9465994407528504*aspect/4.2):.87;
+    assert.ok(Math.abs(fraction-expected)<.005,`${aspect}, pair=${paired}: got ${fraction}`);
+    assert.ok(foot.y>-.93&&hand.y<.93,'retain top and bottom breathing room');
   }
+});
+
+test('debug avatars gain at least 25% actual screen height and keep full raised hands/feet',async()=>{
+ const THREE=await import('three'),{loadCharacter}=await import('./helpers/character.js'),{prepareStandingCoach}=await import('../src/rig.js');
+ const model=await loadCharacter(),pose=prepareStandingCoach(model),tan=Math.tan(35*Math.PI/360);
+ for(const [screenW,screenH] of [[1536,710],[1152,532]]){
+  const rail=Math.min(300,Math.max(150,screenW*.22)),width=screenW-rail-24,oldHeight=screenH-180,newHeight=screenH-88;
+  for(const [time,movement] of [[0,'reach'],[8,'reach'],[10,'open']]){
+   pose(time,movement);const b=new THREE.Box3().setFromObject(model,true);const heights=[];
+   for(const [height,old] of [[oldHeight,true],[newHeight,false]]){
+    const f=practiceLayout({aspect:width/height,paired:true}),camera=new THREE.PerspectiveCamera(35,width/height,.1,100),distance=old?.157064+Math.max((1.9465994407528504/.8)/(2*tan),4.2/(2*tan*(width/height))):f.distance;
+    camera.position.set(0,f.targetY,distance);camera.lookAt(0,f.targetY,0);camera.updateMatrixWorld();const ys=[];
+    for(const x of[b.min.x,b.max.x])for(const y of[b.min.y,b.max.y])for(const z of[b.min.z,b.max.z]){const p=new THREE.Vector3(x+f.coachX,y,z).project(camera);assert.ok(Math.abs(p.x)<1&&Math.abs(p.y)<1);ys.push(p.y);}heights.push((Math.max(...ys)-Math.min(...ys))*height/2);
+   }
+   assert.ok(heights[1]/heights[0]>=1.25,`${screenW} ${movement}: ${heights}`);
+  }
+ }
 });

@@ -193,7 +193,8 @@ export class VoiceSession {
   }
   speak(text,{kind='reply',rate=.95,retry=false}={}) {
     if(retry){this.audioBlocked=false;if(this.audioNeedsGesture||this.lastAudioError==='start-timeout')this.systemVoice=true;this.audioNeedsGesture=false;}
-    if(kind==='guidance'&&this.utterance&&this.speechKind==='reply')return false;
+    if(['guidance','correction'].includes(kind)&&['reply','welcome'].includes(this.speechKind))return false;
+    if(kind==='guidance'&&this.speechKind==='correction')return false;
     if(this.speechTimer){this.cancelTimer(this.speechTimer);this.speechTimer=null;}
     if(this.utterance){this.utterance.onend=null;this.utterance.onerror=null;this.utterance.onstart=null;this.utterance=null;this.synthesis?.cancel();}
     this.speaking=false;this.onSpeaking(false);
