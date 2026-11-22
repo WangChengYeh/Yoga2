@@ -11,6 +11,8 @@ for (const name of ['three.module.js', 'three.core.js']) {
 }
 await mkdir('dist/vendor/addons/loaders', { recursive: true });
 await mkdir('dist/vendor/addons/controls', { recursive: true });
+await mkdir('dist/vendor/addons/exporters', { recursive: true });
+await cp('node_modules/three/examples/jsm/exporters/GLTFExporter.js', 'dist/vendor/addons/exporters/GLTFExporter.js');
 await mkdir('dist/vendor/addons/utils', { recursive: true });
 await cp('node_modules/three/examples/jsm/loaders/GLTFLoader.js', 'dist/vendor/addons/loaders/GLTFLoader.js');
 await cp('node_modules/three/examples/jsm/controls/OrbitControls.js', 'dist/vendor/addons/controls/OrbitControls.js');
