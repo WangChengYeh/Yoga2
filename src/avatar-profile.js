@@ -1,4 +1,4 @@
-import {validateGLBProfile} from './glb-file.js';
+import {validateGLBProfile} from './glb-file.js?v=0.9.40';
 // Persist only a bounded derived face crop and parameters, never the source file.
 export const PROFILE_SCHEMA=1,FACE_SIZE=512,MAX_PHOTO_BYTES=12*1024*1024;
 const clamp=(v,lo,hi,fallback)=>Number.isFinite(Number(v))?Math.max(lo,Math.min(hi,Number(v))):fallback;

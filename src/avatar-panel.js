@@ -1,4 +1,4 @@
-import {validateGLBProfile} from './glb-file.js';
+import {validateGLBProfile} from './glb-file.js?v=0.9.40';
 import {createAvatarStore,validatePhoto,decodeAvatarPhoto,AVATAR_VIEWS,findBodyBounds,drawBodyCrop,bodyFitRect,normalizeViewRect,bodyBlob,referenceAngle} from './avatar-profile.js?v=0.9.40';
 import {createPersonalAvatar,disposeAvatar,exportAvatarGLB} from './personal-avatar.js?v=0.9.40';
 import {createStudentModel} from './student-model.js?v=0.9.40';
