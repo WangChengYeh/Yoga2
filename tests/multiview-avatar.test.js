@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import * as THREE from 'three';
 import {loadCharacter} from './helpers/character.js';
-import {projectThreeViews,extendPhotoColors,avatarTemplateURL} from '../src/multiview-avatar.js';
+import {projectThreeViews,extendPhotoColors,avatarTemplateURL,matchPhotoInterval,mergeIntervals} from '../src/multiview-avatar.js';
 import {inspectHumanoidRig} from '../src/humanoid-rig.js';
 import {createStudentRetarget} from '../src/student-retarget.js';
 import {createAvatarEnvelope} from '../src/auto-framing.js';
@@ -31,4 +31,8 @@ test('template URL follows production Pages override and packaged site layout',(
 
 test('narrow side views retain uniform pixel scale with padding, and wide views do too',()=>{
  for(const bounds of [{x:10,y:20,width:300,height:1400},{x:0,y:0,width:1200,height:1000}]){let args;const ctx={fillRect(){},drawImage(...v){args=v;}};drawBodyCrop({}, {getContext:()=>ctx},bounds,{});assert.ok(Math.abs(args[7]/args[3]-args[8]/args[4])<1e-10);const rect=bodyFitRect(bounds,{});assert.ok(rect.width<=1&&rect.height<=1);assert.ok(rect.x>0||rect.y>0);const value=validateProfile({schema:2,views:{front:blob(),side:blob(),back:blob()},viewRects:{side:rect}});assert.deepEqual(value.viewRects.side,rect);assert.deepEqual(value.viewRects.front,{x:0,y:0,width:1,height:1});}
+});
+
+test('photo correspondence maps separate legs into their own foreground intervals',()=>{
+ const model=[[.25,.4],[.6,.75]],photo=[[.3,.42],[.58,.7]];for(const u of [.25,.3,.4])assert.ok(matchPhotoInterval(u,model,photo)>=.3&&matchPhotoInterval(u,model,photo)<=.42);for(const u of [.6,.65,.75])assert.ok(matchPhotoInterval(u,model,photo)>=.58&&matchPhotoInterval(u,model,photo)<=.7);assert.equal(matchPhotoInterval(.5,[],photo),null);assert.deepEqual(mergeIntervals([[.4,.5],[.1,.2],[.19,.3]]),[[.1,.3],[.4,.5]]);
 });

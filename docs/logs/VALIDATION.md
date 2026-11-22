@@ -178,3 +178,9 @@
 私人 v0.9.34 除錯包顯示 scene-load 未開始、WebGL model-load-before 無紀錄、scheduler blockedReason=scene-error、相機後續 WORK_CANCELLED。不能據此斷言裝置不支援 WebGL 或記憶體不足。原始除錯包與圖片未公開。
 
 新增嚴格 Window 計時器 receiver 回歸：修正前 scene-load 在 clearTimeout 階段重現 TypeError、init 不執行；修正後場景 admission 及 TTL cleanup 可完成。修正 globalThis 呼叫並保留啟動階段／錯誤碼診斷。iPhone 實機恢復仍需觀察，不阻擋發布。v0.9.35 比例修正 PR #22 已在 CI 通過後合併。
+
+## 2026-11-23 · v0.9.37
+
+- 配對場景回歸覆蓋前／側／背／任意環繞角度：兩人方向一致、螢幕水平方向間距一致。
+- 三視圖輪廓區間對位覆蓋雙腿分離、UV 區域與既有 rig／蒙皮／retarget／取景。
+- 使用私人原始三圖，透過正式裁切／atlas／UV 模組（Node native canvas 作 Canvas 介面）生成內嵌貼圖 GLB，Blender CPU 離線渲染三方向；不是瀏覽器 WebGL 或 iPhone 驗收。腿部條紋已明顯改善，模板幾何／短褲邊緣及局部接縫仍可能可見。原圖／生成模型／渲染不公開。

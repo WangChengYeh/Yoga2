@@ -1,11 +1,11 @@
 import { disposeAvatar } from './personal-avatar.js';
-import { createAvatarEnvelope } from './auto-framing.js?v=0.9.36';
-import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.36';
+import { createAvatarEnvelope } from './auto-framing.js?v=0.9.37';
+import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.37';
 import * as THREE from 'three';
-import { createStudentModel } from './student-model.js?v=0.9.36';
-import { createStudentRetarget } from './student-retarget.js?v=0.9.36';
-import { prepareStandingCoach } from './rig.js?v=0.9.36';
-import { createSkeletonLayer, createCoachSkeletonSource, skeletonFresh } from './skeleton.js?v=0.9.36';
+import { createStudentModel } from './student-model.js?v=0.9.37';
+import { createStudentRetarget } from './student-retarget.js?v=0.9.37';
+import { prepareStandingCoach } from './rig.js?v=0.9.37';
+import { createSkeletonLayer, createCoachSkeletonSource, skeletonFresh } from './skeleton.js?v=0.9.37';
 
 export function setupStudentPanel({document,onLayout=()=>{}}){
   const $=id=>document.getElementById(id);
@@ -35,7 +35,7 @@ export function setupStudentPanel({document,onLayout=()=>{}}){
     get diagnostics(){return {mode:'student-avatar',asset:model?.userData.appearance==='user-photo'?(model.userData.asset||'personal-v1'):'student-v1',cameraActive:active,segmentation:false,assetFallback,retarget:retarget?.diagnostics||null,transform:group?{position:group.position.toArray(),scale:group.scale.toArray()}:null};},
     get framingEnvelope(){return envelope?.update()||null;},
     get bounds(){return null;},get calibration(){return retarget?.diagnostics.calibration||null;},get cropMinY(){return 0;},
-    setLayout({x=1,z=0,yaw=0}){if(!group)return;group.position.set(x+Math.cos(yaw)*offset,0,z-Math.sin(yaw)*offset);group.rotation.y=yaw;group.scale.setScalar(scale);},
+    setLayout({x=1,z=0,yaw=0,layoutYaw=yaw}){if(!group)return;group.position.set(x+Math.cos(layoutYaw)*offset,0,z-Math.sin(layoutYaw)*offset);group.rotation.y=yaw;group.scale.setScalar(scale);},
     cameraState(value){if(active===value)return;active=value;reset();status(active?'等待清楚的身體關節；學員站位與比例固定。':'相機已關閉；學員保持站立。');calibrationStatus();},
     accept(data,now){if(!active||data.context?.humanToken!==token)return false;const ok=retarget?.accept(data,now)||false;if(ok)capturedAt=data.capturedAt;return ok;},
     stale(){reset();status('關節追蹤中斷；學員回到站姿。');calibrationStatus();},

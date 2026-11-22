@@ -1,5 +1,5 @@
 // Bounded, in-memory diagnostic timeline. No audio, images or user text.
-import { feedbackWindow } from './pose-rules.js?v=0.9.36';
+import { feedbackWindow } from './pose-rules.js?v=0.9.37';
 const token=value=>typeof value==='string'&&/^[a-zA-Z0-9_.:-]{1,80}$/.test(value)?value:'unknown';
 const round=value=>Number.isFinite(value)?Math.round(value*1000)/1000:null;
 const JOINTS=[11,12,13,14,15,16,23,24,25,26,27,28,31,32];
