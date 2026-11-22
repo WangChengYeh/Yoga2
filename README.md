@@ -3,7 +3,7 @@
 手機網頁的女性 3D 教練，結合三動作帶練、男性學員 Avatar、AI 骨架與語音互動。
 
 - 網站：[GitHub Pages](https://wangchengyeh.github.io/Yoga2/)
-- 目前發布版本：**v0.9.38**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
+- 目前發布版本：**v0.9.39**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
 - 文件入口：[docs/README.md](docs/README.md)
 
 ## 使用方式

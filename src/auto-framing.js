@@ -64,8 +64,11 @@ export function createAutoFraming({camera,controls,getPoints,getSize,getInsets=(
   const target=initialized?controls.target.clone().lerp(desired,1-Math.exp(-dt*4)):desired;
   back.subVectors(camera.position,controls.target);if(back.lengthSq()<1e-8)back.set(0,0,1);back.normalize();right.crossVectors(camera.up,back).normalize();up.crossVectors(back,right).normalize();
   const insets=getInsets(),fov=camera.getEffectiveFOV?.()||camera.fov,tanY=Math.tan(fov*Math.PI/360),tanX=tanY*camera.aspect;
-  // Conservative symmetric safe area also excludes UI overlapping one edge.
-  const fx=Math.max(.08,fill-2*Math.max(insets.left||0,insets.right||0)/size.width),fy=Math.max(.08,fill-2*Math.max(insets.top||0,insets.bottom||0)/size.height);
+  // Shift the optical center into the actual asymmetric safe rectangle. Reserving
+  // the larger inset on both sides unnecessarily made standing avatars tiny.
+  const left=insets.left||0,rightInset=insets.right||0,top=insets.top||0,bottom=insets.bottom||0;
+  camera.setViewOffset(size.width,size.height,(rightInset-left)/2,(bottom-top)/2,size.width,size.height);
+  const fx=Math.max(.08,fill*(1-(left+rightInset)/size.width)),fy=Math.max(.08,fill*(1-(top+bottom)/size.height));
   let required=camera.near*2;
   for(const p of points){offset.subVectors(p,target);const z=offset.dot(back);required=Math.max(required,z+Math.abs(offset.dot(right))/(tanX*fx),z+Math.abs(offset.dot(up))/(tanY*fy),z+camera.near*2);}
   const current=camera.position.distanceTo(controls.target),distance=!initialized||required>current?required:current+(required-current)*(1-Math.exp(-dt*3));
