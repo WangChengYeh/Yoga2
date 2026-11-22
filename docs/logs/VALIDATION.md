@@ -6,7 +6,7 @@
 
 - 實作修訂規劃中的記憶體診斷，保留原語音行為。每五秒／最近五分鐘、關鍵任務邊界、錯誤固定快照、前次小型數值摘要及 ZIP 獨立 JSON。
 - `npm run check`：353 項通過，0 失敗／跳過。包含 GPU 追蹤原 API 語意／readonly 降級、數值估算與未知值、取樣／淘汰／持久化／錯誤、模型／推論／清理邊界、MediaPipe 載入、ZIP 獨立檔與語音回歸。`npm run build`、`git diff --check` 通過。
-- GitHub CI／Pages 待發布確認；尚未執行 iPhone 真實 GPU 配置與三十分鐘穩定性驗收，無法由單元測試推定 OOM 根因。
+- GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44978177691)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44978177339) 均成功；實作提交 `310febb`。CI 含真實人像／骨架 CPU 回歸。尚未執行 iPhone 真實 GPU 配置與三十分鐘穩定性驗收，無法由單元測試推定 OOM 根因。
 
 ## 2026-11-22 · v0.9.19
 
