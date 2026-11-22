@@ -1,4 +1,4 @@
-import { CAMERA_FPS } from './camera-settings.js?v=0.9.21';
+import { CAMERA_FPS } from './camera-settings.js?v=0.9.22';
 export function cameraMessage(error) {
   const messages = {
     NotAllowedError: '未取得相機權限。請在瀏覽器允許相機，或繼續使用不開相機的帶練。',
@@ -13,8 +13,8 @@ export function cameraMessage(error) {
 const stopTracks = (stream) => stream?.getTracks().forEach((track) => track.stop());
 
 export class CameraSession {
-  constructor({ scheduler=null,requestedFPS=20,onFPS=()=>{},onTiming=()=>{},video, mediaDevices, createEngine, onState = () => {}, onResult = () => {}, onStale = () => {}, getContext = () => ({}), measureLight = () => null, now = () => performance.now(), requestFrame = (fn) => requestAnimationFrame(fn), cancelFrame = (id) => cancelAnimationFrame(id), setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), secure = true, minInterval = () => 180 }) {
-    Object.assign(this, { scheduler,requestedFPS,onFPS,onTiming,video, mediaDevices, createEngine, onState, onResult, onStale, getContext, measureLight, now, requestFrame, cancelFrame, setTimer, clearTimer, secure, minInterval });
+  constructor({ scheduler=null,requestedFPS=20,onFPS=()=>{},onTiming=()=>{},onSourceFrame=()=>{},video, mediaDevices, createEngine, onState = () => {}, onResult = () => {}, onStale = () => {}, getContext = () => ({}), measureLight = () => null, now = () => performance.now(), requestFrame = (fn) => requestAnimationFrame(fn), cancelFrame = (id) => cancelAnimationFrame(id), setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id), secure = true, minInterval = () => 180 }) {
+    Object.assign(this, { scheduler,requestedFPS,onFPS,onTiming,onSourceFrame,video, mediaDevices, createEngine, onState, onResult, onStale, getContext, measureLight, now, requestFrame, cancelFrame, setTimer, clearTimer, secure, minInterval });
     this.fpsStatus='next-start';this.fpsSerial=0;this.waitingSince=null;this.jobAbort=null;this.phase = 'idle';this.attempts=0;this.accepted=0;this.slow=0;this.inFlightSince=null;this.lastAcceptedAt=null;this.activeAt=null;this.lastError=null; this.epoch = 0; this.stream = null; this.engine = null; this.handle = null;
   }
   emit(phase, message) { this.phase = phase; this.onState({ phase, message, preview: Boolean(this.stream) }); }
@@ -31,6 +31,7 @@ export class CameraSession {
       for (const track of stream.getVideoTracks()) track.addEventListener?.('ended', () => { if (token === this.epoch) this.stop('相機連線已中斷，請重新開啟。'); }, { once: true });
       this.emit('loading', '相機已開啟，正在下載並準備本機辨識模型。');
       await this.video.play();
+      this.observeSourceFrames(token);
       if (token !== this.epoch) return;
       const engine = this.scheduler?await this.scheduler.run('vision-load',()=>this.createEngine(this.jobAbort.signal),{signal:this.jobAbort.signal}):await this.createEngine(this.jobAbort.signal);
       if (token !== this.epoch) { engine.close(); return; }
@@ -42,6 +43,7 @@ export class CameraSession {
       this.lastError=error?.code||error?.name||'CameraError';this.stop(); this.emit('error', cameraMessage(error));
     }
   }
+  observeSourceFrames(token){if(token!==this.epoch||!this.stream||!this.video.requestVideoFrameCallback)return;try{this.videoFrameHandle=this.video.requestVideoFrameCallback(()=>{if(token!==this.epoch||!this.stream)return;try{this.onSourceFrame();}catch{/* Optional telemetry. */}this.observeSourceFrames(token);});}catch{/* Unsupported frame callbacks cannot stop the camera. */}}
   schedule(token) { this.handle = this.requestFrame(() => { this.handle = null; return this.step(token); }); }
   async step(token) {
     if(!this.scheduler)return this.processFrame(token);
@@ -67,7 +69,7 @@ export class CameraSession {
       const result = await this.engine.detect(this.video, stamp, { segment:Boolean(context.segment),maxSide:context.maxSide });
       if (token !== this.epoch || this.phase !== 'active') return;
       const finished = this.now();
-      this.onTiming({durationMs:finished-stamp,waitMs:this.lastScheduleWaitMs||0});this.lastInferenceMs=finished-stamp;
+      this.onTiming({durationMs:finished-stamp,waitMs:this.lastScheduleWaitMs||0,timings:result.timings||{},accepted:finished-stamp<=1500});this.lastInferenceMs=finished-stamp;
       this.nextAt = finished + Math.max(this.minInterval(), (finished - stamp) * .5);
       if (finished - stamp <= 1500) {
         this.lastResult = finished;this.lastAcceptedAt=finished;this.accepted++; this.stale = false;
@@ -96,7 +98,7 @@ export class CameraSession {
     });return this.fpsUpdates;
   }
   stop(message = '相機已關閉，可隨時重新開啟。') {
-    ++this.epoch;this.jobAbort?.abort();this.jobAbort=null;this.waitingSince=null;this.fpsStatus='next-start';
+    ++this.epoch;if(this.videoFrameHandle!=null)try{this.video.cancelVideoFrameCallback?.(this.videoFrameHandle);}catch{/* Optional observer. */}this.videoFrameHandle=null;this.jobAbort?.abort();this.jobAbort=null;this.waitingSince=null;this.fpsStatus='next-start';
     if (this.handle !== null) this.cancelFrame(this.handle);
     this.handle = null;this.inFlightSince=null;
     this.clearTimer(this.watchdog); this.watchdog = null;

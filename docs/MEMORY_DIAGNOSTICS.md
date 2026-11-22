@@ -37,3 +37,6 @@ WebGPU 統計在 worker 回報並於前景五秒採樣時要求更新。`gpu.at`
 
 
 v0.9.21：每份記憶體快照另含 `scheduler`，記錄排程 active／queued、renderFPS、設定偏好與 adaptive 級別／原因／最近辨識與畫面延遲。`webllm.response` 記錄等待上限、結果及耗時；`camera.effective` 與 `pipeline.fps` 分開記錄選擇／生效／協商值。詳見 [排程與效能](PERFORMANCE.md)。
+
+
+v0.9.22：`taskPerformance` 納入每次記憶體快照，只有四個視窗的匯總與基準，不反覆複製每秒明細。完整報告 `diagnostics.json.taskPerformance` 另帶最近三十分鐘每秒 bucket／最近起訖；loading 定義見 [task 監測](TASK_PERFORMANCE.md)。

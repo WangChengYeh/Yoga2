@@ -3,7 +3,7 @@
 手機網頁的女性 3D 教練，結合三動作帶練、真人去背入場、AI 骨架與語音互動。
 
 - 網站：[GitHub Pages](https://wangchengyeh.github.io/Yoga2/)
-- 目前發布版本：**v0.9.21**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
+- 目前發布版本：**v0.9.22**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
 - 文件入口：[docs/README.md](docs/README.md)
 
 ## 使用方式
@@ -19,6 +19,10 @@
 ## 效能設定
 
 在設定（全螢幕的「⋯」）可調整 3D FPS、相機 FPS、辨識 FPS 與 AI 回覆等待上限。預設 **3D 30 FPS、相機 20 FPS、辨識上限 3 FPS、AI 等待 8 秒、自動降規開啟**。相機會顯示瀏覽器實際協商值；上限不代表裝置能達到該速度。AI 載入／推論時 3D 另限制為最高 15 FPS；忙碌時逐級降規，穩定後恢復。設定會記住，實際規則與除錯欄位見 [排程與效能](docs/PERFORMANCE.md)。
+
+## 線上 CPU／GPU task loading
+
+展開「CPU／GPU 長時間效能監測」（全螢幕在「⋯」）查看 1／5／15／30 分鐘趨勢、主要 task 占比／起訖、近五秒與區間平均 FPS。「記錄基準」後調整 FPS 可比較前後。CPU 平行重疊累加，允許超過 100%；LLM 全歸 GPU，GPU task 重疊只計一次。這是依應用 task 時間的 loading 估算，非硬體使用率。詳見 [監測規則](docs/TASK_PERFORMANCE.md)。
 
 ## AI 與語音
 

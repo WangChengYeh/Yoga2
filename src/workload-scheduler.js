@@ -3,7 +3,7 @@ const KINDS=['scene-load','ai-load','ai-inference','vision-load','vision-frame']
 const abort=()=>Object.assign(new Error('Scheduled task cancelled'),{name:'AbortError'});
 export class WorkloadScheduler {
  constructor({now=()=>performance.now(),onEvent=()=>{}}={}){Object.assign(this,{now,onEvent});this.queue=[];this.active=null;this.serial=0;this.hidden=false;this.blocked=null;this.history=[];this.completed=0;this.cancelled=0;}
- event(phase,job){const e={atMs:this.now(),phase,kind:job?.kind||'policy',id:job?.id||null};this.history.push(e);this.history=this.history.slice(-64);try{this.onEvent(e);}catch{/* Telemetry cannot block work. */}}
+ event(phase,job){const e={atMs:this.now(),phase,kind:job?.kind||'policy',id:job?.id||null,...(job?{queuedAt:job.queuedAt,startedAt:job.startedAt??null}: {})};this.history.push(e);this.history=this.history.slice(-64);try{this.onEvent(e);}catch{/* Telemetry cannot block work. */}}
  acquire(kind,{signal}={}){
   if(!KINDS.includes(kind))return Promise.reject(new TypeError('Unknown workload'));
   if(this.hidden||this.blocked||signal?.aborted)return Promise.reject(abort());

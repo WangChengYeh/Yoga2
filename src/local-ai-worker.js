@@ -1,7 +1,7 @@
-import { trackWebGPU } from './gpu-memory-tracker.js?v=0.9.21';
-import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.21';
-import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.21';
-import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.21';
+import { trackWebGPU } from './gpu-memory-tracker.js?v=0.9.22';
+import { normalizeContextWindow } from './ai-context-settings.js?v=0.9.22';
+import { loadLocalModel, checkedShardResponse, LOCAL_AI_CONTEXT_WINDOW } from './local-ai-model.js?v=0.9.22';
+import { aiErrorDetail, aiErrorCode, cleanAIText } from './ai-diagnostics.js?v=0.9.22';
 const gpuMemory=trackWebGPU({onEvent:event=>{sendMemory();self.postMessage({type:'gpu-event',event});}});
 function sendMemory(){self.postMessage({type:'gpu-memory',snapshot:{at:new Date().toISOString(),stage,buffers:gpuMemory.snapshot,workerHeap:globalThis.performance?.memory?{usedBytes:performance.memory.usedJSHeapSize,totalBytes:performance.memory.totalJSHeapSize}:null}});}
 let engine,stage='worker',resource=null;const shardSizes=new Map();

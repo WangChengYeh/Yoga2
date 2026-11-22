@@ -8,6 +8,7 @@
 | [里程碑規劃](../3D_Yoga_Web_Plan.md) | 需求、架構、交付範圍與待驗收項目 |
 | [版本變更日誌](../CHANGELOG.md) | 逐版設計、修正與行為變化 |
 | [測試與驗收](TESTING.md) | 可重現指令、測試對照、最新結果及手機清單 |
+| [CPU／GPU task 監測](TASK_PERFORMANCE.md) | loading 定義、CPU 平行累加、LLM 歸類、基準與時間線 |
 | [排程與效能](PERFORMANCE.md) | 預設 FPS、可調選項、自動降規、LLM 期限與診斷欄位 |
 | [除錯指南](DEBUGGING.md) | 本機 ZIP、crash 線索、錯誤碼、日誌內容與公開資料界線 |
 | [問題處理日誌](logs/ISSUES.md) | 使用者症狀、證據、修正與尚未確認原因 |

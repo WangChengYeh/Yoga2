@@ -89,14 +89,14 @@ test('unsupported segmentation exits human mode while retaining the camera',()=>
   assert.equal(h.s.accept(d,200),false);assert.equal(h.s.enabled,false);assert.equal(h.s.cameraActive,true);
   assert.match(h.states.at(-1).message,/保留相機/);
 });
-function processorHarness() {
+function processorHarness(extra={}) {
   const events=[],poseInputs=[],portraitInputs=[];let resultsClosed=0,portraitResultsClosed=0,detectorsClosed=0,portraitsClosed=0,loads=0;
   const rgba=segmentation().frame.rgba;
   const ctx={drawImage:()=>events.push('snapshot'),getImageData:()=>({data:rgba})};
   const canvas={width:1,height:1,getContext:()=>ctx};
   const detector={detectForVideo:input=>{events.push('detect');poseInputs.push(input);return {landmarks:[points()],close:()=>resultsClosed++};},close:()=>detectorsClosed++};
   const portrait={labels:['background','hair','body-skin','face-skin','clothes','others'],segmentForVideo:input=>{events.push('portrait');portraitInputs.push(input);const values=new Float32Array([0,1,0,1]);return {confidenceMasks:Array.from({length:6},(_,i)=>({width:2,height:2,getAsFloat32Array:()=>i===4?values:new Float32Array(4)})),close:()=>{portraitResultsClosed++;values.fill(0);}};},close:()=>portraitsClosed++};
-  const processor=createFrameProcessor({detector,createCanvas:()=>canvas,createSegmenter:async()=>{loads++;return portrait;}});
+  const processor=createFrameProcessor({detector,createCanvas:()=>canvas,createSegmenter:async()=>{loads++;return portrait;},...extra});
   return {processor,detector,portrait,canvas,events,poseInputs,portraitInputs,source:{width:2,height:2},get loads(){return loads;},get resultsClosed(){return resultsClosed;},get portraitResultsClosed(){return portraitResultsClosed;},get detectorsClosed(){return detectorsClosed;},get portraitsClosed(){return portraitsClosed;}};
 }
 test('shared processor captures matching RGB for pose and portrait and copies masks before closing',async()=>{
@@ -175,4 +175,7 @@ test('frame processor exposes portrait load stage without retaining frames or hi
 });
 test('adaptive input resolution keeps portrait and pose on the same undistorted snapshot',async()=>{
  const h=processorHarness();await h.processor.detect({width:1080,height:1920},100,{segment:true,maxSide:256});assert.equal(h.canvas.height,256);assert.equal(h.canvas.width,144);assert.equal(h.poseInputs[0],h.portraitInputs[0]);assert.deepEqual(frameSize(1080,1920,384),{width:216,height:384});h.processor.close();
+});
+test('CPU stage telemetry measures copy, pose, segmentation and mask separately without changing frame ownership',async()=>{
+ let time=0;const h=processorHarness({now:()=>time++}),r=await h.processor.detect(h.source,100,{segment:true});assert.deepEqual(r.timings,{copyMs:1,poseMs:1,portraitMs:1,maskMs:1});assert.equal(h.resultsClosed,1);assert.equal(h.portraitResultsClosed,1);h.processor.close();
 });

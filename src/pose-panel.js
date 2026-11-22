@@ -1,10 +1,10 @@
-import { cameraPreferences } from './camera-settings.js?v=0.9.21';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.21';
-import { CameraSession } from './camera-session.js?v=0.9.21';
-import { createPoseEngine } from './pose-engine.js?v=0.9.21';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.21';
+import { cameraPreferences } from './camera-settings.js?v=0.9.22';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.22';
+import { CameraSession } from './camera-session.js?v=0.9.22';
+import { createPoseEngine } from './pose-engine.js?v=0.9.22';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.22';
 
-export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
+export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const preference=cameraPreferences();$('camera-fps').value=String(preference.value.cameraFPS);$('analysis-fps').value=String(preference.value.analysisFPS);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
@@ -28,7 +28,7 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
   const effective=()=>({camera:Math.min(preference.value.cameraFPS,getCaps().camera),analysis:Math.min(preference.value.analysisFPS,getCaps().analysis),maxSide:getCaps().maxSide});
   const updatePolicy=()=>{void session.setFPS(effective().camera);fpsStatus();};
   function fpsStatus(){const f=session.fpsDiagnostics;const text=`相機選擇 ${preference.value.cameraFPS} FPS，生效上限 ${f.requested} FPS，協商 ${f.negotiated??'未知'} FPS；辨識上限 ${effective().analysis} FPS。${f.status==='failed'?'設定失敗，維持原串流。':f.status==='unsupported'?'此瀏覽器不支援即時調整，重新開相機才套用。':''}`;$('camera-fps-status').textContent=text;}
-  const session = new CameraSession({scheduler,onTiming,requestedFPS:preference.value.cameraFPS,onFPS:fps=>{fpsStatus();onRuntime('camera-fps',{phase:fps.status,requestedFPS:fps.requested,negotiatedFPS:fps.negotiated,analysisFPS:preference.value.analysisFPS,code:fps.error||'none'});},
+  const session = new CameraSession({scheduler,onTiming,onSourceFrame,requestedFPS:preference.value.cameraFPS,onFPS:fps=>{fpsStatus();onRuntime('camera-fps',{phase:fps.status,requestedFPS:fps.requested,negotiatedFPS:fps.negotiated,analysisFPS:preference.value.analysisFPS,code:fps.error||'none'});},
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
     createEngine: signal => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl },{onMemoryEvent,signal}),
     minInterval: () => Math.max(isPowerSaving()?350:0,1000/Math.min(effective().camera,effective().analysis)),
