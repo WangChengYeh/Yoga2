@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import * as THREE from 'three';
 import {loadCharacter} from './helpers/character.js';
-import {projectThreeViews,extendPhotoColors} from '../src/multiview-avatar.js';
+import {projectThreeViews,extendPhotoColors,avatarTemplateURL} from '../src/multiview-avatar.js';
 import {inspectHumanoidRig} from '../src/humanoid-rig.js';
 import {createStudentRetarget} from '../src/student-retarget.js';
 import {createAvatarEnvelope} from '../src/auto-framing.js';
@@ -23,4 +23,8 @@ test('actual template receives all three views without UV triangles crossing atl
 
 test('silhouette mismatch extends photo colors without punching holes in template skin',()=>{
  const data=new Uint8ClampedArray(5*4);data.set([80,40,20,255],8);extendPhotoColors(data,5,1);for(let p=0;p<5;p++)assert.deepEqual([...data.slice(p*4,p*4+4)],[80,40,20,255]);assert.throws(()=>extendPhotoColors(new Uint8ClampedArray(4),1,1));
+});
+
+test('template URL follows production Pages override and packaged site layout',()=>{
+ const baseURL='https://example.test/Yoga2/';assert.equal(avatarTemplateURL({document:{documentElement:{dataset:{modelUrl:'./public/models/luna-v1.glb'}}},baseURL}),baseURL+'public/models/luna-v1.glb');assert.equal(avatarTemplateURL({document:{documentElement:{dataset:{}}},baseURL}),baseURL+'models/luna-v1.glb');
 });
