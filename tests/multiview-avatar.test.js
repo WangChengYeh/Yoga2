@@ -40,3 +40,7 @@ test('photo correspondence maps separate legs into their own foreground interval
 test('skin appearance samples warm mid-body colors and rejects cold clothes/background',()=>{
  const w=30,h=60,stride=60,offset=30,data=new Uint8ClampedArray(stride*h*4);for(let y=0;y<h;y++)for(let x=0;x<stride;x++){const i=(y*stride+x)*4;data.set(x<offset?[20,60,150,255]:[200,160,120,255],i);}assert.deepEqual(skinToneFromPhoto(data,w,h,stride,offset),[200,160,120]);assert.equal(isWarmSkin([180,90,130]),false);assert.equal(isWarmSkin([240,240,240]),false);
 });
+
+test('sports top is continuous around the chest with two straps reaching the shoulders',async()=>{
+ const {garmentAt}=await import('../src/multiview-avatar.js');for(const x of [-.12,-.08,0,.08,.12])for(const h of [.66,.7,.77])assert.equal(garmentAt(x,h),true);for(const x of [-.08,.08])for(const h of [.78,.8,.84])assert.equal(garmentAt(x,h),true);assert.equal(garmentAt(0,.83),false);assert.equal(garmentAt(0,.6),false);
+});

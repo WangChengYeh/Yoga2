@@ -1,34 +1,35 @@
-import {layoutAvatarPair} from './paired-stage.js?v=0.9.38';
-import { createPersonalAvatar, exportAvatarGLB } from './personal-avatar.js?v=0.9.38';
-import { setupAvatarPanel } from './avatar-panel.js?v=0.9.38';
-import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.38';
-import { setupHintDisplay } from './hint-display.js?v=0.9.38';
-import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.38';
-import { TaskPerformance } from './task-performance.js?v=0.9.38';
-import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.38';
-import { performancePreferences } from './performance-policy.js?v=0.9.38';
-import { DualWorkload } from './workload-budget.js?v=0.9.38';
-import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.38';
-import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.38';
-import { webglMemory } from './webgl-memory.js?v=0.9.38';
-import { coachContext } from './coach-context.js?v=0.9.38';
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.38';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.38';
-import { setupDefaultMedia } from './default-media.js?v=0.9.38';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.38';
+import {createPracticeMat} from './practice-stage.js?v=0.9.39';
+import {layoutAvatarPair,createPairSpacing} from './paired-stage.js?v=0.9.39';
+import { createPersonalAvatar, exportAvatarGLB } from './personal-avatar.js?v=0.9.39';
+import { setupAvatarPanel } from './avatar-panel.js?v=0.9.39';
+import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.39';
+import { setupHintDisplay } from './hint-display.js?v=0.9.39';
+import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.39';
+import { TaskPerformance } from './task-performance.js?v=0.9.39';
+import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.39';
+import { performancePreferences } from './performance-policy.js?v=0.9.39';
+import { DualWorkload } from './workload-budget.js?v=0.9.39';
+import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.39';
+import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.39';
+import { webglMemory } from './webgl-memory.js?v=0.9.39';
+import { coachContext } from './coach-context.js?v=0.9.39';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.39';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.39';
+import { setupDefaultMedia } from './default-media.js?v=0.9.39';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.39';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.38';
-import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.38';
-import { practiceLayout } from './practice-layout.js?v=0.9.38';
-import { setupFullscreen } from './fullscreen.js?v=0.9.38';
-import { setupStudentPanel } from './student-panel.js?v=0.9.38';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.39';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.39';
+import { practiceLayout } from './practice-layout.js?v=0.9.39';
+import { setupFullscreen } from './fullscreen.js?v=0.9.39';
+import { setupStudentPanel } from './student-panel.js?v=0.9.39';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.38';
-import { prepareStandingCoach } from './rig.js?v=0.9.38';
-import { setupPosePanel } from './pose-panel.js?v=0.9.38';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.38';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.39';
+import { prepareStandingCoach } from './rig.js?v=0.9.39';
+import { setupPosePanel } from './pose-panel.js?v=0.9.39';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.39';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -43,6 +44,7 @@ const taskLog=new TaskPerformance({active:!document.hidden});
 let voicePanel,defaultMedia;
 let humanPanel, coachStage,coachEnvelope,autoFraming,autoInsets,dualView=false;
 let coachSkeleton,coachSkeletonSource;
+const pairSpacing=createPairSpacing();
 let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0,sceneTask=null,scenePhase='scheduler',sceneErrorInfo=null;
 const performancePreference=performancePreferences();
 const adaptive=new DualWorkload({onChange:d=>{runtimeLog.record('workload',{phase:'factor-change',code:`cpu-${d.cpuFactor}-gpu-${d.gpuFactor}`});posePanel?.updatePolicy();applyRenderQuality();updatePerformanceStatus();}});
@@ -127,7 +129,7 @@ function syncTime() {
   $('next-lesson').textContent = frame.complete ? '完成 · 3 / 3' : frame.index < LESSONS.length - 1 ? `下一個：${LESSONS[frame.index + 1].name}` : '最後一個動作，慢慢收回。';
   posePanel?.contextChanged();hintDisplay?.refresh();
 }
-$('auto-frame')?.addEventListener('change',()=>{autoInsets?.refresh();autoFraming?.reset();});
+$('auto-frame')?.addEventListener('change',()=>{if(!$('auto-frame').checked)camera?.clearViewOffset();pairSpacing.reset();autoInsets?.refresh();autoFraming?.reset();});
 $('stage-play').addEventListener('click',()=>{if(state.ready)dispatch({type:'toggle'});});
 $('play').addEventListener('click', () => { if (state.ready) dispatch({ type: 'toggle' }); });
 $('restart').addEventListener('click', () => { if (state.ready) dispatch({ type: 'restart' }); });
@@ -206,15 +208,12 @@ async function init() {
   const key = new THREE.DirectionalLight(0xfff6e9, 3.3);
   key.position.set(-3, 5, 5); key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
-  Object.assign(key.shadow.camera, { left: -2, right: 2, top: 3, bottom: -2, near: .1, far: 15 });
+  Object.assign(key.shadow.camera, { left: -3.5, right: 3.5, top: 4, bottom: -3.5, near: .1, far: 15 });
   key.shadow.normalBias = .035; scene.add(key);
   const fill = new THREE.DirectionalLight(0xe2f2ff, 1.6); fill.position.set(3, 3, -2); scene.add(fill);
-  const platform = new THREE.Mesh(new THREE.CylinderGeometry(1.12, 1.15, .035, 80), new THREE.MeshStandardMaterial({ color: 0xd9e5d6, roughness: .93 }));
-  platform.position.y = -.025; platform.receiveShadow = true; coachStage.add(platform);
-  const mat = new THREE.Mesh(new THREE.BoxGeometry(.72, .018, 1.65), new THREE.MeshStandardMaterial({ color: 0x557667, roughness: .95 }));
-  mat.position.y = .002; mat.receiveShadow = true; coachStage.add(mat);
+  coachStage.add(createPracticeMat());
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.ShadowMaterial({ opacity: .13 }));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -.045; floor.receiveShadow = true; scene.add(floor);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -.008; floor.receiveShadow = true; scene.add(floor);
   resize(true);
   new ResizeObserver(() => resize(true)).observe($('viewport'));
   animate(0);
@@ -253,7 +252,7 @@ async function init() {
     scenePhase='shader-compile';
     renderer.compile(scene, camera);
     autoInsets?.dispose();autoInsets=observeStageInsets({document,viewport:$('viewport')});
-    autoFraming=createAutoFraming({camera,controls,getPoints:()=>[...(coachEnvelope?.update().points||[]),...(humanPanel.framingEnvelope?.points||[])],getSize:()=>autoInsets.size,getInsets:()=>autoInsets.value});
+    autoFraming=createAutoFraming({fill:.97,camera,controls,getPoints:()=>[...(coachEnvelope?.update().points||[]),...(humanPanel.framingEnvelope?.points||[])],getSize:()=>autoInsets.size,getInsets:()=>autoInsets.value});
     scenePhase='ready';runtimeLog.record('scene-ready');
     state.ready = true;
     $('loading').hidden = true;
@@ -286,16 +285,17 @@ function animate(now) {
   }
   controls.update();
   voicePanel?.update(now);
+  const retargetStart=performance.now();humanPanel?.update(camera,now);taskLog.record('retarget.cpu',retargetStart,performance.now());
   if(coachStage&&state.ready){
     const yaw=Math.atan2(camera.position.x-controls.target.x,camera.position.z-controls.target.z);
     const fit=currentLayout();
+    if($('auto-frame').checked&&humanPanel.stagePosition){const pairFitStarted=performance.now(),separation=pairSpacing.update({coachPoints:coachEnvelope.update().points,studentPoints:humanPanel.framingEnvelope.points,coachOrigin:coachStage.position,studentOrigin:humanPanel.stagePosition,yaw,now});fit.coachX=-separation/2;fit.humanX=separation/2;taskLog.record('framing.cpu',pairFitStarted,performance.now());}
     layoutAvatarPair({coachStage,studentPanel:humanPanel,yaw,fit});
   }
   if(state.ready&&coachSkeletonSource&&$('coach-skeleton-toggle').checked){
     coachSkeleton ||= createSkeletonLayer({parent:coachStage,color:0xb25813,name:'Yoga2CoachSkeleton'});
     coachSkeleton.update(coachSkeletonSource());
   }
-  const retargetStart=performance.now();humanPanel?.update(camera,now);taskLog.record('retarget.cpu',retargetStart,performance.now());
   const fitStarted=performance.now();
   if(state.ready&&$('auto-frame')?.checked){controls.enableZoom=false;controls.enablePan=false;controls.minDistance=.05;controls.maxDistance=100;autoFraming?.update(now);}else{controls.enableZoom=true;controls.enablePan=true;}
   taskLog.record('framing.cpu',fitStarted,performance.now());

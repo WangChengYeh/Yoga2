@@ -1,6 +1,6 @@
-import {createAvatarStore,validatePhoto,decodeAvatarPhoto,AVATAR_VIEWS,findBodyBounds,drawBodyCrop,bodyFitRect,normalizeViewRect,bodyBlob,referenceAngle} from './avatar-profile.js?v=0.9.38';
-import {createPersonalAvatar,disposeAvatar,exportAvatarGLB} from './personal-avatar.js?v=0.9.38';
-import {createStudentModel} from './student-model.js?v=0.9.38';
+import {createAvatarStore,validatePhoto,decodeAvatarPhoto,AVATAR_VIEWS,findBodyBounds,drawBodyCrop,bodyFitRect,normalizeViewRect,bodyBlob,referenceAngle} from './avatar-profile.js?v=0.9.39';
+import {createPersonalAvatar,disposeAvatar,exportAvatarGLB} from './personal-avatar.js?v=0.9.39';
+import {createStudentModel} from './student-model.js?v=0.9.39';
 const LABELS={front:'正面',side:'側面',back:'背面'};
 // Three bounded source canvases; persistence contains only derived view crops.
 export function setupAvatarPanel({document,window=globalThis.window,human,pause=()=>{},store=createAvatarStore(),decode=decodeAvatarPhoto,findBounds=findBodyBounds,build=createPersonalAvatar,exportGLB=exportAvatarGLB,now=()=>performance.now(),onPreview=()=>{}}={}){

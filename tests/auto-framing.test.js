@@ -13,7 +13,7 @@ test('cached skin envelopes contain every actual Luna/student vertex across cour
   assert.equal(env.diagnostics.method,'skin-influence-envelope');assert.ok(env.diagnostics.vertices>100);
  }
 });
-function harness(){let points=[],size={width:1200,height:620},insets={left:0,right:36,top:0,bottom:0};const camera=new THREE.PerspectiveCamera(35,size.width/size.height,.1,40),controls={target:new THREE.Vector3(0,1,0)};camera.position.set(0,1,6);camera.lookAt(controls.target);camera.updateMatrixWorld();const fit=createAutoFraming({camera,controls,getPoints:()=>points,getSize:()=>size,getInsets:()=>insets});
+function harness(options={}){let points=[],size={width:1200,height:620},insets={left:0,right:36,top:0,bottom:0};const camera=new THREE.PerspectiveCamera(35,size.width/size.height,.1,40),controls={target:new THREE.Vector3(0,1,0)};camera.position.set(0,1,6);camera.lookAt(controls.target);camera.updateMatrixWorld();const fit=createAutoFraming({camera,controls,getPoints:()=>points,getSize:()=>size,getInsets:()=>insets,...options});
  return {camera,controls,fit,setPoints(p){points=p;},setSize(s){size=s;},setInsets(i){insets=i;},check(){for(const p of points){const n=p.clone().project(camera);assert.ok(Math.abs(n.x)<.93&&Math.abs(n.y)<.93,`boundary ${n.toArray()}`);assert.ok(n.z>-1&&n.z<1);}}};}
 const body=(width,height)=>{const p=[];for(const x of [-width/2,width/2])for(const y of [.02,height])for(const z of [-.15,.15])p.push(new THREE.Vector3(x,y,z));return p;};
 test('automatic distance pulls back immediately on expansion, approaches gently on contraction, always contains both bodies',()=>{
@@ -44,4 +44,16 @@ test('no valid geometry keeps the last camera instead of producing NaN',()=>{
 test('morph excursions outside the cached weight contract fall back to exact bounds',()=>{
  const geometry=new THREE.BoxGeometry(.5,.5,.5);geometry.morphAttributes.position=[geometry.attributes.position.clone()];const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial()),root=new THREE.Group();root.add(mesh);mesh.updateMorphTargets();mesh.morphTargetInfluences[0]=2;
  const env=createAvatarEnvelope(root);assert.equal(env.diagnostics.fallbackMeshes,1);exactInsideSmall(mesh,env.update().box);function exactInsideSmall(m,box){const p=new THREE.Vector3();for(let i=0;i<m.geometry.attributes.position.count;i++){m.getVertexPosition(i,p).applyMatrix4(m.matrixWorld);assert.ok(box.containsPoint(p));}}
+});
+
+test('asymmetric toolbar/playback insets use available height and keep pixels inside the actual safe area',()=>{
+ const h=harness({fill:.97}),width=1536,height=710,top=86,bottom=138;h.setSize({width,height});h.setInsets({left:0,right:0,top,bottom});h.setPoints(body(2.7,1.85));h.fit.update(0);
+ const projected=body(2.7,1.85).map(p=>p.project(h.camera)),ys=projected.map(p=>(1-p.y)*height/2);assert.ok(Math.min(...ys)>top&&Math.max(...ys)<height-bottom);assert.ok(Math.max(...ys)-Math.min(...ys)>(height-top-bottom)*.83);assert.equal(h.camera.view.offsetY,(bottom-top)/2);
+});
+
+test('actual paired actors with adaptive lanes remain inside landscape and portrait UI boundaries through orbit and course poses',async()=>{
+ const {createPairSpacing,layoutAvatarPair}=await import('../src/paired-stage.js'),coach=await loadCharacter(),student=await loadCharacter(),a=new THREE.Group(),b=new THREE.Group(),pose=prepareStandingCoach(coach),other=prepareStandingCoach(student);a.add(coach);b.add(student);const ea=createAvatarEnvelope(coach),eb=createAvatarEnvelope(student),spacing=createPairSpacing();let points=[],now=0;
+ for(const size of [{width:1536,height:710},{width:390,height:844}]){const camera=new THREE.PerspectiveCamera(35,size.width/size.height,.1,40),controls={target:new THREE.Vector3(0,1,0)},insets={left:0,right:0,top:86,bottom:138};camera.position.set(0,1,6);const fit=createAutoFraming({camera,controls,fill:.97,getPoints:()=>points,getSize:()=>size,getInsets:()=>insets});
+ for(const yaw of [0,.7,Math.PI/2,Math.PI])for(const [t,motion] of [[0,'reach'],[8,'reach'],[10,'open'],[10,'side'],[0,'reach']]){pose(t,motion);other(t,motion);const distance=spacing.update({coachPoints:ea.update().points,studentPoints:eb.update().points,coachOrigin:a.position,studentOrigin:b.position,yaw,now});layoutAvatarPair({coachStage:a,studentPanel:{setLayout({x,z,yaw}){b.position.set(x,0,z);b.rotation.y=yaw;}},yaw,fit:{coachX:-distance/2,humanX:distance/2}});points=[...ea.update().points,...eb.update().points];camera.position.copy(controls.target).add(new THREE.Vector3(Math.sin(yaw)*6,0,Math.cos(yaw)*6));fit.update(now);for(const p of points){const n=p.clone().project(camera),x=(n.x+1)*size.width/2,y=(1-n.y)*size.height/2;assert.ok(x>=0&&x<=size.width&&y>=insets.top-1&&y<=size.height-insets.bottom+1,`${size.width}/${yaw}/${motion}: ${x},${y}`);}now+=100;}
+ }
 });
