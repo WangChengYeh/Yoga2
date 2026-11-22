@@ -7,13 +7,13 @@
   <meta name="description" content="Yoga2 3D 瑜伽練習室：從一個伸展開始，旋轉視角，觀察女性教練的動作示範。">
   <title>Yoga2 · 3D 瑜伽練習室</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=0.9.31">
+  <link rel="stylesheet" href="./style.css?v=0.9.32">
   <script type="importmap">{"imports":{"html2canvas":"./vendor/html2canvas.esm.js","three":"./vendor/three/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
   <header class="header">
     <a class="brand" href="./" aria-label="Yoga2 首頁"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 31C7 31 5 21 7 15c8 0 13 6 13 16Zm0 0c13 0 15-10 13-16-8 0-13 6-13 16Z" stroke="currentColor" stroke-width="1.7"/><path d="M20 28c-8-7-8-13 0-20 8 7 8 13 0 20Z" stroke="currentColor" stroke-width="1.7"/></svg><span>yoga<span class="brand-number">2</span></span><i>個人練習室</i></a>
-    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.9.31</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
+    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.9.32</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
   </header>
   <main>
     <section class="intro"><div><p class="eyebrow">A LITTLE SPACE FOR YOURSELF</p><h1>慢下來，<em>回到自己。</em></h1></div><p class="intro-note">三個站姿動作，串起一段小練習。<br>跟著教練，用自己的節奏慢慢來。</p></section>
@@ -34,31 +34,29 @@
       </section>
       <section class="camera-card" aria-label="相機與姿勢觀察">
         <div class="camera-heading"><div><strong>相機與動作觀察</strong><span id="camera-status">相機未開啟</span></div></div>
-        <p id="camera-feedback" class="camera-feedback" role="status" aria-live="polite">開啟相機以 AI 骨架驅動右側男性學員；不顯示相機人像。姿勢觀察需要頭、雙手與雙腳完整入鏡。</p>
+        <p id="camera-feedback" class="camera-feedback" role="status" aria-live="polite">開啟相機以 AI 骨架驅動右側學員；不顯示相機人像。姿勢觀察需要頭、雙手與雙腳完整入鏡。</p>
         <div id="performance-options" class="camera-options"><label>3D FPS 上限 <select id="render-fps"><option>10</option><option>15</option><option>20</option><option>24</option><option selected>30</option><option>60</option></select></label><label>CPU 降載 factor <select id="cpu-factor"><option value="1" selected>100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="0.25">25%</option></select></label><label>GPU 降載 factor <select id="gpu-factor"><option value="1" selected>100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="0.25">25%</option></select></label><label><input id="auto-workload" type="checkbox" checked>忙碌時自動降規</label><label>AI 回覆等待上限 <select id="response-seconds"><option>3</option><option>5</option><option selected>8</option><option>10</option><option>15</option><option>30</option></select> 秒</label><p id="workload-status" role="status"></p><small>等待上限包含排隊；逾時採基本引導，取消推論。這是應用程式排程，不能直接量測 GPU 使用率。</small></div><details id="task-performance" class="task-performance"><summary><span>效能監測</span><span class="task-performance-label" aria-hidden="true">CPU · GPU</span></summary><div class="task-toolbar"><label>觀察區間 <select id="task-window"><option value="60000">1 分鐘</option><option value="300000" selected>5 分鐘</option><option value="900000">15 分鐘</option><option value="1800000">30 分鐘</option></select></label><button id="task-baseline" type="button">記錄基準</button><button id="task-reset" type="button">清除統計</button></div><p id="task-loading"></p><p id="task-fps"></p><p id="task-current"></p><div id="task-trend"></div><div class="task-table"><table><thead><tr><th>主要任務</th><th>占觀測時間</th><th>累積秒</th><th>平均 ms／次</th><th>較基準 ms</th></tr></thead><tbody id="task-rows"></tbody></table></div><details class="task-timing-details"><summary>任務時間明細</summary><div class="task-table"><table><thead><tr><th>Task</th><th>CPU／GPU</th><th>開始秒</th><th>提交秒</th><th>完成／結束秒</th><th>耗時 ms</th><th>提交後延遲 ms</th></tr></thead><tbody id="task-spans"></tbody></table></div><small>秒數為本頁 performance 時間軸；worker 子步驟以收到結果時重建大致起訖。</small></details><p id="task-baseline-status"></p><small id="task-gpu-state"></small><p><small>依 task 起訖估算 CPU loading；GPU task 只計收到完成通知的區間，CPU 平行任務重疊累加，可超過 100%（200% 約為兩個執行緒的 task 時間）；GPU 重疊只計一次，兩者不能相加為 100%；排隊另外列出。非 CPU 核心／整機 GPU 使用率。關閉面板仍保留最近 30 分鐘；資料隨除錯包匯出。背景暫停觀測，缺少資料標示 —。</small></p></details><div id="camera-options" class="camera-options"><label for="camera-fps">相機輸入 FPS <select id="camera-fps"><option>5</option><option>10</option><option>15</option><option selected>20</option><option>24</option><option>30</option><option>60</option></select></label><label for="analysis-fps">辨識 FPS 上限 <select id="analysis-fps"><option>1</option><option>2</option><option selected>3</option><option>5</option><option>10</option><option>15</option></select></label><p id="camera-fps-status" role="status"></p><small>瀏覽器會協商可用 FPS。AI 運算與辨識依序執行，AI 忙碌時降低 3D 幀率；辨識速度仍受裝置限制。</small></div><p class="camera-privacy">影像平時只在手機分析；按「回報問題」才會上傳相機圖與場景截圖至 GitHub。首次需下載姿勢模型；預設不啟用人像去背。</p>
         <label id="camera-debug-control" class="camera-debug-control"><input id="camera-debug" type="checkbox">相機／骨架除錯畫面</label><details class="camera-help"><summary>站位與觀察範圍</summary><p>面向前鏡頭，手機保持直立，移到能拍全身的位置。相機原始畫面不顯示；關節看不清楚時會停止動作判斷，未看見的關節不參與判斷。</p><p>只觀察雙手上舉、側傾方向與展臂高度，不代表姿勢正確或安全；單一前鏡頭無法確認開胸深度。切到背景會關閉相機；語音輸入預設嘗試啟用，仍需允許麥克風權限。</p></details>
       </section>
-      <section class="human-card" aria-label="男性學員 Avatar">
+      <section class="human-card" aria-label="學員 Avatar">
         <div class="human-heading"><div><span class="eyebrow">PRACTICE TOGETHER</span><h3>和 Luna 一起練習。</h3></div></div>
-        <p id="human-status" role="status" aria-live="polite">男性學員已就位；開啟相機以骨架驅動動作。</p>
+        <p id="human-status" role="status" aria-live="polite">學員已就位；開啟相機以骨架驅動動作。</p>
         <div class="human-controls"><label id="auto-frame-control"><input id="auto-frame" type="checkbox" checked>自動取景</label><label for="human-x">左右位置<input id="human-x" type="range" min="-1.4" max="1.4" step="0.02" value="0.72" disabled></label><label for="human-scale">人物大小 <output id="human-size" for="human-scale">100%</output><input id="human-scale" type="range" min="0.65" max="1.4" step="0.05" value="1" disabled></label><span id="student-calibration-controls"><button id="human-calibrate" type="button" disabled>校正站姿</button><span id="human-calibration-status" role="status">開啟相機後可校正站姿。</span></span><button id="human-align" type="button" disabled>重設學員姿勢</button></div>
-        <p class="human-note">左側 Luna 示範，右側男性學員以鏡像跟隨你的動作。站位與比例固定；看不清的關節短暫保持後回到站姿。這是動作視覺化，姿勢判斷仍使用相機原始關節。關閉相機後學員保持站立。</p>
+        <p class="human-note">左側 Luna 示範，右側學員以鏡像跟隨你的動作。站位與比例固定；看不清的關節短暫保持後回到站姿。這是動作視覺化，姿勢判斷仍使用相機原始關節。關閉相機後學員保持站立。</p>
       </section>
-      <section id="avatar-card" class="avatar-card" aria-label="個人化學員">
-        <p class="eyebrow">YOUR PRACTICE AVATAR</p><h3>換成自己的模樣。</h3><p>用一張正面照建立臉部貼圖，搭配標準 3D 頭型與男性運動身體。側臉／後腦採標準外觀，單張照片不重建完整頭型。</p>
-        <div class="avatar-actions"><button id="avatar-edit" type="button">建立／編輯 Avatar</button><button id="avatar-delete" type="button">刪除並還原預設</button><button id="avatar-export" type="button" disabled>準備 GLB 下載</button><a id="avatar-download" hidden>儲存個人 Avatar GLB</a></div>
-        <button id="avatar-return" class="avatar-preview-banner" type="button" hidden>預覽中 · 返回照片設定確認／取消</button><p id="avatar-status" role="status" aria-live="polite">使用預設男性學員。照片僅在此裝置處理，按保存才寫入此瀏覽器。</p>
-        <details id="avatar-editor"><summary>照片與外觀設定</summary>
-          <label class="avatar-consent"><input id="avatar-consent" type="checkbox">我有權使用這張照片，同意在本機處理；按「保存並套用」才保存 512px 臉部裁切與外觀設定。原始照片不保存、不自動上傳。</label>
-          <label>一張正面照（JPEG／PNG／WebP，最多 12 MB）<input id="avatar-photo" type="file" accept="image/jpeg,image/png,image/webp" disabled></label>
-          <div class="avatar-editor-grid"><div class="avatar-crop-wrap"><canvas id="avatar-crop" width="512" height="512" aria-label="照片裁切預覽：臉置於橢圓、眼睛對齊虛線"></canvas><small>臉部放入橢圓、眼睛對齊虛線。這是手動對位，不是臉部關鍵點偵測。</small></div><div class="avatar-fields">
-            <label>照片放大<input id="avatar-zoom" type="range" min="1" max="5" step=".05" value="1"></label><label>裁切左右<input id="avatar-x" type="range" min="0" max="1" step=".01" value=".5"></label><label>裁切上下<input id="avatar-y" type="range" min="0" max="1" step=".01" value=".5"></label>
-            <label>頭部寬度<input id="avatar-headWidth" type="range" min=".8" max="1.2" step=".01" value="1"></label><label>頭部高度<input id="avatar-headHeight" type="range" min=".85" max="1.15" step=".01" value="1"></label>
-            <label>膚色<input id="avatar-skin" type="color" value="#c99775"></label><label>髮色<input id="avatar-hair" type="color" value="#242626"></label><label>運動上衣<input id="avatar-shirt" type="color" value="#365d72"></label><label>髮型<select id="avatar-hairStyle"><option value="short">短髮</option><option value="bald">無髮</option><option value="cap">圓頂短髮</option></select></label>
+      <section id="avatar-card" class="avatar-card" aria-label="三視圖個人化學員">
+        <p class="eyebrow">YOUR THREE-VIEW AVATAR</p><h3>三張圖，建立自己的學員。</h3><p>準備同一人的正面、側面、背面全身圖，頭頂與腳底完整、素色背景。正面／背面手臂角度接近，側面鼻子朝左。三張貼圖投影到既有具骨架人體；形狀是標準模型近似，不是精確 3D 掃描，未拍到的另一側採鏡像近似。</p>
+        <div class="avatar-actions"><button id="avatar-edit" type="button">建立／編輯三視圖 Avatar</button><button id="avatar-delete" type="button">刪除並還原預設</button><button id="avatar-export" type="button" disabled>準備 GLB 下載</button><a id="avatar-download" hidden>儲存 Avatar GLB</a></div><button id="avatar-return" class="avatar-preview-banner" type="button" hidden>預覽中 · 返回照片設定確認／取消</button>
+        <p id="avatar-status" role="status" aria-live="polite">使用預設學員；三張圖僅在本機處理，確認保存後才寫入此瀏覽器。</p>
+        <details id="avatar-editor"><summary>三張圖與對齊設定</summary>
+          <label class="avatar-consent"><input id="avatar-consent" type="checkbox">我有權使用這三張圖，同意本機處理；按「保存並套用」才保存三張衍生裁切圖與設定。原圖不保存、不自動上傳。</label>
+          <div class="avatar-inputs"><label>1 · 正面 <span id="avatar-ready-front">尚未選擇</span><input id="avatar-photo" type="file" accept="image/jpeg,image/png,image/webp" disabled></label><label>2 · 側面 <span id="avatar-ready-side">尚未選擇</span><input id="avatar-photo-side" type="file" accept="image/jpeg,image/png,image/webp" disabled></label><label>3 · 背面 <span id="avatar-ready-back">尚未選擇</span><input id="avatar-photo-back" type="file" accept="image/jpeg,image/png,image/webp" disabled></label></div>
+          <small>每張 JPEG／PNG／WebP 最多 12 MB。素色背景可輔助找人物邊界；請目視確認，裁切不代表已辨識姿勢。</small>
+          <div class="avatar-editor-grid"><div class="avatar-crop-wrap"><canvas id="avatar-crop" width="512" height="1024" aria-label="全身裁切預覽：保留完整頭頂與腳底"></canvas><small>請保留全身；不同視圖以頭頂、腳底對齊。</small></div><div class="avatar-fields">
+            <label>正在調整<select id="avatar-view"><option value="front">正面</option><option value="side">側面</option><option value="back">背面</option></select></label><label>裁切放大<input id="avatar-zoom" type="range" min="1" max="2.5" step=".02" value="1"></label><label>裁切左右<input id="avatar-x" type="range" min="0" max="1" step=".01" value=".5"></label><label>裁切上下<input id="avatar-y" type="range" min="0" max="1" step=".01" value=".5"></label><label>正／背面手臂離身角度<input id="avatar-reference-angle" type="range" min="0" max="60" step="1" value="30"></label><label><input id="avatar-side-mirror" type="checkbox">側面鼻子朝右，先鏡像成朝左</label>
           </div></div>
-          <div class="avatar-actions"><button id="avatar-preview" type="button" disabled>預覽到右側</button><button id="avatar-apply" type="button" disabled>本次套用</button><button id="avatar-save" type="button" disabled>保存並套用</button><button id="avatar-cancel" type="button">取消預覽</button></div>
-        </details>
-        <small>資料存在此網站的 IndexedDB，不跨裝置同步；清除網站資料也會刪除。GLB／場景截圖會含個人臉部貼圖；按公開回報前請留意畫面內容。</small>
+          <div class="avatar-actions"><button id="avatar-preview" type="button" disabled>生成 Avatar 並預覽</button><button id="avatar-apply" type="button" disabled>本次套用</button><button id="avatar-save" type="button" disabled>保存並套用</button><button id="avatar-cancel" type="button">取消預覽</button></div>
+        </details><small>本站 IndexedDB 不跨裝置同步；清除網站資料也會刪除。GLB／場景截圖會含個人外觀，公開回報前請留意內容。生成只在建立／編輯時執行，練習期間使用已完成模型。</small>
       </section>
       <section id="voice-card" class="voice-card" aria-label="教練語音互動">
         <div class="voice-heading"><div><span class="eyebrow">TALK TO YOUR COACH</span><h3>說一句，教練陪你練。</h3></div><button id="voice-toggle" type="button" aria-pressed="false">開啟聆聽</button></div>
@@ -90,8 +88,8 @@
     <section class="journey" aria-label="開發里程碑"><div><span class="eyebrow">ONE STEP AT A TIME</span><h3>我們的練習，慢慢長大。</h3></div><ol><li class="finished"><span class="step-marker">✓</span><div><strong>認識教練</strong><span>已完成</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>完整帶練</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>姿勢觀察</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>語音互動</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>版號更新</strong><span>點版號更新</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>角色升級</strong><span>Luna 教練</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>真人入場</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>AI 骨架</strong><span>已交付</span></div></li><li class="current"><span class="step-marker">08</span><div><strong>除錯回報</strong><span>專用 App 代送</span></div></li></ol></section>
   </main>
   <footer><span>yoga2 <i>留一點時間，給自己。</i></span><a href="https://github.com/WangChengYeh/Yoga2" target="_blank" rel="noopener">專案與製作資訊</a></footer>
-  <script type="module" src="./update-entry.js?v=0.9.31"></script>
-  <script type="module" src="./app.js?v=0.9.31"></script>
+  <script type="module" src="./update-entry.js?v=0.9.32"></script>
+  <script type="module" src="./app.js?v=0.9.32"></script>
   <script>window.setTimeout(function(){if(!window.yogaAppStarted){document.getElementById('loading-title').textContent='練習空間未能啟動';document.getElementById('loading-detail').textContent='請確認網路連線並重新整理頁面。';document.querySelector('.spinner').hidden=true;var r=document.getElementById('retry');r.hidden=false;r.onclick=function(){location.reload()};}},20000);</script>
 </body>
 </html>
