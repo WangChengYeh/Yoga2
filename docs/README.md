@@ -34,3 +34,5 @@
 
 - [記憶體診斷：取得程度、快照、ZIP 與前次摘要](MEMORY_DIAGNOSTICS.md)
 - [修訂改善規劃：v0.9.20–v0.9.23 與待驗收門檻](IMPROVEMENT_PLAN.md)
+
+- [自備 GLB 學員匯入與交件規格](GLB_IMPORT.md)

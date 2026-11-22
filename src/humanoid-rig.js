@@ -16,7 +16,11 @@ export function inspectHumanoidRig(model,{boneMap={}}={}){
   let ancestor=child.parent;while(ancestor&&ancestor!==parent&&ancestor!==model)ancestor=ancestor.parent;
   if(ancestor!==parent)hierarchy.push(`${chain[i-1]}/${chain[i]}`);
  }
- const invalidSkin=skins.some(mesh=>!mesh.geometry?.getAttribute('skinIndex')||!mesh.geometry?.getAttribute('skinWeight')||!mesh.skeleton||HUMANOID_BONES.some(name=>bones.has(name)&&!mesh.skeleton.bones.includes(bones.get(name))));
+ const skinBones=new Set(skins.flatMap(mesh=>mesh.skeleton?.bones||[]));
+ const invalidSkin=HUMANOID_BONES.some(name=>bones.has(name)&&!skinBones.has(bones.get(name)))||skins.some(mesh=>{
+  const index=mesh.geometry?.getAttribute('skinIndex'),weight=mesh.geometry?.getAttribute('skinWeight');if(!index||!weight||!mesh.skeleton||index.count!==mesh.geometry.attributes.position?.count||weight.count!==index.count)return true;
+  for(let i=0;i<weight.count;i++){let sum=0;for(let k=0;k<4;k++){const w=weight.getComponent(i,k),n=index.getComponent(i,k);if(!Number.isFinite(w)||w<0||!Number.isInteger(n)||n<0||n>=mesh.skeleton.bones.length)return true;sum+=w;}if(Math.abs(sum-1)>.02)return true;}return false;
+ });
  const transforms=all.every(b=>[...b.position.toArray(),...b.quaternion.toArray(),...b.scale.toArray()].every(Number.isFinite)&&b.scale.toArray().every(n=>n>0));
  return {bones,diagnostics:{contract:'Yoga2-Humanoid-1',compatible:missing.length===0&&ambiguous.length===0&&hierarchy.length===0&&skins.length>0&&!invalidSkin&&transforms,missing,ambiguous,hierarchy,skinnedMeshes:skins.length,invalidSkin,transforms}};
 }
