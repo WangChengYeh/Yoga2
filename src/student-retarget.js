@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { usableJoint, skeletonFresh } from './skeleton.js?v=0.9.39';
-import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.39';
+import { usableJoint, skeletonFresh } from './skeleton.js?v=0.9.40';
+import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.40';
 const PAIRS=[['LeftArm','LeftForeArm',11,13],['LeftForeArm','LeftHand',13,15],['RightArm','RightForeArm',12,14],['RightForeArm','RightHand',14,16],['LeftUpLeg','LeftLeg',23,25],['LeftLeg','LeftFoot',25,27],['RightUpLeg','RightLeg',24,26],['RightLeg','RightFoot',26,28]];
 const ORDER=['Hips','Spine','Spine1','Spine2','Neck','Head',...PAIRS.map(p=>p[0]),'LeftHand','RightHand','LeftFoot','RightFoot'];
 const MIRROR=new Map([[1,4],[2,5],[3,6],[7,8],[9,10],[11,12],[13,14],[15,16],[17,18],[19,20],[21,22],[23,24],[25,26],[27,28],[29,30],[31,32]].flatMap(([a,b])=>[[a,b],[b,a]]));

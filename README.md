@@ -3,7 +3,7 @@
 手機網頁的女性 3D 教練，結合三動作帶練、男性學員 Avatar、AI 骨架與語音互動。
 
 - 網站：[GitHub Pages](https://wangchengyeh.github.io/Yoga2/)
-- 目前發布版本：**v0.9.39**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
+- 目前發布版本：**v0.9.40**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
 - 文件入口：[docs/README.md](docs/README.md)
 
 ## 使用方式
@@ -99,3 +99,5 @@ GitHub Pages 沿用 `main` 根目錄發布。`src/index.html` 為共用介面來
 ## 雙 Avatar MVP（v0.9.24）
 
 依 [產品路線圖](docs/PRODUCT_ROADMAP.md) 先交付 M1 實作；M1 的手機驗收與前後效能比較仍待完成，CPU／GPU factor 依路線圖留在 M4。細節及限制見 [M1 驗收](docs/DUAL_AVATAR.md)。
+
+自備模型：參考 [GLB 匯入與製作交件規格](docs/GLB_IMPORT.md)，先測試檔案的骨架與帶練動作，再完成委託驗收。

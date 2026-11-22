@@ -7,13 +7,13 @@
   <meta name="description" content="Yoga2 3D 瑜伽練習室：從一個伸展開始，旋轉視角，觀察女性教練的動作示範。">
   <title>Yoga2 · 3D 瑜伽練習室</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=0.9.39">
+  <link rel="stylesheet" href="./style.css?v=0.9.40">
   <script type="importmap">{"imports":{"html2canvas":"./vendor/html2canvas.esm.js","three":"./vendor/three/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
   <header class="header">
     <a class="brand" href="./" aria-label="Yoga2 首頁"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 31C7 31 5 21 7 15c8 0 13 6 13 16Zm0 0c13 0 15-10 13-16-8 0-13 6-13 16Z" stroke="currentColor" stroke-width="1.7"/><path d="M20 28c-8-7-8-13 0-20 8 7 8 13 0 20Z" stroke="currentColor" stroke-width="1.7"/></svg><span>yoga<span class="brand-number">2</span></span><i>個人練習室</i></a>
-    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.9.39</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
+    <div class="version-tools"><button id="app-version" class="version-button" type="button" aria-label="檢查並載入最新版本">v0.9.40</button><span id="update-status" role="status" aria-live="polite">點版號更新</span></div>
   </header>
   <main>
     <section class="intro"><div><p class="eyebrow">A LITTLE SPACE FOR YOURSELF</p><h1>慢下來，<em>回到自己。</em></h1></div><p class="intro-note">三個站姿動作，串起一段小練習。<br>跟著教練，用自己的節奏慢慢來。</p></section>
@@ -44,18 +44,20 @@
         <div class="human-controls"><label id="auto-frame-control"><input id="auto-frame" type="checkbox" checked>自動取景</label><label for="human-x">左右位置<input id="human-x" type="range" min="-1.4" max="1.4" step="0.02" value="0.72" disabled></label><label for="human-scale">人物大小 <output id="human-size" for="human-scale">100%</output><input id="human-scale" type="range" min="0.65" max="1.4" step="0.05" value="1" disabled></label><span id="student-calibration-controls"><button id="human-calibrate" type="button" disabled>校正站姿</button><span id="human-calibration-status" role="status">開啟相機後可校正站姿。</span></span><button id="human-align" type="button" disabled>重設學員姿勢</button></div>
         <p class="human-note">左側 Luna 示範，右側學員以鏡像跟隨你的動作。人物比例固定，間距隨動作調整；看不清的關節短暫保持後回到站姿。這是動作視覺化，姿勢判斷仍使用相機原始關節。關閉相機後學員保持站立。</p>
       </section>
-      <section id="avatar-card" class="avatar-card" aria-label="三視圖個人化學員">
-        <p class="eyebrow">YOUR THREE-VIEW AVATAR</p><h3>三張圖，建立自己的學員。</h3><p>準備同一人的正面、側面、背面全身圖，頭頂與腳底完整、素色背景。正面／背面手臂角度接近，側面鼻子朝左。三張照片取樣膚色與服裝配色，正面照片保留臉部細節；身體使用均勻膚色、標準服裝與髮型，避免全身照片投影產生斑塊。形狀與服裝為模板近似，不是精確 3D 掃描。</p>
-        <div class="avatar-actions"><button id="avatar-edit" type="button">建立／編輯三視圖 Avatar</button><button id="avatar-delete" type="button">刪除並還原預設</button><button id="avatar-export" type="button" disabled>準備 GLB 下載</button><a id="avatar-download" hidden>儲存 Avatar GLB</a></div><button id="avatar-return" class="avatar-preview-banner" type="button" hidden>預覽中 · 返回照片設定確認／取消</button>
-        <p id="avatar-status" role="status" aria-live="polite">使用預設學員；三張圖僅在本機處理，確認保存後才寫入此瀏覽器。</p>
-        <details id="avatar-editor"><summary>三張圖與對齊設定</summary>
-          <label class="avatar-consent"><input id="avatar-consent" type="checkbox">我有權使用這三張圖，同意本機處理；按「保存並套用」才保存三張衍生裁切圖與設定。原圖不保存、不自動上傳。</label>
+      <section id="avatar-card" class="avatar-card" aria-label="個人化學員 Avatar">
+        <p class="eyebrow">YOUR AVATAR</p><h3>匯入模型，使用自己的學員。</h3><p>把自行製作或委託完成的 GLB 匯入，保留原本身形、臉型、衣服與貼圖，和 Luna 一起練習。模型需包含相容的人形骨架；可以先預覽，再決定是否保存。</p>
+        <div class="avatar-actions"><button id="avatar-edit" type="button">建立／編輯三視圖 Avatar</button><button id="avatar-delete" type="button">刪除並還原預設</button><button id="avatar-export" type="button" disabled>準備 GLB 下載</button><a id="avatar-download" hidden>儲存 Avatar GLB</a></div><button id="avatar-return" class="avatar-preview-banner" type="button" hidden>預覽中 · 返回 Avatar 設定確認／取消</button>
+        <p id="avatar-status" role="status" aria-live="polite">使用預設學員；可匯入 GLB 或建立三視圖 Avatar，確認保存後才寫入此瀏覽器。</p>
+        <details id="avatar-editor"><summary>匯入 GLB／三張圖設定</summary>
+          <label class="avatar-consent"><input id="avatar-consent" type="checkbox">我有權使用模型或照片，同意在本機處理；按「保存並套用」才保存 GLB 或三張衍生裁切圖。檔案不自動傳送到伺服器。</label>
+          <section class="avatar-glb-import" aria-label="匯入 GLB 學員"><h4>已有製作好的 3D 模型？</h4><p>匯入含骨架與內嵌貼圖的 GLB，保留原本的人體網格、臉型與衣服，不重新生成外觀。讀取成功後可在練習區預覽，再用下方按鈕套用或保存。</p><label class="avatar-file-pick">選擇 GLB 並預覽<input id="avatar-glb" type="file" accept=".glb,model/gltf-binary" disabled></label><small>最多 30 MB、20 萬頂點、30 萬三角形。需包含可驅動的人形骨架；靜態雕像不能跟隨動作。</small><details><summary>製作規格與進階骨架對照</summary><p>先請製作者查看 <a href="./docs/GLB_IMPORT.md" target="_blank" rel="noopener">GLB 匯入規格</a>，完成後用本站實際預覽。支援標準名稱及 Mixamo 前綴；其他命名可在下面填入 JSON（例如 {"Hips":"pelvis"}），未填的關節沿用標準名稱。需 A／T 參考姿勢，臉朝 +Z、頭朝 +Y。</p><label>骨架名稱對照（選填）<textarea id="avatar-bone-map" rows="4" placeholder='{"Hips":"pelvis"}'></textarea></label></details></section>
+          <div id="avatar-photo-fields"><h4>或使用三張照片與模板建立</h4><p>三張全身圖提供膚色與服裝配色，臉部保留照片細節；身體與衣服仍使用模板，不是精確人體重建。</p>
           <div class="avatar-inputs"><label>1 · 正面 <span id="avatar-ready-front">尚未選擇</span><span class="avatar-file-pick">選擇／更換照片<input id="avatar-photo" type="file" accept="image/jpeg,image/png,image/webp" disabled></span></label><label>2 · 側面 <span id="avatar-ready-side">尚未選擇</span><span class="avatar-file-pick">選擇／更換照片<input id="avatar-photo-side" type="file" accept="image/jpeg,image/png,image/webp" disabled></span></label><label>3 · 背面 <span id="avatar-ready-back">尚未選擇</span><span class="avatar-file-pick">選擇／更換照片<input id="avatar-photo-back" type="file" accept="image/jpeg,image/png,image/webp" disabled></span></label></div>
           <small>每張 JPEG／PNG／WebP 最多 12 MB。素色背景可輔助找人物邊界；請目視確認，裁切不代表已辨識姿勢。</small>
           <div class="avatar-editor-grid"><div class="avatar-crop-wrap"><canvas id="avatar-crop" width="512" height="1024" aria-label="全身裁切預覽：保留完整頭頂與腳底"></canvas><small>請保留全身；不同視圖以頭頂、腳底對齊。</small></div><div class="avatar-fields">
             <label>正在調整<select id="avatar-view"><option value="front">正面</option><option value="side">側面</option><option value="back">背面</option></select></label><label>裁切放大<input id="avatar-zoom" type="range" min="1" max="2.5" step=".02" value="1"></label><label>裁切左右<input id="avatar-x" type="range" min="0" max="1" step=".01" value=".5"></label><label>裁切上下<input id="avatar-y" type="range" min="0" max="1" step=".01" value=".5"></label><label>正／背面手臂離身角度<input id="avatar-reference-angle" type="range" min="0" max="60" step="1" value="30"></label><label><input id="avatar-side-mirror" type="checkbox">側面鼻子朝右，先鏡像成朝左</label>
           </div></div>
-          <p id="avatar-editor-status" role="status" aria-live="polite"></p><div class="avatar-actions"><button id="avatar-preview" type="button" disabled>生成 Avatar 並預覽</button><button id="avatar-apply" type="button" disabled>本次套用</button><button id="avatar-save" type="button" disabled>保存並套用</button><button id="avatar-cancel" type="button">取消預覽</button></div>
+          </div><p id="avatar-editor-status" role="status" aria-live="polite"></p><div class="avatar-actions"><button id="avatar-preview" type="button" disabled>生成 Avatar 並預覽</button><button id="avatar-apply" type="button" disabled>本次套用</button><button id="avatar-save" type="button" disabled>保存並套用</button><button id="avatar-cancel" type="button">取消預覽</button></div>
         </details><small>本站 IndexedDB 不跨裝置同步；清除網站資料也會刪除。GLB／場景截圖會含個人外觀，公開回報前請留意內容。生成只在建立／編輯時執行，練習期間使用已完成模型。</small>
       </section>
       <section id="voice-card" class="voice-card" aria-label="教練語音互動">
@@ -88,8 +90,8 @@
     <section class="journey" aria-label="開發里程碑"><div><span class="eyebrow">ONE STEP AT A TIME</span><h3>我們的練習，慢慢長大。</h3></div><ol><li class="finished"><span class="step-marker">✓</span><div><strong>認識教練</strong><span>已完成</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>完整帶練</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>姿勢觀察</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>語音互動</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>版號更新</strong><span>點版號更新</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>角色升級</strong><span>Luna 教練</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>真人入場</strong><span>已交付</span></div></li><li class="finished"><span class="step-marker">✓</span><div><strong>AI 骨架</strong><span>已交付</span></div></li><li class="current"><span class="step-marker">08</span><div><strong>除錯回報</strong><span>專用 App 代送</span></div></li></ol></section>
   </main>
   <footer><span>yoga2 <i>留一點時間，給自己。</i></span><a href="https://github.com/WangChengYeh/Yoga2" target="_blank" rel="noopener">專案與製作資訊</a></footer>
-  <script type="module" src="./update-entry.js?v=0.9.39"></script>
-  <script type="module" src="./app.js?v=0.9.39"></script>
+  <script type="module" src="./update-entry.js?v=0.9.40"></script>
+  <script type="module" src="./app.js?v=0.9.40"></script>
   <script>window.setTimeout(function(){if(!window.yogaAppStarted){document.getElementById('loading-title').textContent='練習空間未能啟動';document.getElementById('loading-detail').textContent='請確認網路連線並重新整理頁面。';document.querySelector('.spinner').hidden=true;var r=document.getElementById('retry');r.hidden=false;r.onclick=function(){location.reload()};}},20000);</script>
 </body>
 </html>

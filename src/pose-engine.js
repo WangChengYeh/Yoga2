@@ -1,9 +1,9 @@
-import { createFrameProcessor } from './pose-frame.js?v=0.9.39';
-import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.9.39';
+import { createFrameProcessor } from './pose-frame.js?v=0.9.40';
+import { createDetector, createPortraitSegmenter } from './pose-core.js?v=0.9.40';
 
 async function workerEngine(config,observe=()=>{},signal) {
   if(signal?.aborted)throw Object.assign(new Error('Cancelled'),{name:'AbortError'});
-  const worker = new Worker(new URL('./pose-worker.js?v=0.9.39', import.meta.url));
+  const worker = new Worker(new URL('./pose-worker.js?v=0.9.40', import.meta.url));
   let nextId = 0, closed = false, portraitRequested=false,stage='initializing',lastError=null,resources=null;
   const pending = new Map();
   const fail = () => {

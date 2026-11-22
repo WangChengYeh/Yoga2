@@ -1,3 +1,4 @@
+import {validateGLBProfile} from './glb-file.js?v=0.9.40';
 // Persist only a bounded derived face crop and parameters, never the source file.
 export const PROFILE_SCHEMA=1,FACE_SIZE=512,MAX_PHOTO_BYTES=12*1024*1024;
 const clamp=(v,lo,hi,fallback)=>Number.isFinite(Number(v))?Math.max(lo,Math.min(hi,Number(v))):fallback;
@@ -11,6 +12,7 @@ export function cropRect(width,height,{zoom=1,x=.5,y=.5}={}){
 }
 export function validatePhoto(file){if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size<=0||file.size>MAX_PHOTO_BYTES)throw new Error('請選擇 12 MB 以內的 JPEG、PNG 或 WebP 照片。');}
 export function validateProfile(profile){
+ if(profile?.schema===3)return validateGLBProfile(profile);
  if(profile?.schema===2){
   if(!AVATAR_VIEWS.every(k=>profile.views?.[k] instanceof Blob&&profile.views[k].type==='image/jpeg'&&profile.views[k].size>0&&profile.views[k].size<=1024*1024))throw new Error('請提供正面、側面與背面三張圖。');
   return {schema:2,template:'luna-v1',referenceArmDeg:referenceAngle(profile.referenceArmDeg),views:Object.fromEntries(AVATAR_VIEWS.map(k=>[k,profile.views[k]])),viewRects:Object.fromEntries(AVATAR_VIEWS.map(k=>[k,normalizeViewRect(profile.viewRects?.[k])]))};

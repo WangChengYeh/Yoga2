@@ -46,3 +46,15 @@ test('all three input views are required before generation; editing saved profil
 test('failed template generation keeps three photos and shows error beside the generate controls',async()=>{
  const h=harness({build:async()=>{throw Object.assign(new Error('404'),{code:'AVATAR_TEMPLATE_LOAD'});}});await h.photo();await h.click('preview');assert.equal(h.panel.diagnostics.sourceCount,3);assert.equal(h.el('preview').disabled,false);assert.equal(h.el('save').disabled,true);assert.match(h.el('editor-status').textContent,/基底模型/);assert.equal(h.el('editor-status').textContent,h.el('status').textContent);h.dispose();
 });
+
+test('GLB selection previews, cancels, saves, restores and deletes using the same student flow',async()=>{
+ const h=harness();h.el('consent').checked=true;h.el('consent').listeners.change();h.el('bone-map').value='';
+ const file=new Blob([new Uint8Array(40)],{type:'model/gltf-binary'});file.name='custom.glb';h.el('glb').files=[file];h.el('glb').listeners.change();await flush();assert.equal(h.panel.diagnostics.previewing,true);assert.equal(h.writes.length,0);assert.match(h.el('status').textContent,/custom.glb/);
+ await h.click('cancel');assert.equal(h.panel.diagnostics.mode,'default');
+ h.el('glb').listeners.change();await flush();await h.click('save');assert.equal(h.saved.schema,3);assert.equal(h.saved.glb,file);assert.equal(h.panel.diagnostics.stored,true);
+ const reload=harness({stored:h.saved});await reload.panel.restore();assert.match(reload.el('status').textContent,/GLB/);assert.equal(reload.panel.diagnostics.profileSchema,3);await reload.click('delete');assert.equal(reload.saved,null);h.dispose();reload.dispose();
+});
+test('GLB failure leaves existing student intact and reports the actual problem; storage failure retains preview',async()=>{
+ const old=profile(),h=harness({stored:old,build:async p=>{if(p.schema===3)throw new Error('骨架不相容：缺少 Head');return new THREE.Group();}});await h.panel.restore();h.el('consent').checked=true;h.el('bone-map').value='';h.el('glb').files=[new Blob([new Uint8Array(40)])];h.el('glb').listeners.change();await flush();assert.equal(h.models.length,1);assert.equal(h.panel.diagnostics.profileSchema,2);assert.match(h.el('status').textContent,/Head/);h.dispose();
+ const quota=harness({saveFails:true});quota.el('consent').checked=true;quota.el('bone-map').value='';quota.el('glb').files=[new Blob([new Uint8Array(40)])];quota.el('glb').listeners.change();await flush();await quota.click('save');assert.equal(quota.panel.diagnostics.previewing,true);assert.equal(quota.el('apply').disabled,false);await quota.click('apply');assert.equal(quota.panel.diagnostics.profileSchema,3);assert.equal(quota.panel.diagnostics.stored,false);quota.dispose();
+});

@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.39。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.40。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -155,3 +155,7 @@ npm run test:portrait
 ## v0.9.39 回歸
 
 501 Node 測試與 build 通過；實際雙 Luna 骨架／課程姿勢在橫直向、前側背及斜角環繞下，以自動間距及不對稱 UI 安全區取景後，所有包覆點仍在安全像素邊界內。另覆蓋完整運動上衣／肩帶、矩形墊子、學員投影與接收陰影、間距展開／收攏。配對場景與私人照片學員已離線 CPU 渲染檢查，不是 iPhone WebGL 截圖或效能驗收。
+
+## v0.9.40 GLB 匯入回歸
+
+507 Node 測試與 production build 通過。新增損毀 GLB、外部 URI、壓縮／幾何預算、內嵌 PNG/JPEG 預檢、真實 GLTFExporter→GLTFLoader 匯入、自訂骨名、retarget、原檔下載、保存／重讀／取消／刪除與 quota 失敗測試。本機 Chromium 因 socket 權限限制未能啟動；版面檢查由 CI 執行。尚非 Safari／iPhone WebGL 實機驗收。
