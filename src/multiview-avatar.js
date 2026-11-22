@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {prepareStandingCoach} from './rig.js?v=0.9.34';
-import {motionAt} from './course.js?v=0.9.34';
-import {inspectHumanoidRig} from './humanoid-rig.js?v=0.9.34';
-import {AVATAR_VIEWS,BODY_WIDTH,BODY_HEIGHT,decodeAvatarPhoto,validateProfile} from './avatar-profile.js?v=0.9.34';
+import {prepareStandingCoach} from './rig.js?v=0.9.35';
+import {motionAt} from './course.js?v=0.9.35';
+import {inspectHumanoidRig} from './humanoid-rig.js?v=0.9.35';
+import {AVATAR_VIEWS,BODY_WIDTH,BODY_HEIGHT,decodeAvatarPhoto,validateProfile,normalizeViewRect} from './avatar-profile.js?v=0.9.35';
 // UVs are baked once in the reference pose. Mesh geometry/bones are a template,
 // not a photogrammetric reconstruction. One atlas keeps practice draw calls low.
-export function projectThreeViews(model,{referenceArmDeg=30,texture}={}){
+export function projectThreeViews(model,{referenceArmDeg=30,texture,viewRects={}}={}){
  const pose=prepareStandingCoach(model);let lo=0,hi=6;for(let i=0;i<24;i++){const t=(lo+hi)/2;if(motionAt('reach',t).armAngle<referenceArmDeg*Math.PI/180)lo=t;else hi=t;}pose((lo+hi)/2,'reach');model.updateMatrixWorld(true);
  const meshes=[],bounds=new THREE.Box3();model.traverse(mesh=>{if(!mesh.isMesh)return;const points=[];for(let i=0;i<mesh.geometry.attributes.position.count;i++){const p=mesh.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);points.push(p);bounds.expandByPoint(p);}meshes.push({mesh,points});});
  const size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3()),counts={front:0,side:0,back:0};if(size.y<=0||size.x<=0||size.z<=0)throw new Error('模型範圍無效。');
@@ -17,7 +17,7 @@ export function projectThreeViews(model,{referenceArmDeg=30,texture}={}){
    // Side input has resting arms. Use front/back for extended limbs to avoid
    // projecting the side torso onto those arms. One observed side mirrors the other.
    const side=central&&Math.abs(normal.x)>.72,view=side?'side':normal.z<0?'back':'front',mirror=side&&normal.x<0,tile=AVATAR_VIEWS.indexOf(view);counts[view]++;
-   for(const id of ids){const key=id+':'+view+':'+mirror;let next=cache.get(key);if(next===undefined){next=uv.length/2;cache.set(key,next);for(const [name,attr] of attributes)for(let j=0;j<attr.itemSize;j++)values[name].push(attr.getComponent(id,j));const p=points[id];let u=view==='front'?(p.x-bounds.min.x)/size.x:view==='back'?(bounds.max.x-p.x)/size.x:mirror?(p.z-bounds.min.z)/size.z:(bounds.max.z-p.z)/size.z;const v=(p.y-bounds.min.y)/size.y;u=THREE.MathUtils.clamp(u,.001,.999);uv.push((tile+u)/3,THREE.MathUtils.clamp(v,.001,.999));}indices.push(next);}
+   for(const id of ids){const key=id+':'+view+':'+mirror;let next=cache.get(key);if(next===undefined){next=uv.length/2;cache.set(key,next);for(const [name,attr] of attributes)for(let j=0;j<attr.itemSize;j++)values[name].push(attr.getComponent(id,j));const p=points[id];let u=view==='front'?(p.x-bounds.min.x)/size.x:view==='back'?(bounds.max.x-p.x)/size.x:mirror?(p.z-bounds.min.z)/size.z:(bounds.max.z-p.z)/size.z;const v=(p.y-bounds.min.y)/size.y;const rect=normalizeViewRect(viewRects[view]);u=rect.x+THREE.MathUtils.clamp(u,.001,.999)*rect.width;uv.push((tile+u)/3,1-rect.y-rect.height+THREE.MathUtils.clamp(v,.001,.999)*rect.height);}indices.push(next);}
   }
   const geometry=new THREE.BufferGeometry();for(const [name,attr] of attributes)geometry.setAttribute(name,new THREE.BufferAttribute(new attr.array.constructor(values[name]),attr.itemSize,attr.normalized));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.setIndex(indices);geometry.computeBoundingBox();geometry.computeBoundingSphere();
   for(const m of Array.isArray(mesh.material)?mesh.material:[mesh.material]){oldMaterials.add(m);for(const x of Object.values(m))if(x?.isTexture)oldTextures.add(x);}mesh.geometry=geometry;mesh.material=material;original.dispose();
@@ -58,7 +58,7 @@ export function makeThreeViewAtlas(canvases,{document=globalThis.document}={}){
 export function avatarTemplateURL({document=globalThis.document,baseURL=globalThis.location?.href||import.meta.url}={}){return new URL(document?.documentElement?.dataset?.modelUrl||'./models/luna-v1.glb',baseURL).href;}
 export async function createThreeViewAvatar(profile,{decode=decodeAvatarPhoto,loadTemplate=async()=>{const url=avatarTemplateURL({document});try{return (await new GLTFLoader().loadAsync(url)).scene;}catch(error){throw Object.assign(new Error('Avatar template could not load'),{code:'AVATAR_TEMPLATE_LOAD',cause:error});}},document=globalThis.document}={}){
  const value=validateProfile(profile),canvases={};let model,texture;
- try{for(const k of AVATAR_VIEWS){const c=await decode(value.views[k]);canvases[k]=c;if(c.width!==BODY_WIDTH||c.height!==BODY_HEIGHT)throw new Error('三視圖貼圖尺寸不相容。');}texture=makeThreeViewAtlas(canvases,{document});model=await loadTemplate();if(!inspectHumanoidRig(model).diagnostics.compatible)throw new Error('基底骨架不相容。');projectThreeViews(model,{texture,referenceArmDeg:value.referenceArmDeg});return model;}
- catch(error){texture?.dispose();if(texture?.image)texture.image.width=texture.image.height=0;if(model){const {disposeAvatar}=await import('./personal-avatar.js?v=0.9.34');disposeAvatar(model);}throw error;}
+ try{for(const k of AVATAR_VIEWS){const c=await decode(value.views[k]);canvases[k]=c;if(c.width!==BODY_WIDTH||c.height!==BODY_HEIGHT)throw new Error('三視圖貼圖尺寸不相容。');}texture=makeThreeViewAtlas(canvases,{document});model=await loadTemplate();if(!inspectHumanoidRig(model).diagnostics.compatible)throw new Error('基底骨架不相容。');projectThreeViews(model,{texture,referenceArmDeg:value.referenceArmDeg,viewRects:value.viewRects});return model;}
+ catch(error){texture?.dispose();if(texture?.image)texture.image.width=texture.image.height=0;if(model){const {disposeAvatar}=await import('./personal-avatar.js?v=0.9.35');disposeAvatar(model);}throw error;}
  finally{for(const c of Object.values(canvases))c.width=c.height=0;}
 }
