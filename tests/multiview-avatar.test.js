@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import * as THREE from 'three';
 import {loadCharacter} from './helpers/character.js';
-import {projectThreeViews,extendPhotoColors,avatarTemplateURL,matchPhotoInterval,mergeIntervals} from '../src/multiview-avatar.js';
+import {projectThreeViews,extendPhotoColors,avatarTemplateURL,matchPhotoInterval,mergeIntervals,skinToneFromPhoto,isWarmSkin} from '../src/multiview-avatar.js';
 import {inspectHumanoidRig} from '../src/humanoid-rig.js';
 import {createStudentRetarget} from '../src/student-retarget.js';
 import {createAvatarEnvelope} from '../src/auto-framing.js';
@@ -17,7 +17,7 @@ test('plain-background assistance detects person bounds and complex backgrounds 
 });
 test('actual template receives all three views without UV triangles crossing atlas tiles; rig and weights survive',async()=>{
  const model=await loadCharacter(),texture=new THREE.Texture();projectThreeViews(model,{texture,referenceArmDeg:30,viewRects:{side:{x:.4,y:.2,width:.2,height:.6}}});const rig=inspectHumanoidRig(model).diagnostics;assert.equal(rig.compatible,true);assert.ok(Object.values(model.userData.projection.views).every(n=>n>0));let vertices=0;
- model.traverse(m=>{if(!m.isMesh)return;const g=m.geometry,uv=g.attributes.uv;vertices+=g.attributes.position.count;assert.equal(m.material.map,texture);assert.ok(g.attributes.skinIndex&&g.attributes.skinWeight);for(let i=0;i<g.index.count;i+=3){const tiles=[0,1,2].map(k=>{const id=g.index.getX(i+k);assert.ok(uv.getY(id)>=0&&uv.getY(id)<=1);const tile=Math.floor(uv.getX(id)*3);if(tile===1){assert.ok(uv.getX(id)*3-1>=.39999&&uv.getX(id)*3-1<=.60001);assert.ok(uv.getY(id)>=.19999&&uv.getY(id)<=.80001);}return tile;});assert.ok(tiles.every(t=>t===tiles[0]));}});
+ model.traverse(m=>{if(!m.isMesh)return;const g=m.geometry,uv=g.attributes.uv;vertices+=g.attributes.position.count;assert.equal(m.material[0].map,texture);assert.equal(m.material[1].map,null);assert.ok(g.attributes.uv1&&g.attributes.uv2);assert.ok(g.groups.some(g=>g.materialIndex===1));assert.equal(m.material[2].map,null);assert.ok(g.attributes.skinIndex&&g.attributes.skinWeight);for(let i=0;i<g.index.count;i+=3){const tiles=[0,1,2].map(k=>{const id=g.index.getX(i+k);assert.ok(uv.getY(id)>=0&&uv.getY(id)<=1);const tile=Math.floor(uv.getX(id)*3);if(tile===1){assert.ok(uv.getX(id)*3-1>=.39999&&uv.getX(id)*3-1<=.60001);assert.ok(uv.getY(id)>=.19999&&uv.getY(id)<=.80001);}return tile;});assert.ok(tiles.every(t=>t===tiles[0]));}});
  assert.ok(vertices<50000);const retarget=createStudentRetarget(model),env=createAvatarEnvelope(model);for(const t of [0,250,500]){retarget.accept(worldSample(t),t);retarget.update(t);assert.equal(env.update().box.isEmpty(),false);}assert.ok(retarget.diagnostics.accepted>0);disposeAvatar(model);
 });
 
@@ -35,4 +35,8 @@ test('narrow side views retain uniform pixel scale with padding, and wide views 
 
 test('photo correspondence maps separate legs into their own foreground intervals',()=>{
  const model=[[.25,.4],[.6,.75]],photo=[[.3,.42],[.58,.7]];for(const u of [.25,.3,.4])assert.ok(matchPhotoInterval(u,model,photo)>=.3&&matchPhotoInterval(u,model,photo)<=.42);for(const u of [.6,.65,.75])assert.ok(matchPhotoInterval(u,model,photo)>=.58&&matchPhotoInterval(u,model,photo)<=.7);assert.equal(matchPhotoInterval(.5,[],photo),null);assert.deepEqual(mergeIntervals([[.4,.5],[.1,.2],[.19,.3]]),[[.1,.3],[.4,.5]]);
+});
+
+test('skin appearance samples warm mid-body colors and rejects cold clothes/background',()=>{
+ const w=30,h=60,stride=60,offset=30,data=new Uint8ClampedArray(stride*h*4);for(let y=0;y<h;y++)for(let x=0;x<stride;x++){const i=(y*stride+x)*4;data.set(x<offset?[20,60,150,255]:[200,160,120,255],i);}assert.deepEqual(skinToneFromPhoto(data,w,h,stride,offset),[200,160,120]);assert.equal(isWarmSkin([180,90,130]),false);assert.equal(isWarmSkin([240,240,240]),false);
 });
