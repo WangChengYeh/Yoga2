@@ -54,9 +54,9 @@ export function createSkeletonLayer({parent,color=0x087c71,radius=.008,worldRadi
 
 export const COACH_JOINTS=['Hips','Spine','Spine1','Spine2','Neck','Head','LeftShoulder','LeftArm','LeftForeArm','LeftHand','RightShoulder','RightArm','RightForeArm','RightHand','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase','RightUpLeg','RightLeg','RightFoot','RightToeBase'];
 export const COACH_EDGES=[[0,1],[1,2],[2,3],[3,4],[4,5],[3,6],[6,7],[7,8],[8,9],[3,10],[10,11],[11,12],[12,13],[0,14],[14,15],[15,16],[16,17],[0,18],[18,19],[19,20],[20,21]];
-export function createCoachSkeletonSource(model,parent) {
+export function createCoachSkeletonSource(model,parent,{boneMap={}}={}) {
   const all=[];model.traverse(o=>{if(o.isBone)all.push(o);});
-  const bones=COACH_JOINTS.map(name=>all.find(b=>b.name===name)||all.find(b=>b.name.endsWith(name)));
+  const bones=COACH_JOINTS.map(name=>{const value=boneMap[name]??name;return typeof value==='string'?all.find(b=>b.name===value)||all.find(b=>b.name.endsWith(value)):all.includes(value)?value:null;});
   const point=new THREE.Vector3(),points=Array.from({length:bones.length},()=>[0,0,0]);
   return ()=>{
     for(let i=0;i<bones.length;i++){

@@ -115,7 +115,7 @@ body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #p
 .studio:has(.camera-debug-visible:not([hidden])){--debug-width:clamp(150px,26%,300px);--debug-top:90px;--debug-bottom:90px}
 .studio:has(.camera-debug-visible:not([hidden])) #viewport{top:var(--debug-top);right:calc(var(--debug-width) + 24px);bottom:var(--debug-bottom)}
 .studio:has(.camera-debug-visible:not([hidden])) .coach-tag,.studio:has(.camera-debug-visible:not([hidden])) .gesture-hint{display:none}
-.camera-source.camera-debug-visible:not([hidden]){position:absolute;top:var(--debug-top);bottom:var(--debug-bottom);left:auto;right:12px;width:var(--debug-width);height:auto;aspect-ratio:auto!important;opacity:1;clip-path:none;pointer-events:none;z-index:2;background:#173e35;border-radius:12px;overflow:hidden}
+.camera-source.camera-debug-visible:not([hidden]){position:absolute;top:var(--debug-top);bottom:var(--debug-bottom);left:auto;right:12px;width:var(--debug-width);height:auto;aspect-ratio:auto!important;opacity:1;clip-path:none;pointer-events:none;z-index:2;display:grid;place-items:center;background:transparent;overflow:hidden}
 .camera-source.camera-debug-visible video,.camera-source.camera-debug-visible canvas{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}
 @media(max-aspect-ratio:1/1){
  .studio:has(.camera-debug-visible:not([hidden])){--debug-height:min(28%,200px)}
@@ -124,3 +124,7 @@ body.practice-fullscreen #practice-settings #quality,body.practice-fullscreen #p
 }
 
 @media(max-width:760px){body:not(.practice-fullscreen) .studio:has(.camera-debug-visible:not([hidden])){--debug-top:160px}}
+
+#student-calibration-controls{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}#human-calibration-status{font-size:14px;line-height:1.5;color:#526d61}#practice-settings #student-calibration-controls{flex-basis:100%}#human-calibrate{font-size:14px;padding:9px 12px;border:1px solid #c8d4c5;border-radius:10px;background:#edf5e9}
+
+.camera-debug-frame{position:relative;width:100%;height:100%;max-width:100%;max-height:100%;overflow:hidden;border-radius:12px;background:#e6eee5;box-shadow:0 4px 16px #173d3610}

@@ -1,28 +1,32 @@
-import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.27';
-import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.27';
-import { cameraPreferences } from './camera-settings.js?v=0.9.27';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.27';
-import { CameraSession } from './camera-session.js?v=0.9.27';
-import { createPoseEngine } from './pose-engine.js?v=0.9.27';
-import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.27';
+import { setupCameraPreviewLayout } from './camera-preview-layout.js?v=0.9.28';
+import { HintManager } from './hint-manager.js?v=0.9.28';
+import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.28';
+import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.28';
+import { cameraPreferences } from './camera-settings.js?v=0.9.28';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.28';
+import { CameraSession } from './camera-session.js?v=0.9.28';
+import { createPoseEngine } from './pose-engine.js?v=0.9.28';
+import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.28';
 
 export function setupPosePanel({ scheduler=null,createSession=options=>new CameraSession(options),onEvaluationTiming=()=>{},now=()=>performance.now(),setTimer=(fn,ms)=>setTimeout(fn,ms),clearTimer=id=>clearTimeout(id),getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const preference=cameraPreferences();$('camera-fps').value=String(preference.value.cameraFPS);$('analysis-fps').value=String(preference.value.analysisFPS);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
+  const previewLayout=setupCameraPreviewLayout({preview,frame:$('camera-debug-frame'),video});
   const debugOverlay=createPoseDebugOverlay({canvas:overlay,enabled:()=>Boolean($('camera-debug')?.checked)});
   const lightCanvas = document.createElement('canvas'); lightCanvas.width = lightCanvas.height = 16;
   const lightContext = lightCanvas.getContext('2d', { willReadFrequently: true });
   const evaluator = new PoseEvaluationEngine();
+  const hints=new HintManager({now});
   let evaluationTimer=null;
-  function resetEvaluation(){clearTimer(evaluationTimer);evaluationTimer=null;evaluator.reset();latestObservation=null;}
+  function resetEvaluation(){clearTimer(evaluationTimer);evaluationTimer=null;evaluator.reset();hints.reset();latestObservation=null;}
   let key = null,latestObservation=null;
   let summary = {valid:false,message:'',updatedAt:0};
   const getKey = () => feedbackKey(getFrame(), isPlaying());
   const clear = () => debugOverlay.clear();
   function feedback(message, kind = 'info') {
     summary = { valid: kind === 'observed' || kind === 'hint', message, updatedAt: now() };
-    $('camera-feedback').textContent = message;
+    if($('camera-feedback').textContent!==message)$('camera-feedback').textContent = message;
     $('camera-feedback').dataset.kind = kind;
   }
   const config = document.documentElement.dataset;
@@ -63,7 +67,7 @@ export function setupPosePanel({ scheduler=null,createSession=options=>new Camer
     onResult: (data, now) => {
       human?.accept({...data,aspect:video.videoWidth/video.videoHeight},now);
       if (video.videoWidth && video.videoHeight) {
-        preview.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+        previewLayout.update();
         overlay.width = video.videoWidth; overlay.height = video.videoHeight;
       }
       debugOverlay.update(data,now);
@@ -74,12 +78,14 @@ export function setupPosePanel({ scheduler=null,createSession=options=>new Camer
       const finished=performance.now();onEvaluationTiming(started,finished);
       clearTimer(evaluationTimer);
       if(stable.expiresAt!==null)evaluationTimer=setTimer(()=>{resetEvaluation();feedback('相機關節資料已過期，等待新的觀察。','setup');},Math.max(0,stable.expiresAt-now));
-      latestObservation=humanObservation(data,observation,stable);
-      onObservation(data,observation,stable);
-      feedback(stable.message, stable.kind);
+      const display=hints.acceptEvaluation(stable,{scope:getKey()});
+      const shown=display?{...stable,code:display.code,message:display.message,kind:display.kind}:stable;
+      latestObservation=humanObservation(data,observation,shown);
+      onObservation(data,observation,shown);
+      feedback(shown.message,shown.kind);
     },
   });
-  document.getElementById('camera-debug')?.addEventListener('change',event=>{preview.classList.toggle('camera-debug-visible',event.target.checked);preview.setAttribute('aria-hidden',String(!event.target.checked));debugOverlay.refresh();});
+  document.getElementById('camera-debug')?.addEventListener('change',event=>{preview.classList.toggle('camera-debug-visible',event.target.checked);preview.setAttribute('aria-hidden',String(!event.target.checked));previewLayout.update();debugOverlay.refresh();});
   $('camera-fps').addEventListener('change',()=>{preference.set({cameraFPS:$('camera-fps').value});$('camera-fps').value=String(preference.value.cameraFPS);updatePolicy();});
   $('analysis-fps').addEventListener('change',()=>{preference.set({analysisFPS:$('analysis-fps').value});$('analysis-fps').value=String(preference.value.analysisFPS);fpsStatus();onRuntime('camera-fps',{phase:'analysis-updated',requestedFPS:preference.value.cameraFPS,negotiatedFPS:session.fpsDiagnostics.negotiated,analysisFPS:preference.value.analysisFPS});});
   fpsStatus();
@@ -97,7 +103,7 @@ export function setupPosePanel({ scheduler=null,createSession=options=>new Camer
     get memoryStatus(){const settings=session.stream?.getVideoTracks?.()[0]?.getSettings?.()||{};return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),fps:session.fpsDiagnostics,phase:session.phase,video:{width:video.videoWidth,height:video.videoHeight,negotiatedFPS:settings.frameRate??null,oneRGBAFrameBytesEstimate:video.videoWidth*video.videoHeight*4,decoderBuffersBytes:null},pipeline:session.diagnostics};},
     get aiContext(){return humanContext(latestObservation,{now:performance.now(),phase:session.phase,lesson:getFrame().lesson.id,videoWidth:video.videoWidth,videoHeight:video.videoHeight});},
     get active() { return session.phase === 'active'; },
-    get diagnostics(){return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},evaluation:evaluator.snapshot(now()),video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
+    get diagnostics(){return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},evaluation:evaluator.snapshot(now()),hints:hints.diagnostics,video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
     get summary() { return { ...summary,valid:summary.valid&&evaluator.snapshot(now()).valid, active: session.phase === 'active' }; },
     contextChanged() {
       const next = getKey();

@@ -1,4 +1,4 @@
-import { TASKS } from './task-performance.js?v=0.9.27';
+import { TASKS } from './task-performance.js?v=0.9.28';
 const number=(v,d=1)=>Number.isFinite(v)?v.toFixed(d):'未知';
 const groups={'cpu-main':'CPU 主緒','cpu-worker':'CPU 辨識','gpu':'GPU 計時','gpu-task':'GPU 完成通知','gpu-submit':'GPU 提交（另列）','gpu-wall':'GPU 往返（另列）','wall':'任務往返','wait':'排隊','counter':'更新率'};
 export function setupTaskPerformancePanel({log,getSettings=()=>({}),doc=document,setIntervalFn=(fn,ms)=>setInterval(fn,ms),clearIntervalFn=clearInterval,now=()=>performance.now()}={}){

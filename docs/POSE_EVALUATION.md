@@ -1,6 +1,6 @@
 # M2 — Pose Evaluation (v0.9.27)
 
-M1 was accepted by the project owner on 2026-11-22 and #6 is closed. M2 #7/#9 are in progress. This first increment implements the evaluation pipeline and neutral-reference retarget refinement; it does not sign off the entire milestone.
+M1 was accepted by the project owner on 2026-11-22 and #6 is closed. This document records the v0.9.27 evaluation contract. In v0.9.28, M2 software #7/#9 is implemented and manual/device validation moves to #11 without blocking later work; M3 shared Hint state is in progress.
 
 ## Data and boundaries
 
@@ -39,7 +39,7 @@ Automated evidence uses synthetic source landmarks with known course targets and
 
 Still open:
 
-- #9: real three-motion captures, false-positive review, threshold adjustment and iPhone Safari practice acceptance.
-- #7: explicit calibration workflow, full pelvis/spine/neck/head orientation, hand/foot reference planes, twist/joint constraints and replacement-rig acceptance.
+- #11: real three-motion captures, false-positive review, threshold adjustment and iPhone Safari practice acceptance; non-blocking.
+- #7 software is implemented in v0.9.28: see [retargeting](RETARGETING.md). Real motion quality continues under #11.
 - #11: before/after device baselines and sustained practice. Owner M1 acceptance is not a new performance measurement.
-- M3: shared Hint priority/display lifecycle and separate LLM/TTS routing.
+- M3 shared Hint state is implemented in v0.9.28; full display lifecycle and separate LLM/TTS routing continue under #5/#4.
