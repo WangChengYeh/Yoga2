@@ -1,33 +1,34 @@
-import { createPersonalAvatar, exportAvatarGLB } from './personal-avatar.js?v=0.9.36';
-import { setupAvatarPanel } from './avatar-panel.js?v=0.9.36';
-import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.36';
-import { setupHintDisplay } from './hint-display.js?v=0.9.36';
-import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.36';
-import { TaskPerformance } from './task-performance.js?v=0.9.36';
-import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.36';
-import { performancePreferences } from './performance-policy.js?v=0.9.36';
-import { DualWorkload } from './workload-budget.js?v=0.9.36';
-import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.36';
-import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.36';
-import { webglMemory } from './webgl-memory.js?v=0.9.36';
-import { coachContext } from './coach-context.js?v=0.9.36';
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.36';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.36';
-import { setupDefaultMedia } from './default-media.js?v=0.9.36';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.36';
+import {layoutAvatarPair} from './paired-stage.js?v=0.9.37';
+import { createPersonalAvatar, exportAvatarGLB } from './personal-avatar.js?v=0.9.37';
+import { setupAvatarPanel } from './avatar-panel.js?v=0.9.37';
+import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.37';
+import { setupHintDisplay } from './hint-display.js?v=0.9.37';
+import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.37';
+import { TaskPerformance } from './task-performance.js?v=0.9.37';
+import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.37';
+import { performancePreferences } from './performance-policy.js?v=0.9.37';
+import { DualWorkload } from './workload-budget.js?v=0.9.37';
+import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.37';
+import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.37';
+import { webglMemory } from './webgl-memory.js?v=0.9.37';
+import { coachContext } from './coach-context.js?v=0.9.37';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.37';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.37';
+import { setupDefaultMedia } from './default-media.js?v=0.9.37';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.37';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.36';
-import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.36';
-import { practiceLayout } from './practice-layout.js?v=0.9.36';
-import { setupFullscreen } from './fullscreen.js?v=0.9.36';
-import { setupStudentPanel } from './student-panel.js?v=0.9.36';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.37';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.37';
+import { practiceLayout } from './practice-layout.js?v=0.9.37';
+import { setupFullscreen } from './fullscreen.js?v=0.9.37';
+import { setupStudentPanel } from './student-panel.js?v=0.9.37';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.36';
-import { prepareStandingCoach } from './rig.js?v=0.9.36';
-import { setupPosePanel } from './pose-panel.js?v=0.9.36';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.36';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.37';
+import { prepareStandingCoach } from './rig.js?v=0.9.37';
+import { setupPosePanel } from './pose-panel.js?v=0.9.37';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.37';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -52,7 +53,6 @@ const scheduler=new WorkloadScheduler({onEvent:e=>{if(e.kind!=='vision-frame')ru
 scheduler.setHidden(document.hidden);adaptive.setHidden(document.hidden);
 const memoryLog=setupMemoryDiagnostics({collect:()=>({taskPerformance:{...taskLog.memoryStatus,gpuCompletion:gpuCompletionState()},scheduler:{...scheduler.diagnostics,preferences:performancePreference.value,adaptive:adaptive.diagnostics},webllm:voicePanel?.memoryStatus||null,webgl:webglMemory(renderer,scene),camera:posePanel?.memoryStatus||null,human:humanPanel?.memoryStatus||null,personalAvatar:personalAvatar?.diagnostics||null}),requestWorker:()=>voicePanel?.requestMemory()});
 function gpuCompletionState(){return {render:renderCompletion?.diagnostics||{status:'initializing'},llm:voicePanel?.memoryStatus?.gpuCompletion||{status:'initializing'}};}
-const layoutRight=new THREE.Vector3();
 function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView,fov:camera.fov});}
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
@@ -288,10 +288,8 @@ function animate(now) {
   voicePanel?.update(now);
   if(coachStage&&state.ready){
     const yaw=Math.atan2(camera.position.x-controls.target.x,camera.position.z-controls.target.z);
-    layoutRight.set(Math.cos(yaw),0,-Math.sin(yaw));
     const fit=currentLayout();
-    coachStage.position.set(layoutRight.x*fit.coachX,0,layoutRight.z*fit.coachX);
-    humanPanel.setLayout({x:layoutRight.x*fit.humanX,z:layoutRight.z*fit.humanX,yaw});
+    layoutAvatarPair({coachStage,studentPanel:humanPanel,yaw,fit});
   }
   if(state.ready&&coachSkeletonSource&&$('coach-skeleton-toggle').checked){
     coachSkeleton ||= createSkeletonLayer({parent:coachStage,color:0xb25813,name:'Yoga2CoachSkeleton'});
