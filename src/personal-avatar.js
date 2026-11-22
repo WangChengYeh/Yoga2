@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { createStudentModel } from './student-model.js?v=0.9.35';
-import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.35';
-import { decodeAvatarPhoto, validateProfile, FACE_SIZE } from './avatar-profile.js?v=0.9.35';
+import { createStudentModel } from './student-model.js?v=0.9.36';
+import { inspectHumanoidRig } from './humanoid-rig.js?v=0.9.36';
+import { decodeAvatarPhoto, validateProfile, FACE_SIZE } from './avatar-profile.js?v=0.9.36';
 export async function createPersonalAvatar(profile,{decode=decodeAvatarPhoto}={}){
- const valid=validateProfile(profile);if(valid.schema===2){const {createThreeViewAvatar}=await import('./multiview-avatar.js?v=0.9.35');return createThreeViewAvatar(valid,{decode});}const canvas=await decode(valid.face);if(canvas.width!==FACE_SIZE||canvas.height!==FACE_SIZE){canvas.width=canvas.height=0;throw new Error('臉部貼圖尺寸不相容，請重新建立。');}
+ const valid=validateProfile(profile);if(valid.schema===2){const {createThreeViewAvatar}=await import('./multiview-avatar.js?v=0.9.36');return createThreeViewAvatar(valid,{decode});}const canvas=await decode(valid.face);if(canvas.width!==FACE_SIZE||canvas.height!==FACE_SIZE){canvas.width=canvas.height=0;throw new Error('臉部貼圖尺寸不相容，請重新建立。');}
  const texture=new THREE.CanvasTexture(canvas);let model;
  try{model=createStudentModel({appearance:valid.appearance,faceTexture:texture});if(!inspectHumanoidRig(model).diagnostics.compatible)throw new Error('個人骨架驗證失敗。');return model;}
  catch(error){if(model)disposeAvatar(model);else{texture.dispose();canvas.width=canvas.height=0;}throw error;}

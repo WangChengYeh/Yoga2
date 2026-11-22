@@ -2,7 +2,7 @@
 const KINDS=['avatar-build','scene-load','ai-load','ai-inference','ai-guidance','vision-load','vision-frame'];
 const abort=(code='WORK_CANCELLED')=>Object.assign(new Error('Scheduled task cancelled'),{name:'AbortError',code});
 export class WorkloadScheduler {
- constructor({now=()=>performance.now(),onEvent=()=>{},setTimer=setTimeout,clearTimer=clearTimeout}={}){Object.assign(this,{now,onEvent,setTimer,clearTimer});this.queue=[];this.active=null;this.serial=0;this.hidden=false;this.blocked=null;this.history=[];this.completed=0;this.cancelled=0;this.dropped=0;}
+ constructor({now=()=>performance.now(),onEvent=()=>{},setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}){Object.assign(this,{now,onEvent,setTimer,clearTimer});this.queue=[];this.active=null;this.serial=0;this.hidden=false;this.blocked=null;this.history=[];this.completed=0;this.cancelled=0;this.dropped=0;}
  event(phase,job){const e={atMs:this.now(),phase,kind:job?.kind||'policy',id:job?.id||null,...(job?{queuedAt:job.queuedAt,startedAt:job.startedAt??null}: {})};this.history.push(e);this.history=this.history.slice(-64);try{this.onEvent(e);}catch{/* Telemetry cannot block work. */}}
  acquire(kind,{signal,key=null,ttlMs=Infinity}={}){
   if(!KINDS.includes(kind))return Promise.reject(new TypeError('Unknown workload'));

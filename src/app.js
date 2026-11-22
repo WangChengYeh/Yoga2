@@ -1,33 +1,33 @@
-import { createPersonalAvatar, exportAvatarGLB } from './personal-avatar.js?v=0.9.35';
-import { setupAvatarPanel } from './avatar-panel.js?v=0.9.35';
-import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.35';
-import { setupHintDisplay } from './hint-display.js?v=0.9.35';
-import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.35';
-import { TaskPerformance } from './task-performance.js?v=0.9.35';
-import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.35';
-import { performancePreferences } from './performance-policy.js?v=0.9.35';
-import { DualWorkload } from './workload-budget.js?v=0.9.35';
-import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.35';
-import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.35';
-import { webglMemory } from './webgl-memory.js?v=0.9.35';
-import { coachContext } from './coach-context.js?v=0.9.35';
-import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.35';
-import { setupRuntimeLog } from './runtime-log.js?v=0.9.35';
-import { setupDefaultMedia } from './default-media.js?v=0.9.35';
-import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.35';
+import { createPersonalAvatar, exportAvatarGLB } from './personal-avatar.js?v=0.9.36';
+import { setupAvatarPanel } from './avatar-panel.js?v=0.9.36';
+import { createAvatarEnvelope, createAutoFraming, observeStageInsets } from './auto-framing.js?v=0.9.36';
+import { setupHintDisplay } from './hint-display.js?v=0.9.36';
+import { trackWebGLCompletion } from './gpu-completion.js?v=0.9.36';
+import { TaskPerformance } from './task-performance.js?v=0.9.36';
+import { setupTaskPerformancePanel } from './task-performance-panel.js?v=0.9.36';
+import { performancePreferences } from './performance-policy.js?v=0.9.36';
+import { DualWorkload } from './workload-budget.js?v=0.9.36';
+import { WorkloadScheduler } from './workload-scheduler.js?v=0.9.36';
+import { setupMemoryDiagnostics } from './memory-diagnostics.js?v=0.9.36';
+import { webglMemory } from './webgl-memory.js?v=0.9.36';
+import { coachContext } from './coach-context.js?v=0.9.36';
+import { createActivityLog, trackActivityControls } from './activity-log.js?v=0.9.36';
+import { setupRuntimeLog } from './runtime-log.js?v=0.9.36';
+import { setupDefaultMedia } from './default-media.js?v=0.9.36';
+import { setupFullscreenTools } from './fullscreen-tools.js?v=0.9.36';
 import html2canvas from 'html2canvas';
-import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.35';
-import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.35';
-import { practiceLayout } from './practice-layout.js?v=0.9.35';
-import { setupFullscreen } from './fullscreen.js?v=0.9.35';
-import { setupStudentPanel } from './student-panel.js?v=0.9.35';
+import { captureReport, setupReportPanel } from './report-panel.js?v=0.9.36';
+import { createSkeletonLayer, createCoachSkeletonSource, COACH_JOINTS } from './skeleton.js?v=0.9.36';
+import { practiceLayout } from './practice-layout.js?v=0.9.36';
+import { setupFullscreen } from './fullscreen.js?v=0.9.36';
+import { setupStudentPanel } from './student-panel.js?v=0.9.36';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.35';
-import { prepareStandingCoach } from './rig.js?v=0.9.35';
-import { setupPosePanel } from './pose-panel.js?v=0.9.35';
-import { setupVoicePanel } from './voice-panel.js?v=0.9.35';
+import { LESSONS, COURSE_DURATION, courseFrame, lessonStart, createPlayback, reducePlayback, formatTime } from './course.js?v=0.9.36';
+import { prepareStandingCoach } from './rig.js?v=0.9.36';
+import { setupPosePanel } from './pose-panel.js?v=0.9.36';
+import { setupVoicePanel } from './voice-panel.js?v=0.9.36';
 
 const runtimeLog=setupRuntimeLog({win:window,doc:document});
 window.yogaAppStarted = true;
@@ -42,7 +42,7 @@ const taskLog=new TaskPerformance({active:!document.hidden});
 let voicePanel,defaultMedia;
 let humanPanel, coachStage,coachEnvelope,autoFraming,autoInsets,dualView=false;
 let coachSkeleton,coachSkeletonSource;
-let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0,sceneTask=null;
+let renderer, camera, scene, controls, pose, lastFrame = 0, lastRender = 0,sceneTask=null,scenePhase='scheduler',sceneErrorInfo=null;
 const performancePreference=performancePreferences();
 const adaptive=new DualWorkload({onChange:d=>{runtimeLog.record('workload',{phase:'factor-change',code:`cpu-${d.cpuFactor}-gpu-${d.gpuFactor}`});posePanel?.updatePolicy();applyRenderQuality();updatePerformanceStatus();}});
 function renderProfile(){const p=performancePreference.value;return scheduler.profile({renderFPS:Math.max(5,p.renderFPS*Math.min(adaptive.cpuFactor,adaptive.gpuFactor)),renderCap:60,powerSaving:state.powerSaving});}
@@ -75,8 +75,8 @@ function dispatch(action) {
 
 let framePending = false;
 
-function showError(title, detail) {
-  renderCompletion?.stop();scheduler.block('scene-error');posePanel?.stop();voicePanel?.stopAI();runtimeLog.record('scene-error',{code:'not-ready'});memoryLog.mark('error',{module:'scene',code:'not-ready'});
+function showError(title, detail, code='not-ready') {
+  renderCompletion?.stop();scheduler.block('scene-error');posePanel?.stop();voicePanel?.stopAI();runtimeLog.record('scene-error',{code});memoryLog.mark('error',{module:'scene',code});
   voicePanel?.silence();
   humanPanel?.unavailable();
   coachSkeleton?.dispose();coachSkeleton=null;
@@ -177,9 +177,11 @@ function resize(resetCamera = false) {
 }
 
 async function init() {
+  scenePhase='webgl-context';sceneErrorInfo=null;runtimeLog.record('scene-start',{phase:scenePhase});
   memoryLog.mark('model-load-before',{module:'webgl'});
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
   renderCompletion=trackWebGLCompletion(renderer.getContext(),{onComplete:s=>{adaptive.recordGPU(s);taskLog.record('render.gpu',s.startMs,s.completedMs,{submittedMs:s.submittedMs,source:s.source});}});
+  scenePhase='scene-setup';
   applyRenderQuality();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -222,11 +224,13 @@ async function init() {
   const timeout = setTimeout(() => controller.abort(), 45000);
   let response;
   try {
+    scenePhase='model-download';
     const modelURL = document.documentElement.dataset.modelUrl || './models/luna-v1.glb';
     response = await fetch(modelURL, { signal: controller.signal });
     if (!response.ok) throw new Error(`Model HTTP ${response.status}`);
     const data = await response.arrayBuffer();
     $('loading-detail').textContent = '角色已下載，正在準備材質與骨架。';
+    scenePhase='model-decode';
     const gltf = await new GLTFLoader().parseAsync(data, new URL('.', new URL(modelURL, location.href)).href);
     const model = gltf.scene;
     model.traverse((o) => {
@@ -236,17 +240,21 @@ async function init() {
     pose = prepareStandingCoach(model);coachEnvelope=createAvatarEnvelope(model);memoryLog.mark('model-load-after',{module:'webgl'});
     coachSkeletonSource=createCoachSkeletonSource(model,coachStage);
     const studentURL=document.documentElement.dataset.studentUrl||'./models/student-v1.glb';
+    scenePhase='student-download';
     const studentResponse=await fetch(studentURL,{signal:controller.signal});
     if(!studentResponse.ok)throw new Error(`Student model HTTP ${studentResponse.status}`);
     const studentData=await studentResponse.arrayBuffer();
+    scenePhase='student-decode';
     const student=await new GLTFLoader().parseAsync(studentData,new URL('.',new URL(studentURL,location.href)).href);
     humanPanel.attach(scene,student.scene);
     voicePanel?.attachModel(model);
     state.time = 0; state.playing = false;
     setView('front');
+    scenePhase='shader-compile';
     renderer.compile(scene, camera);
     autoInsets?.dispose();autoInsets=observeStageInsets({document,viewport:$('viewport')});
     autoFraming=createAutoFraming({camera,controls,getPoints:()=>[...(coachEnvelope?.update().points||[]),...(humanPanel.framingEnvelope?.points||[])],getSize:()=>autoInsets.size,getInsets:()=>autoInsets.value});
+    scenePhase='ready';runtimeLog.record('scene-ready');
     state.ready = true;
     $('loading').hidden = true;
     for (const id of ['play', 'restart', 'seek', 'stage-play']) $(id).disabled = false;
@@ -319,7 +327,7 @@ function getCoachContext(){
   return {capturedAtMs:now,human:posePanel?.aiContext,coach:coachContext(state.ready&&coachSkeletonSource?coachSkeletonSource():null,{now,names:COACH_JOINTS,lesson:frame.lesson.id,time:state.time,ready:state.ready})};
 }
 voicePanel = setupVoicePanel({getBudget:()=>({...adaptive.caps,optionalLLM:adaptive.caps.optionalLLM&&!(renderCompletion?.diagnostics.pending>=2)}),getHint:()=>posePanel?.displayHint,publishHint:(hint,token)=>posePanel?.publishHint(hint,token),scheduler,onGPUCompletion:event=>{if(event?.clock!=='epoch-ms')return;for(const s of (event.samples||[]).slice(0,64)){const start=s.startMs-performance.timeOrigin,end=s.completedMs-performance.timeOrigin,submitted=s.submittedMs-performance.timeOrigin;adaptive.recordGPU({submittedMs:submitted,completedMs:end});taskLog.record('ai.gpu',start,end,{submittedMs:submitted,source:'webgpu-queue'});}},responseDeadlineMs:performancePreference.value.responseSeconds*1000,onMemoryEvent:({phase,code})=>{if(['LLM_RESPONSE_DEADLINE','GPU_MEMORY_ERROR','GPU_DEVICE_LOST'].includes(code))adaptive.pressure('gpu',code);memoryLog.mark(phase==='error'?'error':'boundary',{module:'webllm',phase,code});},getContext:getCoachContext, onMediaState:()=>defaultMedia?.refresh(),onRuntime:recordActivity, getState: () => state, dispatch, getPose: () => posePanel?.summary });
-setupReportPanel({onEvent:(type,data)=>{runtimeLog.record(type,data);memoryLog.mark(type.includes('error')?'error':'boundary',{module:'report',phase:type});},endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,memory:()=>{memoryLog.mark('boundary',{module:'report',phase:'capture-ready'});return memoryLog.diagnostics;},stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({taskPerformance:{...taskLog.exportTimeline(),gpuCompletion:gpuCompletionState()},scheduler:{...scheduler.diagnostics,preferences:performancePreference.value,adaptive:adaptive.diagnostics},runtime:runtimeLog.diagnostics,activity:activityLog.diagnostics,hintDisplay:hintDisplay?.diagnostics,autoFraming:$('auto-frame')?.checked?autoFraming?.diagnostics:{enabled:false},voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,personalAvatar:personalAvatar?.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',student:humanPanel.diagnostics.asset,pose:'pose_landmarker_lite/float16/1',segmentation:'disabled-default',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
+setupReportPanel({onEvent:(type,data)=>{runtimeLog.record(type,data);memoryLog.mark(type.includes('error')?'error':'boundary',{module:'report',phase:type});},endpoint:document.documentElement.dataset.reportUrl||'https://yoga2-studio-wcy.workspace-540288.chatgpt.site',capture:(id,options)=>captureReport({id,...options,memory:()=>{memoryLog.mark('boundary',{module:'report',phase:'capture-ready'});return memoryLog.diagnostics;},stage:document.querySelector('.studio'),human:humanPanel,render:()=>{if(renderer&&scene&&camera){renderer.render(scene,camera);return renderer.domElement;}return null;},screenshot:html2canvas,diagnostics:()=>({sceneStartup:{phase:scenePhase,error:sceneErrorInfo},taskPerformance:{...taskLog.exportTimeline(),gpuCompletion:gpuCompletionState()},scheduler:{...scheduler.diagnostics,preferences:performancePreference.value,adaptive:adaptive.diagnostics},runtime:runtimeLog.diagnostics,activity:activityLog.diagnostics,hintDisplay:hintDisplay?.diagnostics,autoFraming:$('auto-frame')?.checked?autoFraming?.diagnostics:{enabled:false},voice:voicePanel.diagnostics,camera:posePanel.diagnostics,human:humanPanel.diagnostics,personalAvatar:personalAvatar?.diagnostics,course:{...state,lesson:courseFrame(state.time).lesson.id},skeleton:{ai:$('ai-skeleton-toggle').checked,coach:$('coach-skeleton-toggle').checked},models:{coach:'luna-v1',student:humanPanel.diagnostics.asset,pose:'pose_landmarker_lite/float16/1',segmentation:'disabled-default',mediapipe:'0.10.32'},errors:[$('loading').hidden?null:$('loading-title').textContent,$('camera-feedback').textContent].filter(Boolean)})})});
 startScene();
 defaultMedia=setupDefaultMedia({document,camera:posePanel,voice:voicePanel,onError:()=>{ $('media-start-status').textContent='自動啟用未完成，請點擊啟用相機與語音。'; }});
 function startScene(){
@@ -327,7 +335,10 @@ function startScene(){
   sceneTask=scheduler.run('scene-load',()=>init()).catch(error=>{
     if(error.name==='AbortError'){sceneTask=null;return;}
     console.error('Yoga2 initialization failed:',error);
-    showError('暫時無法載入 3D 教練','請確認網路連線，並使用支援 WebGL 2 的新版 Safari 或 Chrome，再重新載入。');
+    const code=scenePhase==='scheduler'?'SCENE_SCHEDULER_FAILED':scenePhase==='webgl-context'?'WEBGL_CONTEXT_FAILED':scenePhase.includes('download')?'SCENE_DOWNLOAD_FAILED':scenePhase.includes('decode')?'SCENE_DECODE_FAILED':'SCENE_SETUP_FAILED';
+    sceneErrorInfo={phase:scenePhase,code,name:/^[a-zA-Z]+Error$/.test(error?.name||'')?error.name:'Error'};runtimeLog.record('scene-start-failed',sceneErrorInfo);
+    const detail=scenePhase==='scheduler'?'場景排程初始化失敗，請點版號更新後重試。':scenePhase==='webgl-context'?'無法建立 WebGL 2 畫面，請關閉其他 3D 分頁後重新載入。':scenePhase.includes('download')?'3D 模型下載失敗，請確認網路後重試。':scenePhase.includes('decode')?'3D 模型或貼圖解碼失敗，請更新網頁後重試。':'3D 場景設定失敗，請更新網頁後重試。';
+    showError('暫時無法載入 3D 教練',detail,code);
   });
 }
 
