@@ -6,7 +6,7 @@
 
 - 應用層排程、可調 3D／相機／辨識 FPS、三級自動降規、含排隊的 LLM 回覆期限與取消回收。預設 30／20 FPS、辨識 3 FPS、等待 8 秒。
 - `npm run check`：374 項通過，0 失敗／跳過；`npm run build`、`git diff --check` 通過。新測試覆蓋排程順序、背景／致命封鎖、FPS 更新競態、降規／恢復、回覆逾時、原生取消確認及卡死回收；保留既有語音回歸。
-- 發布 CI／Pages 待遠端工作流程確認；尚未完成實機三十分鐘驗收，不宣稱已修復 OOM 或 crash。
+- 實作提交 `79cb520`；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44983194543)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44983194422) 均成功，CI 含真實人像／骨架 CPU 回歸。正式 `version.json` HTTP 200 且為 `0.9.21`。尚未完成實機三十分鐘驗收，不宣稱已修復 OOM 或 crash。
 
 ## 2026-11-22 · v0.9.20
 
