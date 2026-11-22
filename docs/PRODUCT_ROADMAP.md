@@ -1,6 +1,6 @@
 # Yoga2 — Product Goal & Milestone Roadmap
 
-Updated: 2026-11-22. Status: M1 implementation delivered in v0.9.24; device and performance exit gates pending. Later milestones remain planned.
+Updated: 2026-11-22. Status: M1 accepted by project owner on 2026-11-22 (v0.9.26), #6 closed. M2 implementation in progress (v0.9.27); M3–M5 planned.
 
 ## Product Goal
 Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target yoga pose, the user's camera provides MediaPipe pose observations, a male student Avatar visualizes the user's motion, deterministic evaluation compares the observations to the course target, and timely visual/voice feedback helps the user correct the pose. Prioritize an effective **observe → evaluate → correct** loop over photorealism.
@@ -17,8 +17,8 @@ Yoga2 is a **mobile-browser Personal AI Yoga Coach**: Luna demonstrates a target
 
 | Milestone | Scope | GitHub Issues | Exit criteria |
 | --- | --- | --- | --- |
-| M1 — Dual Avatar MVP | Luna left, default male Avatar right; camera→MediaPipe→minimal retarget; remove unneeded segmentation after dependency audit | [#6](https://github.com/WangChengYeh/Yoga2/issues/6), subset of [#7](https://github.com/WangChengYeh/Yoga2/issues/7) | All three existing yoga motions follow user sufficiently for MVP; baseline performance measured |
-| M2 — Pose Accuracy | Complete Humanoid retargeting and independent Pose Evaluation Engine | [#7](https://github.com/WangChengYeh/Yoga2/issues/7), [#9](https://github.com/WangChengYeh/Yoga2/issues/9) | Deterministic, confidence-aware correction signals for three exercises; unknown/occluded poses not treated as errors |
+| M1 — Dual Avatar MVP (accepted) | Luna left, default male Avatar right; camera→MediaPipe→minimal retarget; remove unneeded segmentation after dependency audit | [#6](https://github.com/WangChengYeh/Yoga2/issues/6), subset of [#7](https://github.com/WangChengYeh/Yoga2/issues/7) | All three existing yoga motions follow user sufficiently for MVP; baseline performance measured |
+| M2 — Pose Accuracy (in progress) | Complete Humanoid retargeting and independent Pose Evaluation Engine | [#7](https://github.com/WangChengYeh/Yoga2/issues/7), [#9](https://github.com/WangChengYeh/Yoga2/issues/9) | Deterministic, confidence-aware correction signals for three exercises; unknown/occluded poses not treated as errors |
 | M3 — Coaching Feedback | Shared Hint manager, instant visual feedback, then speech/LLM routing | [#5](https://github.com/WangChengYeh/Yoga2/issues/5), [#4](https://github.com/WangChengYeh/Yoga2/issues/4) | Wrong pose→visible Hint→correction clears; speech deduplicated, nonblocking, stale responses discarded |
 | M4 — Performance & Reliability | CPU/GPU factor, latest-wins scheduling, benchmarks and sustained mobile validation | [#10](https://github.com/WangChengYeh/Yoga2/issues/10), [#11](https://github.com/WangChengYeh/Yoga2/issues/11) | iPhone 13 30-minute practice without crash or serious stalls; measured baselines and fallback behavior documented |
 | M5 — Personalized Avatar | Free, phone-side JS photo personalization, shared Humanoid Rig, IndexedDB | [#8](https://github.com/WangChengYeh/Yoga2/issues/8) | Preview, local storage/delete, reliable rig integration, default Avatar fallback; library/license and Safari PoC verified |
@@ -48,9 +48,16 @@ For each milestone: source changes + tests, representative screenshots/video, iP
 - Implemented: licensed original male skinned GLB, Luna left/student right, local-quaternion arm/leg/spine mapping, mirror side swap, interpolation, confidence/occlusion/staleness handling, fixed root/scale, optional camera debug view.
 - Source observations still feed existing deterministic observation/LLM context; the displayed Avatar does not become the evaluator. No voice pipeline refactor.
 - Default app no longer instantiates the cutout layer or requests segmentation. Legacy cutout modules and regression fixtures remain for historical comparison.
-- Automated and offline visual checks: see [M1 evidence](DUAL_AVATAR.md). Not yet accepted: iPhone Safari, real three-motion capture, before/after benchmark and sustained practice. M1 is not signed off; M2–M5 remain pending.
+- Automated and offline visual checks: see [M1 evidence](DUAL_AVATAR.md). Owner accepted M1 on 2026-11-22 after v0.9.26, and #6 is closed. This records owner acceptance; no new iPhone capture, benchmark or sustained-practice measurement is being claimed. Remaining device/performance evidence continues under #11.
 
 ## M1 follow-up — v0.9.26
 - Debug camera/skeleton occupies a separate right rail (landscape) or bottom strip (portrait), with reserved toolbar/playback space. Both avatars reframe through the existing viewport ResizeObserver.
 - Closing camera or disabling Debug restores the full viewport. Video and skeleton preserve the same letterboxing.
-- Browser layout checks cover debug on/off, hidden camera, fullscreen/embedded, orientation and camera aspect ratios. These do not replace pending device/three-motion/performance acceptance above.
+- Browser layout checks cover debug on/off, hidden camera, fullscreen/embedded, orientation and camera aspect ratios. These do not constitute new device or performance measurements.
+
+## M2 first implementation — v0.9.27
+- Independent deterministic Pose Evaluation Engine compares original MediaPipe observations with the same course motion parameters used by Luna. Three exercises, four hold windows, image-aspect-corrected arm elevation/elbow/knee metrics, arm symmetry and anatomical torso direction. No rendered-avatar input.
+- Structured hints include code, joint, severity, confidence, measurement/target/error, expiry and TTL. Three distinct samples over at least 450 ms, enter/exit hysteresis, immediate unknown/phase reset, and a 1.5-second expiry. Existing camera feedback presents the first confirmed hint; Hint Manager/LLM/TTS refactors remain M3.
+- Student retarget uses cached neutral model-space orientations and parent-relative local quaternions; repeated motion does not accumulate swing-derived twist. Prefixed names/model yaw and missing-bone diagnostics are covered.
+- #9 remains open for real capture/device acceptance; #7 remains open for full pelvis/spine/head/hand/foot orientation, explicit calibration and twist constraints. Single-camera frontal 2D angles do not establish physical 3D accuracy or chest depth.
+- See [M2 evaluation contract and remaining work](POSE_EVALUATION.md).

@@ -1,4 +1,4 @@
-import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.26';
+import { DEFAULT_CONTEXT_WINDOW, normalizeContextWindow } from './ai-context-settings.js?v=0.9.27';
 export const LOCAL_AI_CONTEXT_WINDOW=DEFAULT_CONTEXT_WINDOW;
 // Only tensor/shard data errors qualify for cache repair; never retry OOM/GPU errors.
 export const invalidModelData=error=>/Tensor-cache record range .*exceeds shard size|AI_SHARD_SIZE_MISMATCH/i.test(String(error?.message||error));

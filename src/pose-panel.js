@@ -1,24 +1,27 @@
-import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.26';
-import { cameraPreferences } from './camera-settings.js?v=0.9.26';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.26';
-import { CameraSession } from './camera-session.js?v=0.9.26';
-import { createPoseEngine } from './pose-engine.js?v=0.9.26';
-import { observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.26';
+import { PoseEvaluationEngine } from './pose-evaluation.js?v=0.9.27';
+import { createPoseDebugOverlay } from './pose-debug.js?v=0.9.27';
+import { cameraPreferences } from './camera-settings.js?v=0.9.27';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.27';
+import { CameraSession } from './camera-session.js?v=0.9.27';
+import { createPoseEngine } from './pose-engine.js?v=0.9.27';
+import { feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.27';
 
-export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
+export function setupPosePanel({ scheduler=null,createSession=options=>new CameraSession(options),onEvaluationTiming=()=>{},now=()=>performance.now(),setTimer=(fn,ms)=>setTimeout(fn,ms),clearTimer=id=>clearTimeout(id),getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);
   const preference=cameraPreferences();$('camera-fps').value=String(preference.value.cameraFPS);$('analysis-fps').value=String(preference.value.analysisFPS);
   const video = $('camera-video'), overlay = $('camera-overlay'), preview = $('camera-preview');
   const debugOverlay=createPoseDebugOverlay({canvas:overlay,enabled:()=>Boolean($('camera-debug')?.checked)});
   const lightCanvas = document.createElement('canvas'); lightCanvas.width = lightCanvas.height = 16;
   const lightContext = lightCanvas.getContext('2d', { willReadFrequently: true });
-  const filter = new FeedbackFilter();
+  const evaluator = new PoseEvaluationEngine();
+  let evaluationTimer=null;
+  function resetEvaluation(){clearTimer(evaluationTimer);evaluationTimer=null;evaluator.reset();latestObservation=null;}
   let key = null,latestObservation=null;
   let summary = {valid:false,message:'',updatedAt:0};
   const getKey = () => feedbackKey(getFrame(), isPlaying());
   const clear = () => debugOverlay.clear();
   function feedback(message, kind = 'info') {
-    summary = { valid: kind === 'observed' || kind === 'hint', message, updatedAt: performance.now() };
+    summary = { valid: kind === 'observed' || kind === 'hint', message, updatedAt: now() };
     $('camera-feedback').textContent = message;
     $('camera-feedback').dataset.kind = kind;
   }
@@ -29,7 +32,7 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
   const effective=()=>({camera:Math.min(preference.value.cameraFPS,getCaps().camera),analysis:Math.min(preference.value.analysisFPS,getCaps().analysis),maxSide:getCaps().maxSide});
   const updatePolicy=()=>{void session.setFPS(effective().camera);fpsStatus();};
   function fpsStatus(){const f=session.fpsDiagnostics;const text=`相機選擇 ${preference.value.cameraFPS} FPS，生效上限 ${f.requested} FPS，協商 ${f.negotiated??'未知'} FPS；辨識上限 ${effective().analysis} FPS。${f.status==='failed'?'設定失敗，維持原串流。':f.status==='unsupported'?'此瀏覽器不支援即時調整，重新開相機才套用。':''}`;$('camera-fps-status').textContent=text;}
-  const session = new CameraSession({scheduler,onTiming,onSourceFrame,requestedFPS:preference.value.cameraFPS,onFPS:fps=>{fpsStatus();onRuntime('camera-fps',{phase:fps.status,requestedFPS:fps.requested,negotiatedFPS:fps.negotiated,analysisFPS:preference.value.analysisFPS,code:fps.error||'none'});},
+  const session = createSession({scheduler,onTiming,onSourceFrame,requestedFPS:preference.value.cameraFPS,onFPS:fps=>{fpsStatus();onRuntime('camera-fps',{phase:fps.status,requestedFPS:fps.requested,negotiatedFPS:fps.negotiated,analysisFPS:preference.value.analysisFPS,code:fps.error||'none'});},
     video, mediaDevices: navigator.mediaDevices, secure: window.isSecureContext,
     createEngine: signal => createPoseEngine({ moduleUrl: `${sdkRoot}vision_bundle.mjs`, wasmRoot: `${sdkRoot}wasm`, modelUrl, segmentationModelUrl },{onMemoryEvent,signal}),
     minInterval: () => Math.max(isPowerSaving()?350:0,1000/Math.min(effective().camera,effective().analysis)),
@@ -51,12 +54,12 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
       $('camera-toggle').setAttribute('aria-pressed', running);
       $('camera-status').textContent = phase === 'active' ? '本機觀察中' : phase === 'requesting' ? '等待相機權限' : phase === 'loading' ? '準備辨識中' : phase === 'error' ? '暫時無法啟用' : '相機未開啟';
       preview.hidden = !showPreview;
-      if (phase !== 'active') { latestObservation=null; clear(); filter.reset(); key = null; }
+      if (phase !== 'active') { latestObservation=null; clear(); resetEvaluation(); key = null; }
       feedback(message, phase === 'error' ? 'setup' : 'info');
       onMediaState();
       document.querySelector('.studio').classList.toggle('camera-on', showPreview);
     },
-    onStale: () => {latestObservation=null;onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); filter.reset(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
+    onStale: () => {latestObservation=null;onRuntime('camera-stale',{phase:session.engine?.diagnostics?.stage||'unknown'}); human?.stale(); clear(); resetEvaluation(); feedback('相機畫面未及時更新，暫停動作判斷。', 'setup'); },
     onResult: (data, now) => {
       human?.accept({...data,aspect:video.videoWidth/video.videoHeight},now);
       if (video.videoWidth && video.videoHeight) {
@@ -64,9 +67,13 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
         overlay.width = video.videoWidth; overlay.height = video.videoHeight;
       }
       debugOverlay.update(data,now);
-      if (!isFreshResult(data, getKey(), now)) { filter.reset(); return; }
-      const observation = observePose(data.landmarks, data.context.frame, { playing: data.context.playing, aspect: video.videoWidth / video.videoHeight, brightness: data.brightness });
-      const stable = filter.update(observation, data.context.key, now);
+      if (!isFreshResult(data, getKey(), now)) { resetEvaluation(); feedback('等待目前課程的新關節資料。'); return; }
+      const started=performance.now();
+      const stable=evaluator.update(data,data.context.frame,{now,playing:data.context.playing,aspect:video.videoWidth/video.videoHeight});
+      const observation=evaluator.raw||stable;
+      const finished=performance.now();onEvaluationTiming(started,finished);
+      clearTimer(evaluationTimer);
+      if(stable.expiresAt!==null)evaluationTimer=setTimer(()=>{resetEvaluation();feedback('相機關節資料已過期，等待新的觀察。','setup');},Math.max(0,stable.expiresAt-now));
       latestObservation=humanObservation(data,observation,stable);
       onObservation(data,observation,stable);
       feedback(stable.message, stable.kind);
@@ -90,12 +97,12 @@ export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis
     get memoryStatus(){const settings=session.stream?.getVideoTracks?.()[0]?.getSettings?.()||{};return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),fps:session.fpsDiagnostics,phase:session.phase,video:{width:video.videoWidth,height:video.videoHeight,negotiatedFPS:settings.frameRate??null,oneRGBAFrameBytesEstimate:video.videoWidth*video.videoHeight*4,decoderBuffersBytes:null},pipeline:session.diagnostics};},
     get aiContext(){return humanContext(latestObservation,{now:performance.now(),phase:session.phase,lesson:getFrame().lesson.id,videoWidth:video.videoWidth,videoHeight:video.videoHeight});},
     get active() { return session.phase === 'active'; },
-    get diagnostics(){return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
-    get summary() { return { ...summary, active: session.phase === 'active' }; },
+    get diagnostics(){return {settings:preference.value,effective:effective(),processingFPSCap:Math.min(effective().camera,effective().analysis),phase:session.phase,mode:session.engine?.mode||null,pipeline:session.diagnostics,summary:{...summary},evaluation:evaluator.snapshot(now()),video:{width:video.videoWidth,height:video.videoHeight,readyState:video.readyState}};},
+    get summary() { return { ...summary,valid:summary.valid&&evaluator.snapshot(now()).valid, active: session.phase === 'active' }; },
     contextChanged() {
       const next = getKey();
       if (key !== next) {
-        key = next; filter.reset(); clear();
+        key = next; resetEvaluation(); clear();
         if (session.phase === 'active') feedback('正在確認目前動作，畫面穩定後提供觀察。');
       }
     },

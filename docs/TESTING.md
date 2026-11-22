@@ -112,3 +112,10 @@ npm run test:portrait
 - Preview browser geometry QA: **36/36 passed**. `node scripts/prepare-debug-layout-qa.mjs`, then open `/debug-layout-qa.html`. Uses production HTML/CSS and fullscreen control relocation; checks desktop/phone landscape/phone portrait, embedded/fullscreen, Debug enabled/disabled/camera hidden, 3:4/16:9 input. Checks geometry and matching video/canvas letterboxing without camera, microphone or AI initialization.
 - Existing `test:settings-layout` could not start local Chrome in this executor (`socket() Operation not permitted`); preview-browser QA used for this change. No iPhone Safari or sustained device performance acceptance claimed.
 - Runtime studio viewport is observed by the existing ResizeObserver, which reframes both Avatars when Debug becomes visible, is disabled, or camera closes.
+
+## v0.9.27 — M2 first increment
+
+- `npm run check`: **424/424 passed**, including new pose evaluation, camera panel lifecycle and neutral-reference retarget regression tests.
+- `npm run build`: passed. Root Pages entry synchronized and release URLs stamped v0.9.27.
+- Browser ESM smoke test: **12/12 passed**, using the built evaluation module with synthetic landmarks (three exercises/four holds, deviations, mirror, occlusion, temporal confirmation, correction clearing and expiry). Reproduce with `node scripts/prepare-evaluation-qa.mjs`, then open `/m2-evaluation-qa.html` in the preview browser.
+- Tests do not establish real three-motion accuracy, iPhone Safari acceptance or sustained performance. #7/#9 remain open; scope and remaining work are in [POSE_EVALUATION.md](POSE_EVALUATION.md).
