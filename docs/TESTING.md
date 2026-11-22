@@ -1,6 +1,6 @@
 # 測試與驗收
 
-現行開發版本 v0.9.22。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
+現行開發版本 v0.9.23。執行紀錄與發布狀態見 [VALIDATION](logs/VALIDATION.md)；歷史測試數量不代表目前結果。
 
 ## 重現自動檢查
 
@@ -13,7 +13,7 @@ npm run test:portrait
 
 `check` 包含語法檢查與 Node 測試；`build` 驗證素材並產生靜態網站。人像整合另需 Python 3.12 與 CPU 執行依賴，準備方式見 [fixtures](../tests/fixtures/README.md)。CI 每次 main 推送重跑上述檢查，並確認根目錄首頁與共用介面同步。
 
-本機最新已完成 387 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
+本機最新已完成 399 項 Node 測試與建置。人像整合為獨立 5 項，不能未執行就併入通過數。
 
 ## 功能與測試對照
 
@@ -94,3 +94,9 @@ npm run test:portrait
 `task-performance` 驗證 CPU 平行 200%、GPU 重疊去重、排隊獨立、背景排除、跨區間／零時間／小於 1 ms、30 分鐘容量、基準與匯出隔離；`task-performance-panel` 驗證線上 loading、超過 100% 曲線、FPS、起訖、基準／設定切換、背景不刷新、重啟與清除；`camera-session` 驗證獨立影格回呼／停止後忽略與不支援降級；`cutout` 驗證四個 CPU 子階段獨立計時及原結果釋放；`fullscreen-tools` 驗證監測面板的搬移。
 
 仍需手機驗收：開面板／收起面板的額外負載、持續 30 分鐘、調低 FPS 前後的實測差異。CPU loading 是 task 時間近似值，不將測試替身當作系統核心使用率或真正 GPU 利用率。
+
+## v0.9.23 GPU 完成通知
+
+`gpu-completion` 驗證 fence 提交後才完成、零 timeout 輪詢、容量／逾時／失效／背景清除、WebGPU 原回傳與 receiver 保留、checkpoint 合併、批次通知、reject／遲到／清理、readonly 降級、queue 數量限制、upload 操作攔截與原方法還原。`task-performance` 驗證只計完成通知、提交／回覆不冒充、時間軸與通知延遲；`task-performance-panel` 驗證未知不畫零曲線與 pending／失敗狀態；`local-ai` 驗證 forwarding、不影響回覆與舊 worker 忽略。
+
+手機驗收仍待：Safari fence／GPUQueue hook 支援、完成延遲／略過比例、開啟監測額外成本與三十分鐘穩定。完成通知耗時不是純 GPU execution，與 v0.9.22 數值定義不同，不直接跨版比較 loading。

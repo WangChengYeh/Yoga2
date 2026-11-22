@@ -1,5 +1,12 @@
 # 版本變更日誌
 
+## v0.9.23
+
+- GPU task 結束改為完成通知：3D 使用 WebGL2 fence、零等待輪詢；LLM 使用 WebGPU queue.onSubmittedWorkDone checkpoints，涵蓋 submit／可攔截的 buffer、texture 上傳。
+- 提交 API、模型載入及回覆往返保留另列，不再當成 GPU 完成；CPU 平行累加不變。
+- 面板／除錯包記提交、完成、提交後延遲與支援／pending／逾時／略過狀態；未知 GPU 圖線不畫成零。
+- fence 最多 4 筆、queue 最多 4 個待確認狀態，10 秒逾時；LLM 250 ms 批次送出。完成／失敗後不保留 queue 強參照，背景取消 fence；不阻塞既有模型、語音或渲染等待結果。
+
 ## v0.9.22
 
 - 加入線上 task 效能面板：1／5／15／30 分鐘 loading 趨勢、主要任務耗時／起訖、觀測 FPS、基準比較。

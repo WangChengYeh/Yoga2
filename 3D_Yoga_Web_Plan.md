@@ -66,6 +66,10 @@
 
 以主要 task 起訖及 CPU／GPU 分類估算負載，CPU 平行時間重疊累加、LLM 全歸 GPU、GPU task 重疊去重。網頁可看最近 1／5／15／30 分鐘的趨勢、FPS、主要任務與基準比較，再逐項調整 FPS；資料隨除錯包匯出。定義與限制見 [task 監測](docs/TASK_PERFORMANCE.md)。
 
+## v0.9.23 GPU 完成通知
+
+GPU loading 改採收到完成通知為結束：3D fence、LLM queue checkpoints；提交／完成／延遲及未知／失敗／pending 進線上面板與 ZIP，不用 API 返回冒充 GPU 完成。CPU 平行累加維持原規則。詳見 [task 監測](docs/TASK_PERFORMANCE.md)。
+
 ## 下一輪優先事項
 
 - 在目標手機驗收 v0.9.10 啟動後招呼、標準 AI 載入及非同步語音播放；保存具體錯誤碼，避免猜測原因。

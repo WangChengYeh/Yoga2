@@ -3,7 +3,7 @@
 手機網頁的女性 3D 教練，結合三動作帶練、真人去背入場、AI 骨架與語音互動。
 
 - 網站：[GitHub Pages](https://wangchengyeh.github.io/Yoga2/)
-- 目前發布版本：**v0.9.22**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
+- 目前發布版本：**v0.9.23**。發布／驗證結果見 [測試與驗收](docs/TESTING.md)。網站右上角版號可檢查更新。
 - 文件入口：[docs/README.md](docs/README.md)
 
 ## 使用方式
@@ -22,7 +22,7 @@
 
 ## 線上 CPU／GPU task loading
 
-展開「CPU／GPU 長時間效能監測」（全螢幕在「⋯」）查看 1／5／15／30 分鐘趨勢、主要 task 占比／起訖、近五秒與區間平均 FPS。「記錄基準」後調整 FPS 可比較前後。CPU 平行重疊累加，允許超過 100%；LLM 全歸 GPU，GPU task 重疊只計一次。這是依應用 task 時間的 loading 估算，非硬體使用率。詳見 [監測規則](docs/TASK_PERFORMANCE.md)。
+展開「CPU／GPU 長時間效能監測」（全螢幕在「⋯」）查看 1／5／15／30 分鐘趨勢、主要 task 占比／起訖、近五秒與區間平均 FPS。「記錄基準」後調整 FPS 可比較前後。CPU 平行重疊累加，允許超過 100%；LLM 全歸 GPU；GPU task 改以收到完成通知為結束（3D fence、LLM queue），重疊只計一次，提交／載入／回覆往返另列。面板可看提交秒、完成秒、提交後延遲與 pending／失敗／略過；沒有通知就不冒充完成。這是含排隊與通知延遲的 loading 估算，非純 GPU 運算或硬體使用率。詳見 [監測規則](docs/TASK_PERFORMANCE.md)。
 
 ## AI 與語音
 

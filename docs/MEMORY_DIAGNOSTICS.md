@@ -40,3 +40,6 @@ v0.9.21：每份記憶體快照另含 `scheduler`，記錄排程 active／queued
 
 
 v0.9.22：`taskPerformance` 納入每次記憶體快照，只有四個視窗的匯總與基準，不反覆複製每秒明細。完整報告 `diagnostics.json.taskPerformance` 另帶最近三十分鐘每秒 bucket／最近起訖；loading 定義見 [task 監測](TASK_PERFORMANCE.md)。
+
+
+v0.9.23：taskPerformance schema 2，以完成通知為 GPU 結束；gpuCompletion 分開記錄 render／llm 的 supported、status、pending、completed、failed、skipped，LLM 另記 hooks。recentSpans 包含 submittedMs／endMs／completionLatencyMs／source；失敗不生成假完成區段。

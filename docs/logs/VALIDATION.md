@@ -2,6 +2,12 @@
 
 日期採台灣時間；下表只記錄已有證據的執行結果。不將替身測試視為手機驗收，也不將本機通過視為已發布。
 
+## 2026-11-22 · v0.9.23
+
+- GPU 區段結束改採 WebGL fence／WebGPU queue 完成通知，保留 API／SDK 往返另列。未知留空，容量／逾時／生命週期／來源與通知延遲進面板及 ZIP。
+- `npm run check`：399 項通過，0 失敗／跳過；`npm run build`、`git diff --check` 通過。涵蓋真完成時序、非阻塞查詢、批次與 queue 不保留、原生 API 語意、reject／逾時／遲到／readonly、GPU 統計定義與 UI。
+- CI／Pages 待發布確認。iPhone 實際支援、觀測開銷、三十分鐘與真正 GPU 利用率未驗收；完成通知含排隊／通知延遲。
+
 ## 2026-11-22 · v0.9.22
 
 - 依使用者修正，採 task 起訖／CPU／GPU 歸類估算 loading：CPU 重疊累加，LLM 全歸 GPU task；GPU 區段去重、排隊另列。線上面板 1／5／15／30 分鐘、基準比較、觀測 FPS 與除錯包。

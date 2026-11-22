@@ -1,8 +1,8 @@
-import { cameraPreferences } from './camera-settings.js?v=0.9.22';
-import { humanObservation, humanContext } from './coach-context.js?v=0.9.22';
-import { CameraSession } from './camera-session.js?v=0.9.22';
-import { createPoseEngine } from './pose-engine.js?v=0.9.22';
-import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.22';
+import { cameraPreferences } from './camera-settings.js?v=0.9.23';
+import { humanObservation, humanContext } from './coach-context.js?v=0.9.23';
+import { CameraSession } from './camera-session.js?v=0.9.23';
+import { createPoseEngine } from './pose-engine.js?v=0.9.23';
+import { CONNECTIONS, visible, observePose, FeedbackFilter, feedbackKey, isFreshResult } from './pose-rules.js?v=0.9.23';
 
 export function setupPosePanel({ scheduler=null,getCaps=()=>({camera:60,analysis:15,maxSide:512}),onTiming=()=>{},onSourceFrame=()=>{},getFrame, isPlaying, isPowerSaving, human, onMediaState=()=>{},onRuntime=()=>{},onObservation=()=>{},onMemoryEvent=()=>{} }) {
   const $ = (id) => document.getElementById(id);

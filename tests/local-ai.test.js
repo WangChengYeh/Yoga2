@@ -1,3 +1,4 @@
+import { trackWebGPUCompletion } from '../src/gpu-completion.js';
 import { WorkloadScheduler } from '../src/workload-scheduler.js';
 import { trackWebGPU } from '../src/gpu-memory-tracker.js';
 import { normalizeContextWindow } from '../src/ai-context-settings.js';
@@ -6,9 +7,9 @@ import { aiErrorDetail, aiErrorCode, cleanAIText, aiFailureMessage } from '../sr
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {LocalCoachAI,localAIMessages} from '../src/local-ai.js';
-function harness({supported=true,adapter=true,scheduler=null,responseDeadlineMs=8000}={}){
+function harness({supported=true,adapter=true,scheduler=null,responseDeadlineMs=8000,onGPUCompletion=()=>{}}={}){
   const workers=[],states=[],timers=new Map();let gpuCalls=0;
-  const ai=new LocalCoachAI({scheduler,responseDeadlineMs,gpu:supported?{async requestAdapter(){gpuCalls++;return adapter?{features:new Set(['shader-f16'])}:null;}}:null,
+  const ai=new LocalCoachAI({scheduler,responseDeadlineMs,onGPUCompletion,gpu:supported?{async requestAdapter(){gpuCalls++;return adapter?{features:new Set(['shader-f16'])}:null;}}:null,
     createWorker:()=>{const w={messages:[],postMessage(m){this.messages.push(m);},terminate(){this.terminated=true;}};workers.push(w);return w;},
     onState:s=>states.push(s),setTimer:(fn,ms)=>{timers.set(ms,fn);return ms;},clearTimer:id=>timers.delete(id)});
   return {ai,workers,states,timers,get gpuCalls(){return gpuCalls;},ready(){workers.at(-1).onmessage({data:{type:'ready'}});}};
@@ -58,7 +59,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
   const messages=[],reloads=[],requests=[];let fail=false;
   class Engine{constructor(options){this.options=options;this.chat={completions:{create:async request=>{requests.push(request);if(fail)throw Error('GPU lost');return {choices:[{message:{content:'自然呼吸。'}}]};}}};}async reload(...args){reloads.push(args);this.options.initProgressCallback({progress:1});}}
   const self={postMessage:m=>messages.push(m)};
-  runInNewContext(source.replace(/^import .*;\n/gm,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()'),{self,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(half?['shader-f16']:[])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,loadSDK:async()=>({MLCEngine:Engine})});
+  runInNewContext(source.replace(/^import .*;\n/gm,'').replace("import('https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.89/+esm')",'loadSDK()'),{self,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(half?['shader-f16']:[])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,trackWebGPUCompletion,loadSDK:async()=>({MLCEngine:Engine})});
   await self.onmessage({data:{type:'load',half,contextWindow}});assert.match(reloads[0][0],half?/q4f16_1/:/q4f32_1/);assert.equal(reloads[0][1].context_window_size,contextWindow);assert.equal(messages.find(m=>m.type==='model-info').contextWindow,contextWindow);assert.equal(messages.at(-1).type,'ready');
   await self.onmessage({data:{type:'ask',id:8,messages:localAIMessages('肩膀怎麼放？',{time:0})}});
   assert.equal(messages.at(-1).id,8);assert.equal(messages.at(-1).text,'自然呼吸。');assert.equal(requests[0].max_tokens,160);assert.equal(requests[0].stream,false);
@@ -69,7 +70,7 @@ test('production worker initializes supported SDK/model then returns bounded tex
 
 test('diagnostics distinguish absent API, null GPU adapter, thrown GPU error and worker startup',async()=>{
  for(const [options,code] of [[{supported:false},'WEBGPU_UNAVAILABLE'],[{adapter:false},'GPU_ADAPTER_NULL']]){
-  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.22');
+  const h=harness(options);await h.ai.enable();assert.equal(h.ai.diagnostics.failure.code,code);assert.match(h.states.at(-1).message,new RegExp(code));assert.equal(h.ai.diagnostics.environment.version,'0.9.23');
  }
  const gpu=harness();gpu.ai.gpu.requestAdapter=async()=>{throw new DOMException('GPU process unavailable','OperationError');};await gpu.ai.enable();
  assert.equal(gpu.ai.diagnostics.failure.code,'GPU_ADAPTER_ERROR');assert.equal(gpu.ai.diagnostics.failure.error.name,'OperationError');assert.match(gpu.states.at(-1).message,/GPU process unavailable/);
@@ -102,7 +103,7 @@ test('worker separately diagnoses GPU availability, SDK import failure and model
   const sent=[],self={postMessage:m=>sent.push(m)};
   const navigator=scenario==='no-api'?{}:{gpu:{requestAdapter:async()=>scenario==='null-adapter'?null:{features:new Set(['shader-f16'])}}};
   class Engine{constructor(){ }async reload(){if(scenario==='download'){await globalFetch('https://models.test/weights.bin?token=secret');throw Error('Failed download HTTP 403');}throw Object.assign(new Error('Failed to allocate GPU buffer'),{name:'GPUOutOfMemoryError'});}}
-  let globalFetch;const context={self,navigator,URL,setTimeout,clearTimeout,aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,loadSDK:async()=>{if(scenario==='sdk')throw new TypeError('Failed to fetch dynamically imported module');return {MLCEngine:Engine};},fetch:async()=>({ok:false,status:403})};
+  let globalFetch;const context={self,navigator,URL,setTimeout,clearTimeout,aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,trackWebGPUCompletion,loadSDK:async()=>{if(scenario==='sdk')throw new TypeError('Failed to fetch dynamically imported module');return {MLCEngine:Engine};},fetch:async()=>({ok:false,status:403})};
   runInNewContext(source,context);globalFetch=context.fetch;
   await self.onmessage({data:{type:'load',half:true}});const error=sent.at(-1);
   assert.equal(error.type,'error');assert.equal(error.code,({'no-api':'WORKER_GPU_UNAVAILABLE','null-adapter':'WORKER_GPU_ADAPTER_NULL',sdk:'SDK_LOAD_ERROR',memory:'GPU_MEMORY_ERROR',download:'RESOURCE_LOAD_ERROR'})[scenario]);
@@ -174,7 +175,7 @@ test('worker serializes overlapping inference and ignores cancelled replies',asy
   interruptGenerate(){interrupts++;}
  }
  const self={postMessage:m=>sent.push(m)};
- runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,loadSDK:async()=>({MLCEngine:Engine})});
+ runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,trackWebGPUCompletion,loadSDK:async()=>({MLCEngine:Engine})});
  await self.onmessage({data:{type:'load'}});
  const first=self.onmessage({data:{type:'ask',id:1,kind:'guidance',messages:[]}});
  await Promise.resolve();await Promise.resolve();
@@ -199,7 +200,7 @@ test('worker skips a queued request cancelled before it starts',async()=>{
   interruptGenerate(){}
  }
  const self={postMessage:m=>sent.push(m)};
- runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,loadSDK:async()=>({MLCEngine:Engine})});
+ runInNewContext(source,{self,URL,setTimeout,clearTimeout,navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},aiErrorDetail,aiErrorCode,cleanAIText,loadLocalModel,checkedShardResponse,LOCAL_AI_CONTEXT_WINDOW,normalizeContextWindow,trackWebGPU,trackWebGPUCompletion,loadSDK:async()=>({MLCEngine:Engine})});
  await self.onmessage({data:{type:'load'}});
  const first=self.onmessage({data:{type:'ask',id:1,messages:[]}});
  await Promise.resolve();await Promise.resolve();
@@ -264,3 +265,4 @@ test('native cancellation that never acknowledges terminates worker before relea
 test('successful replies clear deadline, use fresh context after admission, and future limits are configurable',async()=>{
  const scheduler=new WorkloadScheduler(),h=harness({scheduler});await h.ai.enable();h.ready();const release=await scheduler.acquire('vision-frame');let refreshed=0;const p=h.ai.ask('hello',{time:0},null,()=>{refreshed++;return null;});h.ai.setResponseDeadline(15000);assert.equal(h.timers.has(8000),true);assert.equal(refreshed,0);release();await Promise.resolve();assert.equal(refreshed,1);const w=h.workers[0],id=w.messages.at(-1).id;w.onmessage({data:{type:'inference-done',id}});w.onmessage({data:{type:'reply',id,text:'hello'}});assert.equal(await p,'hello');assert.equal(h.timers.size,0);const next=h.ai.ask('next',{time:0});assert.equal(h.timers.has(15000),true);h.ai.disable();await next;assert.equal(h.timers.size,0);
 });
+test('worker completion telemetry is forwarded without delaying reply and stale workers cannot append',async()=>{const events=[],h=harness({onGPUCompletion:e=>events.push(e)});await h.ai.enable();h.ready();const w=h.workers[0],late=w.onmessage;w.onmessage({data:{type:'gpu-completion',event:{type:'completed',clock:'epoch-ms',samples:[{startMs:1,submittedMs:2,completedMs:3}],status:{supported:true,pending:0,status:'observing'}}}});assert.equal(events.length,1);assert.equal(h.ai.memoryStatus.gpuCompletion.supported,true);h.ai.disable();assert.equal(h.ai.memoryStatus.gpuCompletion.status,'worker-stopped');late({data:{type:'gpu-completion',event:{}}});assert.equal(events.length,1);});

@@ -1,13 +1,13 @@
-import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.22';
-import { APP_VERSION } from './release.js?v=0.9.22';
-import { AIGuidance } from './ai-guidance.js?v=0.9.22';
-import { LocalCoachAI } from './local-ai.js?v=0.9.22';
-import { CourseNarrator } from './guidance.js?v=0.9.22';
-import { VoiceSession } from './voice-session.js?v=0.9.22';
-import { respondToUtterance } from './voice-intents.js?v=0.9.22';
-import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.22';
+import { contextPreference, contextLabel } from './ai-context-settings.js?v=0.9.23';
+import { APP_VERSION } from './release.js?v=0.9.23';
+import { AIGuidance } from './ai-guidance.js?v=0.9.23';
+import { LocalCoachAI } from './local-ai.js?v=0.9.23';
+import { CourseNarrator } from './guidance.js?v=0.9.23';
+import { VoiceSession } from './voice-session.js?v=0.9.23';
+import { respondToUtterance } from './voice-intents.js?v=0.9.23';
+import { createMouthMotion, mouthAmount } from './mouth.js?v=0.9.23';
 
-export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, scheduler=null, responseDeadlineMs=8000, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
+export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>null, scheduler=null, onGPUCompletion=()=>{}, responseDeadlineMs=8000, onMemoryEvent=()=>{}, createAI=options=>new LocalCoachAI(options), onMediaState=()=>{},onRuntime=()=>{} }) {
   const $=(id)=>document.getElementById(id);
   const preference=contextPreference();$('ai-context-window').value=String(preference.value);
   $('ai-context-status').textContent=`已選擇 ${contextLabel(preference.value)}，等待載入。`;
@@ -17,7 +17,7 @@ export function setupVoicePanel({ getState, dispatch, getPose, getContext=()=>nu
   const aiStatus=$('local-ai-status');
   let welcomeAttempted=false,welcomeDelivered=false,welcomeCompleted=false,welcomeEngaged=false,welcomePreparing=false,welcomeSerial=0,welcomeTextReady='';
   const welcomeText='嗨，我是 Luna。今天想先聊聊，還是一起伸展？不用急，我會陪你慢慢來。';
-  const ai=createAI({scheduler,responseDeadlineMs,onMemoryEvent,onState:({phase,message})=>{
+  const ai=createAI({scheduler,onGPUCompletion,responseDeadlineMs,onMemoryEvent,onState:({phase,message})=>{
     onRuntime('ai',{selected:preference.value,loading:ai.diagnostics?.context?.loading,active:ai.diagnostics?.context?.active,phase,code:phase==='error'?ai.diagnostics?.failure?.code:'none',source:ai.diagnostics?.stage||phase});
     const context=ai.diagnostics?.context,mode=contextLabel(preference.value);
     $('ai-context-status').textContent=context?.active?`已啟用 ${contextLabel(context.active)}`:`已選擇 ${mode} · ${phase==='error'?'載入失敗':phase==='off'?'尚未啟用':'準備中'}`;
