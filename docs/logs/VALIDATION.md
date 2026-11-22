@@ -6,7 +6,7 @@
 
 - GPU 區段結束改採 WebGL fence／WebGPU queue 完成通知，保留 API／SDK 往返另列。未知留空，容量／逾時／生命週期／來源與通知延遲進面板及 ZIP。
 - `npm run check`：399 項通過，0 失敗／跳過；`npm run build`、`git diff --check` 通過。涵蓋真完成時序、非阻塞查詢、批次與 queue 不保留、原生 API 語意、reject／逾時／遲到／readonly、GPU 統計定義與 UI。
-- CI／Pages 待發布確認。iPhone 實際支援、觀測開銷、三十分鐘與真正 GPU 利用率未驗收；完成通知含排隊／通知延遲。
+- 實作提交 `415b2a7`；GitHub [CI](https://github.com/WangChengYeh/Yoga2/actions/runs/44988095709)／[Pages](https://github.com/WangChengYeh/Yoga2/actions/runs/44988095214) 均成功，包含真實人像／骨架 CPU 回歸。正式 version.json HTTP 200 且為 0.9.23。iPhone 實際支援、觀測開銷、三十分鐘與真正 GPU 利用率未驗收；完成通知含排隊／通知延遲。
 
 ## 2026-11-22 · v0.9.22
 
