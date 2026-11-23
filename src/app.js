@@ -55,7 +55,8 @@ const scheduler=new WorkloadScheduler({onEvent:e=>{if(e.kind!=='vision-frame')ru
 scheduler.setHidden(document.hidden);adaptive.setHidden(document.hidden);
 const memoryLog=setupMemoryDiagnostics({collect:()=>({taskPerformance:{...taskLog.memoryStatus,gpuCompletion:gpuCompletionState()},scheduler:{...scheduler.diagnostics,preferences:performancePreference.value,adaptive:adaptive.diagnostics},webllm:voicePanel?.memoryStatus||null,webgl:webglMemory(renderer,scene),camera:posePanel?.memoryStatus||null,human:humanPanel?.memoryStatus||null,personalAvatar:personalAvatar?.diagnostics||null}),requestWorker:()=>voicePanel?.requestMemory()});
 function gpuCompletionState(){return {render:renderCompletion?.diagnostics||{status:'initializing'},llm:voicePanel?.memoryStatus?.gpuCompletion||{status:'initializing'}};}
-function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView,fov:camera.fov});}
+function studentOnly(){return dualView && $('student-only').checked;}
+function currentLayout(){return practiceLayout({aspect:camera.aspect,paired:dualView&&!studentOnly(),fov:camera.fov});}
 const lessonButtons = [];
 for (const [index, lesson] of LESSONS.entries()) {
   const button = document.createElement('button');
@@ -252,7 +253,7 @@ async function init() {
     scenePhase='shader-compile';
     renderer.compile(scene, camera);
     autoInsets?.dispose();autoInsets=observeStageInsets({document,viewport:$('viewport')});
-    autoFraming=createAutoFraming({fill:.97,camera,controls,getPoints:()=>[...(coachEnvelope?.update().points||[]),...(humanPanel.framingEnvelope?.points||[])],getSize:()=>autoInsets.size,getInsets:()=>autoInsets.value});
+    autoFraming=createAutoFraming({fill:.97,camera,controls,getPoints:()=>[...(studentOnly()?[]:coachEnvelope?.update().points||[]),...(humanPanel.framingEnvelope?.points||[])],getSize:()=>autoInsets.size,getInsets:()=>autoInsets.value});
     scenePhase='ready';runtimeLog.record('scene-ready');
     state.ready = true;
     $('loading').hidden = true;
@@ -289,7 +290,9 @@ function animate(now) {
   if(coachStage&&state.ready){
     const yaw=Math.atan2(camera.position.x-controls.target.x,camera.position.z-controls.target.z);
     const fit=currentLayout();
-    if($('auto-frame').checked&&humanPanel.stagePosition){const pairFitStarted=performance.now(),separation=pairSpacing.update({coachPoints:coachEnvelope.update().points,studentPoints:humanPanel.framingEnvelope.points,coachOrigin:coachStage.position,studentOrigin:humanPanel.stagePosition,yaw,now});fit.coachX=-separation/2;fit.humanX=separation/2;taskLog.record('framing.cpu',pairFitStarted,performance.now());}
+    coachStage.visible=!studentOnly();
+    if(studentOnly())fit.humanX=0;
+    else if($('auto-frame').checked&&humanPanel.stagePosition){const pairFitStarted=performance.now(),separation=pairSpacing.update({coachPoints:coachEnvelope.update().points,studentPoints:humanPanel.framingEnvelope.points,coachOrigin:coachStage.position,studentOrigin:humanPanel.stagePosition,yaw,now});fit.coachX=-separation/2;fit.humanX=separation/2;taskLog.record('framing.cpu',pairFitStarted,performance.now());}
     layoutAvatarPair({coachStage,studentPanel:humanPanel,yaw,fit});
   }
   if(state.ready&&coachSkeletonSource&&$('coach-skeleton-toggle').checked){
@@ -309,6 +312,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.playing) dispatch({ type: 'pause' });
 });
 $('coach-skeleton-toggle').addEventListener('change',()=>{if(!$('coach-skeleton-toggle').checked){coachSkeleton?.dispose();coachSkeleton=null;}});
+$('student-only').addEventListener('change',()=>{pairSpacing.reset();resize(true);});
 const fullscreenTools=setupFullscreenTools({document});
 const fullscreen=setupFullscreen({document,window,onChange:active=>{fullscreenTools.setActive(active);resize(true);}});
 humanPanel=setupStudentPanel({document,onLayout:enabled=>{dualView=enabled;if(coachStage)coachStage.position.x=enabled?-1:0;resize(true);}});
