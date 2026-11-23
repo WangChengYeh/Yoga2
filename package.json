@@ -1,6 +1,6 @@
 {
   "name": "yoga2-studio",
-  "version": "0.9.40",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "scripts": {

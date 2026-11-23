@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {inspectGLBBytes,validateGLBProfile} from './glb-file.js?v=0.9.40';
-import {inspectHumanoidRig} from './humanoid-rig.js?v=0.9.40';
-import {disposeAvatar} from './personal-avatar.js?v=0.9.40';
+import {inspectGLBBytes,validateGLBProfile} from './glb-file.js?v=0.10.0';
+import {inspectHumanoidRig} from './humanoid-rig.js?v=0.10.0';
+import {disposeAvatar} from './personal-avatar.js?v=0.10.0';
 export async function loadUploadedAvatar(profile){
  const valid=validateGLBProfile(profile),bytes=await valid.glb.arrayBuffer();inspectGLBBytes(bytes);
  const manager=new THREE.LoadingManager();manager.setURLModifier(url=>{if(!url.startsWith('blob:')&&!url.startsWith('data:'))throw new Error('GLB 不可讀取外部檔案。');return url;});

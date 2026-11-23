@@ -1,4 +1,4 @@
-import { APP_VERSION } from './release.js?v=0.9.40';
+import { APP_VERSION } from './release.js?v=0.10.0';
 export const AI_STAGE_NAMES={idle:'尚未啟動',environment:'瀏覽器環境',adapter:'取得 GPU',worker:'啟動背景執行緒',workerGpu:'背景 GPU 檢查（最多 10 秒）',sdk:'下載 AI 程式',model:'下載／載入模型',repair:'清除此模型快取並重新下載（只重試一次）',ready:'模型就緒',inference:'產生回答'};
 const descriptions={
  INSECURE_CONTEXT:'頁面不是安全環境，瀏覽器可能不開放 WebGPU。請用 HTTPS 開啟正式網站。',
