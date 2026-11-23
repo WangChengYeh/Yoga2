@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {prepareStandingCoach} from './rig.js?v=0.9.40';
-import {motionAt} from './course.js?v=0.9.40';
-import {inspectHumanoidRig} from './humanoid-rig.js?v=0.9.40';
-import {AVATAR_VIEWS,BODY_WIDTH,BODY_HEIGHT,decodeAvatarPhoto,validateProfile,normalizeViewRect} from './avatar-profile.js?v=0.9.40';
+import {prepareStandingCoach} from './rig.js?v=0.10.0';
+import {motionAt} from './course.js?v=0.10.0';
+import {inspectHumanoidRig} from './humanoid-rig.js?v=0.10.0';
+import {AVATAR_VIEWS,BODY_WIDTH,BODY_HEIGHT,decodeAvatarPhoto,validateProfile,normalizeViewRect} from './avatar-profile.js?v=0.10.0';
 // Scanline silhouette correspondence matches each leg/arm interval separately,
 // rather than projecting the empty gap between photo legs onto model skin.
 export function mergeIntervals(ranges,gap=.005){const out=[];for(const r of ranges.sort((a,b)=>a[0]-b[0])){const last=out.at(-1);if(last&&r[0]<=last[1]+gap)last[1]=Math.max(last[1],r[1]);else out.push([...r]);}return out;}
@@ -91,6 +91,6 @@ export function avatarTemplateURL({document=globalThis.document,baseURL=globalTh
 export async function createThreeViewAvatar(profile,{decode=decodeAvatarPhoto,loadTemplate=async()=>{const url=avatarTemplateURL({document});try{return (await new GLTFLoader().loadAsync(url)).scene;}catch(error){throw Object.assign(new Error('Avatar template could not load'),{code:'AVATAR_TEMPLATE_LOAD',cause:error});}},document=globalThis.document}={}){
  const value=validateProfile(profile),canvases={};let model,texture;
  try{for(const k of AVATAR_VIEWS){const c=await decode(value.views[k]);canvases[k]=c;if(c.width!==BODY_WIDTH||c.height!==BODY_HEIGHT)throw new Error('三視圖貼圖尺寸不相容。');}texture=makeThreeViewAtlas(canvases,{document});model=await loadTemplate();if(!inspectHumanoidRig(model).diagnostics.compatible)throw new Error('基底骨架不相容。');projectThreeViews(model,{texture,referenceArmDeg:value.referenceArmDeg,viewRects:value.viewRects,document});return model;}
- catch(error){texture?.dispose();if(texture?.image)texture.image.width=texture.image.height=0;if(model){const {disposeAvatar}=await import('./personal-avatar.js?v=0.9.40');disposeAvatar(model);}throw error;}
+ catch(error){texture?.dispose();if(texture?.image)texture.image.width=texture.image.height=0;if(model){const {disposeAvatar}=await import('./personal-avatar.js?v=0.10.0');disposeAvatar(model);}throw error;}
  finally{for(const c of Object.values(canvases))c.width=c.height=0;}
 }
